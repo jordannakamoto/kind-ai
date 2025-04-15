@@ -6,6 +6,8 @@ import { supabase } from '@/supabase/client';
 
 const WEBHOOK_SECRET = process.env.ELEVENLABS_WEBHOOK_SECRET;
 
+
+// Verify the webhook signature
 function isSignatureValid(rawBody: string, signatureHeader: string | null): boolean {
   if (!WEBHOOK_SECRET || !signatureHeader) return false;
 
