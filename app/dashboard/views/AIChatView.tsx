@@ -215,7 +215,7 @@ export default function ElevenLabsConversation() {
       setConversationId(conversationId);
 
       // Redis record lasts for 10 minutes
-      await fetch('/api/cache-session', {
+      await fetch('/api/ai-therapist/cache-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ conversationId, userId: selectedUser.id }),
