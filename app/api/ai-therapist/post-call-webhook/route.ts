@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import crypto from 'crypto';
+import { redis } from '@/redis/client'; // Ensure this exports `Redis.fromEnv()`
 import { supabase } from '@/supabase/client';
 
 const WEBHOOK_SECRET = process.env.ELEVENLABS_WEBHOOK_SECRET;
 
+// Signature verification
 function isSignatureValid(rawBody: string, signatureHeader: string | null): boolean {
   if (!WEBHOOK_SECRET || !signatureHeader) return false;
 
@@ -36,39 +38,34 @@ export async function POST(req: NextRequest) {
     const payload = JSON.parse(rawBody);
     console.log('📬 Payload received:', JSON.stringify(payload, null, 2));
 
-    const {
-      conversation_id,
-      analysis,
-      metadata,
-      transcript,
-      custom,
-    } = payload;
+    const { conversation_id, analysis, metadata, transcript } = payload;
 
-    const userEmail = typeof custom?.user_email === 'string' ? custom.user_email : null;
-    if (!conversation_id || !userEmail) {
-      console.warn('❌ Missing conversation_id or user_email');
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!conversation_id) {
+      console.warn('❌ Missing conversation_id');
+      return NextResponse.json({ error: 'Missing conversation_id' }, { status: 400 });
     }
 
-    console.log(`🔍 Looking up user: ${userEmail}`);
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', userEmail)
-      .single();
-
-    if (userError || !user) {
-      console.warn(`❌ User not found: ${userEmail}`);
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // 🔍 Look up userId from Redis
+    type RedisSessionData = {
+      userId: string;
+    };
+    
+    const redisData = await redis.get<RedisSessionData>(conversation_id);
+    const userId = redisData?.userId || null;
+    
+    if (!userId) {
+      console.warn('❌ No user_id found for conversation in Redis');
+      return NextResponse.json({ error: 'Missing user_id from Redis' }, { status: 400 });
     }
 
+    // 📝 Format transcript
     const formattedTranscript = (Array.isArray(transcript) ? transcript : [])
       .filter((t) => t.message && t.role)
       .map((t) => `${t.role}: ${t.message}`)
       .join('\n');
 
     const sessionPayload = {
-      user_id: user.id,
+      user_id: userId,
       conversation_id,
       summary: analysis?.transcript_summary || '',
       transcript: formattedTranscript,
@@ -79,18 +76,15 @@ export async function POST(req: NextRequest) {
     };
 
     console.log('📝 Inserting session into Supabase...');
-    const { error: insertError } = await supabase
-      .from('sessions')
-      .insert(sessionPayload);
+    const { error: insertError } = await supabase.from('sessions').insert(sessionPayload);
 
     if (insertError) {
       console.error('❌ Error inserting session:', insertError.message);
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
-    console.log(`✅ Session saved for ${userEmail} (${conversation_id})`);
+    console.log(`✅ Session saved successfully for conversation: ${conversation_id}`);
     return NextResponse.json({ success: true });
-
   } catch (err: any) {
     console.error('[Webhook Error]', err.message || err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

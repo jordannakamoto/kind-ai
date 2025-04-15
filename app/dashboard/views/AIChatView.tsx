@@ -5,6 +5,7 @@ import * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
 
 import { ElevenLabsClient } from "elevenlabs";
+import {redis} from '@/redis/client';
 import { supabase } from '@/supabase/client';
 import { useConversation } from '@11labs/react';
 
@@ -33,6 +34,7 @@ async function getSignedUrl(userEmail: string) {
 }
 
 interface User {
+  id: string;
   bio: string;
   therapy_summary: string;
   themes: string;
@@ -116,7 +118,7 @@ export default function ElevenLabsConversation() {
         // Fetch users
         const { data: userData, error: userError } = await supabase
           .from('users')
-          .select('bio, therapy_summary, themes, goals, email')
+          .select('id, bio, therapy_summary, themes, goals, email')
           .order('bio');
         
         if (userError) throw userError;
@@ -211,6 +213,10 @@ export default function ElevenLabsConversation() {
       });
   
       setConversationId(conversationId);
+
+      // Redis record lasts for 10 minutes
+      await redis.setex(conversationId, 600, { userId: selectedUser.id });
+      
       console.log("Conversation started:", conversationId);
     } catch (err) {
       console.error("Error starting conversation:", err);
