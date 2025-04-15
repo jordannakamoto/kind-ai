@@ -215,8 +215,12 @@ export default function ElevenLabsConversation() {
       setConversationId(conversationId);
 
       // Redis record lasts for 10 minutes
-      await redis.setex(conversationId, 600, { userId: selectedUser.id });
-      
+      await fetch('/api/cache-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId, userId: selectedUser.id }),
+      });
+            
       console.log("Conversation started:", conversationId);
     } catch (err) {
       console.error("Error starting conversation:", err);
