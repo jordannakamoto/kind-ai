@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export async function GET() {
+    return NextResponse.json({ status: 'Webhook route is live' });
+  }
+  
 export async function POST(req: NextRequest) {
   console.log('📥 Webhook POST endpoint hit');
 
@@ -13,5 +17,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
 
 export const dynamic = 'force-dynamic';
