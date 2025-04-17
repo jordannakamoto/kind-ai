@@ -33,7 +33,7 @@ export default function UserDashboard() {
       case 'profile':
         return <ProfileView user={user} />;
       case 'sessions':
-        return <SessionViews />;
+        return <SessionsView />;
       default:
         return <div>Welcome</div>;
     }
