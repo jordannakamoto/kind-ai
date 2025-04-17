@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@11labs/react": "^0.1.3",
+    "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.3",
     "@upstash/redis": "^1.34.8",
     "elevenlabs": "^1.56.1",

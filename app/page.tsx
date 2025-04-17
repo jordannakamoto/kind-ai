@@ -68,7 +68,7 @@ export default function LandingPage() {
 
           {/* Heading */}
           <h2 className="text-2xl font-semibold text-center text-gray-800">Sign In</h2>
-          <p className="text-sm text-center text-gray-500">Logging into your admin panel</p>
+          <p className="text-sm text-center text-gray-500">Logging into the Kind Demo</p>
           {/* Google Sign In */}
           <button
             onClick={handleOAuth}
