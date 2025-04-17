@@ -59,8 +59,7 @@ export default function AdminDashboard() {
       {/* Sidebar */}
       <aside className="w-60 bg-white shadow-lg p-4 flex flex-col border-r border-gray-100">
         <div className="mb-5">
-          <h2 className="text-xl font-bold text-gray-800">Admin Portal</h2>
-          <p className="text-gray-500 text-xs mt-1">Manage your application</p>
+          <h2 className="text-xl font-bold text-gray-800">kind</h2>
         </div>
         
         <nav className="space-y-1 flex-1">

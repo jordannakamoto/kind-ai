@@ -4,8 +4,6 @@ import * as React from 'react';
 
 import { useEffect, useRef, useState } from 'react';
 
-import { ElevenLabsClient } from "elevenlabs";
-import {redis} from '@/redis/client';
 import { supabase } from '@/supabase/client';
 import { useConversation } from '@11labs/react';
 
@@ -20,7 +18,6 @@ async function requestMicrophonePermission() {
   }
 }
 
-// Function to get signed URL
 // Function to get signed URL
 async function getSignedUrl(userEmail: string) {
   const res = await fetch(`/api/elevenlabs-connection?user_email=${encodeURIComponent(userEmail)}`);
