@@ -19,7 +19,7 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  console.log('[Middleware] Cookies:', request.cookies.getAll());
+  // console.log('[Middleware] Cookies:', request.cookies.getAll());
 
   const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;

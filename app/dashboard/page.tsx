@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 
+import DiscoverView from './views/DiscoverView';
 import HomeView from './views/HomeView';
 import ProfileView from './views/ProfileView';
+import ProgressView from './views/ProgressView';
 import SessionsView from './views/SessionsView';
 import { supabase } from '@/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -11,7 +13,7 @@ import { useRouter } from 'next/navigation';
 export default function UserDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [activeView, setActiveView] = useState<'home' | 'profile' | 'sessions'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'discover' | 'bio' | 'sessions' | 'progress'>('home');
 
   useEffect(() => {
     const validateSession = async () => {
@@ -30,10 +32,14 @@ export default function UserDashboard() {
     switch (activeView) {
       case 'home':
         return <HomeView />;
-      case 'profile':
+      case 'discover':
+          return <DiscoverView />;
+      case 'bio':
         return <ProfileView user={user} />;
       case 'sessions':
         return <SessionsView />;
+      case 'progress':
+          return <ProgressView />;
       default:
         return <div>Welcome</div>;
     }
@@ -47,7 +53,7 @@ export default function UserDashboard() {
           <h2 className="text-xl font-bold text-gray-800">kind</h2>
         </div>
         <nav className="space-y-1 flex-1">
-          {['home', 'profile', 'sessions'].map(view => (
+          {['home', 'discover', 'bio', 'sessions', 'progress'].map(view => (
             <button
               key={view}
               onClick={() => setActiveView(view as any)}
@@ -68,7 +74,7 @@ export default function UserDashboard() {
               <p className="text-xs font-medium text-gray-800 truncate">
                 {user?.email || 'User'}
               </p>
-              <p className="text-xs text-gray-500">Client</p>
+              <p className="text-xs text-gray-500">{user?.subscription || 'Professional'}</p>
             </div>
           </div>
           <button
