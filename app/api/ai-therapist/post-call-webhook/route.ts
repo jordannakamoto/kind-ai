@@ -6,8 +6,7 @@ import { redis } from '@/redis/client';
 import { supabase } from '@/supabase/client';
 
 const WEBHOOK_SECRET = process.env.ELEVENLABS_WEBHOOK_SECRET;
-const client = new OpenAI(); // Uses process.env.OPENAI_API_KEY
-
+const client = new OpenAI();
 
 function isSignatureValid(rawBody: string, signatureHeader: string | null): boolean {
   if (!WEBHOOK_SECRET || !signatureHeader) return false;
@@ -22,11 +21,7 @@ function isSignatureValid(rawBody: string, signatureHeader: string | null): bool
   return digest === signature;
 }
 
-type TranscriptMessage = {
-  message: string;
-  role: 'agent' | 'user' | string;
-};
-
+type TranscriptMessage = { message: string; role: 'agent' | 'user' | string };
 function transformTranscript(transcriptArray: TranscriptMessage[]): string {
   return transcriptArray
     .filter((t) => t.message && t.role)
@@ -37,26 +32,130 @@ function transformTranscript(transcriptArray: TranscriptMessage[]): string {
     .join('\n');
 }
 
-async function getClientFacingSummary(transcript: string): Promise<string> {
-  const input = `Summarize this therapy session for the client to read and get insight from:\n\n${transcript}`;
+type ParsedTherapyInsights = {
+  summary: string;
+  goals: string[];
+  themes: string[];
+  bio: string;
+};
+
+function parseTherapyInsights(raw: string): ParsedTherapyInsights {
+  const extract = (label: string) => {
+    const match = raw.match(new RegExp(`${label}:\\s*([\\s\\S]*?)(?=\\n\\w+:|$)`, 'i'));
+    return match?.[1]?.trim() ?? '';
+  };
+
+  return {
+    summary: extract('Summary'),
+    goals: extract('Goals')
+      .split('\n')
+      .map((g) => g.replace(/^-/, '').trim())
+      .filter(Boolean),
+    themes: extract('Themes')
+      .split('\n')
+      .map((t) => t.replace(/^-/, '').trim())
+      .filter(Boolean),
+    bio: extract('Bio'),
+  };
+}
+
+async function getTherapyInsights(transcript: string): Promise<ParsedTherapyInsights> {
+  const input = `
+You are an AI therapy assistant helping summarize therapy sessions. Analyze the transcript below and return the following four outputs.
+
+1. A brief summary of the session written in a warm, client-facing tone. Avoid headers.
+2. A "Goals:" section listing any specific tasks or goals the client expressed. Only include this if applicable.
+3. A "Themes:" section listing 3–5 emotional or therapeutic themes discussed (e.g. anxiety, relationships, motivation). Only include this if applicable.
+4. A "Bio:" section containing any new biographical information that might enrich the client's bio. Only include this if applicable.
+
+Format the response as:
+
+Summary:
+<session summary>
+
+Goals:
+- <goal 1>
+- <goal 2>
+
+Themes:
+- <theme 1>
+- <theme 2>
+
+Bio:
+<short paragraph about new personal insights>
+
+Transcript:
+${transcript}
+  `;
 
   const response = await client.responses.create({
     model: 'gpt-4o-mini',
     input,
   });
 
-  return response.output_text.trim();
+  return parseTherapyInsights(response.output_text.trim());
+}
+
+async function synthesizeUpdatedProfile({
+  oldBio,
+  oldSummary,
+  oldGoals,
+  oldThemes,
+  newInsights,
+}: {
+  oldBio: string;
+  oldSummary: string;
+  oldGoals: string[];
+  oldThemes: string[];
+  newInsights: ParsedTherapyInsights;
+}) {
+  const prompt = `
+You are an assistant helping maintain a therapy profile. Your job is to synthesize updated fields by comparing the old and new data.
+
+Respond with updated values only. Return nothing else.
+
+Format:
+Bio:
+<updated bio>
+
+TherapySummary:
+<updated therapy summary>
+
+Goals:
+- <goal 1>
+- <goal 2>
+
+Themes:
+- <theme 1>
+- <theme 2>
+
+Old Data:
+Bio: ${oldBio}
+TherapySummary: ${oldSummary}
+Goals: ${oldGoals.join(', ')}
+Themes: ${oldThemes.join(', ')}
+
+New Session Data:
+Bio: ${newInsights.bio}
+Summary: ${newInsights.summary}
+Goals: ${newInsights.goals.join(', ')}
+Themes: ${newInsights.themes.join(', ')}
+`;
+
+  const response = await client.responses.create({
+    model: 'gpt-4o-mini',
+    input: prompt,
+  });
+
+  return parseTherapyInsights(response.output_text.trim());
 }
 
 export async function POST(req: NextRequest) {
-  console.log('📥 Webhook POST endpoint hit');
-
   try {
     const rawBody = await req.text();
     const signatureHeader = req.headers.get('elevenlabs-signature');
 
     if (!isSignatureValid(rawBody, signatureHeader)) {
-      console.warn('❌ Invalid webhook signature');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -71,33 +170,49 @@ export async function POST(req: NextRequest) {
     }
 
     const redisData = await redis.get<{ userId: string }>(conversation_id);
-    const userId = redisData?.userId ?? null;
+    const userId = redisData?.userId;
     if (!userId) {
       return NextResponse.json({ error: 'Missing user_id from Redis' }, { status: 400 });
     }
 
-    // 🧠 Format and summarize transcript
-    const transformedTranscript = transformTranscript(transcript);
-    const summary = await getClientFacingSummary(transformedTranscript);
+    const { data: userRecord } = await supabase
+      .from('users')
+      .select('bio, therapy_summary, themes, goals')
+      .eq('id', userId)
+      .single();
 
-    const sessionPayload = {
+    const transcriptString = transformTranscript(transcript);
+    const newInsights = await getTherapyInsights(transcriptString);
+
+    const synthesized = await synthesizeUpdatedProfile({
+      oldBio: userRecord?.bio ?? '',
+      oldSummary: userRecord?.therapy_summary ?? '',
+      oldGoals: userRecord?.goals?.split('\n') ?? [],
+      oldThemes: userRecord?.themes?.split(',')?.map((t: string) => t.trim()) ?? [],      newInsights,
+    });
+
+    // Save session
+    await supabase.from('sessions').insert({
       user_id: userId,
       conversation_id,
-      summary,
-      transcript: transformedTranscript,
+      summary: newInsights.summary,
+      transcript: transcriptString,
       duration: metadata?.call_duration_secs ?? null,
       title: `Therapy Session – ${new Date().toLocaleDateString()}`,
-    };
+    });
 
-    const { error: insertError } = await supabase.from('sessions').insert(sessionPayload);
-    if (insertError) {
-      console.error('❌ Error inserting session:', insertError.message);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
-    }
+    // Update user profile
+    await supabase
+      .from('users')
+      .update({
+        bio: synthesized.bio,
+        therapy_summary: synthesized.summary,
+        goals: synthesized.goals.join('\n'),
+        themes: synthesized.themes.join(', '),
+      })
+      .eq('id', userId);
 
-    console.log(`✅ Session saved for user: ${userId}`);
     return NextResponse.json({ success: true });
-
   } catch (err: any) {
     console.error('[Webhook Error]', err.message || err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
