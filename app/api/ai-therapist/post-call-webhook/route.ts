@@ -22,10 +22,19 @@ function isSignatureValid(rawBody: string, signatureHeader: string | null): bool
   return digest === signature;
 }
 
-function transformTranscript(rawTranscript: string): string {
-  return rawTranscript
-    .replace(/\bagent:/gi, 'therapist:')
-    .replace(/\buser:/gi, 'you:');
+type TranscriptMessage = {
+  message: string;
+  role: 'agent' | 'user' | string;
+};
+
+function transformTranscript(transcriptArray: TranscriptMessage[]): string {
+  return transcriptArray
+    .filter((t) => t.message && t.role)
+    .map((t) => {
+      const speaker = t.role === 'agent' ? 'therapist' : t.role === 'user' ? 'you' : t.role;
+      return `${speaker}: ${t.message}`;
+    })
+    .join('\n');
 }
 
 async function getClientFacingSummary(transcript: string): Promise<string> {
