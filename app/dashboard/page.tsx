@@ -35,7 +35,7 @@ export default function UserDashboard() {
       case 'discover':
           return <DiscoverView />;
       case 'bio':
-        return <ProfileView user={user} />;
+        return <ProfileView/>;
       case 'sessions':
         return <SessionsView />;
       case 'progress':
