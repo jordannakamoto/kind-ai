@@ -1,0 +1,1 @@
+combines client profile with session module template to generate a personalized session agenda

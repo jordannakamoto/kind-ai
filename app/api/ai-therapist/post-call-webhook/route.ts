@@ -110,7 +110,17 @@ async function synthesizeUpdatedProfile({
   newInsights: ParsedTherapyInsights;
 }) {
   const prompt = `
-You are an assistant helping maintain a therapy profile. Your job is to synthesize updated fields by comparing the old and new data.
+You are an assistant helping maintain a therapy profile. YDO NOT simply copy the new bio or summary. Instead, use it to improve or subtly extend the existing content.
+
+The **Bio** should be written in the **third person**, as if describing the client from a therapist's perspective.  
+It should start naturally, e.g., "A 31-year-old student who..." or "Someone who is currently exploring..."  
+Avoid first-person phrases like "I" or "my."
+
+The **Therapy Summary** should reflect overall progress, topics, etc.
+
+The **Themes** should track therapy-relevant recurring themes over time.
+
+Incorporate new insights only if they are not already represented.
 
 Respond with updated values only. Return nothing else.
 

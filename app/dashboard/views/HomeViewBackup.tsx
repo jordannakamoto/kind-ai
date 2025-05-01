@@ -11,7 +11,6 @@ export default function UserCheckInConversation() {
   const [amplitude, setAmplitude] = useState(0);
   const [started, setStarted] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [loadingVars, setLoadingVars] = useState(true); // ✅
 
   const varsRef = useRef<{
     userProfile: string;
@@ -59,7 +58,6 @@ export default function UserCheckInConversation() {
         data: { user: authUser },
       } = await supabase.auth.getUser();
       if (!authUser) return;
-
       setUser({ id: authUser.id, email: authUser.email! });
 
       const { data: profile } = await supabase
@@ -68,33 +66,29 @@ export default function UserCheckInConversation() {
         .eq('id', authUser.id)
         .single();
 
+      const { data: module } = await supabase
+        .from('therapy_modules')
+        .select('greeting, instructions, agenda')
+        .eq('name', 'Default Daily Check In')
+        .single();
+
       const { data: prompt } = await supabase
         .from('system_prompts')
         .select('prompt')
         .eq('name', 'Conversational 1')
         .single();
 
-      const synthRes = await fetch('/api/ai-therapist/synthesize-therapy-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: authUser.id }),
-      });
-
-      const module = await synthRes.json();
-
-      if (!profile || !module || !prompt) {
-        console.warn('Missing user context data:', { profile, module, prompt });
-        return;
-      }
-
-      varsRef.current = {
-        userProfile: `Bio: ${profile.bio}\nTherapy Summary: ${profile.therapy_summary}\nThemes: ${profile.themes}\nGoals: ${profile.goals}`,
-        therapyModule: `Instructions: ${module.instructions}\nAgenda: ${module.agenda}`,
-        greeting: module.greeting,
-        systemPrompt: prompt.prompt,
-      };
-
-      setLoadingVars(false); // ✅ done loading
+        if (!profile || !module || !prompt) {
+          console.warn("Missing user context data:", { profile, module, prompt });
+          return;
+        }
+        
+        varsRef.current = {
+          userProfile: `Bio: ${profile.bio}\nTherapy Summary: ${profile.therapy_summary}\nThemes: ${profile.themes}\nGoals: ${profile.goals}`,
+          therapyModule: `Instructions: ${module.instructions}\nAgenda: ${module.agenda}`,
+          greeting: module.greeting,
+          systemPrompt: prompt.prompt,
+        };
     };
 
     fetchUserContext();
@@ -119,7 +113,7 @@ export default function UserCheckInConversation() {
   }, [started, conversation.isSpeaking]);
 
   const startConversation = async () => {
-    if (!user || loadingVars) return;
+    if (!user) return;
 
     const res = await fetch(`/api/elevenlabs-connection?user_email=${user.email}`);
     const { signedUrl } = await res.json();
@@ -152,14 +146,6 @@ export default function UserCheckInConversation() {
       .toString()
       .padStart(2, '0')}`;
 
-  if (loadingVars) {
-    return (
-      <div className="w-full max-w-2xl mx-auto py-10 px-4 text-center text-gray-500">
-        Preparing your personalized check-in...
-      </div>
-    );
-  }
-
   return (
     <div className="w-full max-w-2xl mx-auto py-10 px-4 flex items-center justify-between transition-all duration-300">
       {/* Left Panel */}
@@ -175,11 +161,8 @@ export default function UserCheckInConversation() {
         </p>
       </div>
 
-      {/* Orb */}
-      <div
-        className="relative flex items-center justify-center"
-        style={{ width: '200px', height: '200px' }}
-      >
+      {/* Orb Wrapper */}
+      <div className="relative flex items-center justify-center" style={{ width: '200px', height: '200px' }}>
         <div
           className="absolute rounded-full transition-transform duration-100 ease-in-out"
           style={{
@@ -200,6 +183,7 @@ export default function UserCheckInConversation() {
         {started && agentMessage && (
           <p className="text-sm max-w-[180px] text-right text-gray-700 leading-snug">{agentMessage}</p>
         )}
+
         {started && (
           <button className="flex items-center gap-2 hover:text-black">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -212,6 +196,7 @@ export default function UserCheckInConversation() {
             <span className="text-sm">Mute</span>
           </button>
         )}
+
         {started ? (
           <button onClick={stopConversation} className="flex items-center gap-2 hover:text-black">
             <div className="w-3 h-3 bg-red-500 rounded-sm" />
@@ -220,10 +205,9 @@ export default function UserCheckInConversation() {
         ) : (
           <button
             onClick={startConversation}
-            className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 text-sm disabled:opacity-50"
-            disabled={loadingVars}
+            className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 text-sm"
           >
-            {loadingVars ? 'Loading...' : 'Start Check-In'}
+            Start Check-In
           </button>
         )}
       </div>
