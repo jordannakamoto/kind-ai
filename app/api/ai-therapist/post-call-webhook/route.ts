@@ -112,11 +112,14 @@ async function synthesizeUpdatedProfile({
   const prompt = `
 You are an assistant helping maintain a therapy profile. YDO NOT simply copy the new bio or summary. Instead, use it to improve or subtly extend the existing content.
 
-The **Bio** should be written in the **third person**, as if describing the client from a therapist's perspective.  
-It should start naturally, e.g., "A 31-year-old student who..." or "Someone who is currently exploring..."  
-Avoid first-person phrases like "I" or "my."
+The **Bio** should be written as a brief descriptive profile. 
+It should sound like a therapist’s case summary or intake note, using phrases like:
 
-The **Therapy Summary** should reflect overall progress, topics, etc.
+- “A <descriptive> person who ...”
+
+Avoid first-person phrasing like “I” or “my”. Use clear, concise observations, not speculation or analysis.
+
+The **Therapy Summary** should be a summary of all sessions not just the current one being integrated. reflect overall progress, topics, etc.
 
 The **Themes** should track therapy-relevant recurring themes over time.
 
