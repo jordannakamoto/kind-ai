@@ -63,7 +63,7 @@ async function getTherapyInsights(transcript: string): Promise<ParsedTherapyInsi
   const input = `
 You are an AI therapy assistant helping summarize therapy sessions. Analyze the transcript below and return the following four outputs.
 
-1. A brief summary of the session written in a warm, client-facing tone. Avoid headers.
+1. A brief summary of the session written in a second-person "you" - warm, client-facing tone. Avoid headers.
 2. A "Goals:" section listing any specific tasks or goals the client expressed. Only include this if applicable.
 3. A "Themes:" section listing 3–5 emotional or therapeutic themes discussed (e.g. anxiety, relationships, motivation). Only include this if applicable.
 4. A "Bio:" section containing any new biographical information that might enrich the client's bio. Only include this if applicable.
@@ -118,8 +118,12 @@ It should sound like a therapist’s case summary or intake note, using phrases 
 - “A <descriptive> person who ...”
 
 Avoid first-person phrasing like “I” or “my”. Use clear, concise observations, not speculation or analysis.
+The final compiled bio should be very readable and at maximum 4 sentences.
 
-The **Therapy Summary** should be a summary of all sessions not just the current one being integrated. reflect overall progress, topics, etc.
+The **Therapy Summary** should be a therapist's summary/observations of all sessions not just the current one being integrated. reflect overall progress, topics, etc.
+The final compiled therapy Summary should be very readable and at maximum 4 sentences.
+
+The **Goals** should move old goals down the list and prepend new ones to the top.
 
 The **Themes** should track therapy-relevant recurring themes over time.
 

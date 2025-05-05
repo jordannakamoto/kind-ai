@@ -1,5 +1,6 @@
 'use client';
 
+import { CalendarCheck, Compass, Home, LineChart, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import DiscoverView from './views/DiscoverView';
@@ -9,6 +10,7 @@ import ProgressView from './views/ProgressView';
 import SessionsView from './views/SessionsView';
 import { supabase } from '@/supabase/client';
 import { useRouter } from 'next/navigation';
+import { type ReactElement } from 'react';
 
 export default function UserDashboard() {
   const router = useRouter();
@@ -27,6 +29,7 @@ export default function UserDashboard() {
     };
     validateSession();
   }, [router]);
+  
 
   const renderView = () => {
     switch (activeView) {
@@ -45,25 +48,34 @@ export default function UserDashboard() {
     }
   };
 
+  const viewIcons: Record<string, ReactElement> = {
+    home: <Home className="w-4 h-4" />,
+    discover: <Compass className="w-4 h-4" />,
+    bio: <User className="w-4 h-4" />,
+    sessions: <CalendarCheck className="w-4 h-4" />,
+    progress: <LineChart className="w-4 h-4" />,
+  };
+
   return (
-    <main className="min-h-screen bg-gray-50 flex">
+    <main className="h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <aside className="w-60 bg-white shadow-lg p-4 flex flex-col border-r border-gray-100">
-        <div className="mb-5">
-          <h2 className="text-xl font-bold text-gray-800">kind</h2>
+      <aside className="w-60 bg-neutral-50 flex flex-col ">
+        <div className="pl-4 mt-6 mb-2">
+          <h2 className="text-xl font-bold pl-4 pt-4 text-gray-800">kind</h2>
         </div>
-        <nav className="space-y-1 flex-1">
-          {['home', 'discover', 'bio', 'sessions', 'progress'].map(view => (
-            <button
-              key={view}
-              onClick={() => setActiveView(view as any)}
-              className={`w-full text-left py-2 px-3 rounded-lg transition-all duration-200 ${
-                activeView === view ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              {view.charAt(0).toUpperCase() + view.slice(1)}
-            </button>
-          ))}
+        <nav className="space-y-1 p-5 flex-1">
+        {['home', 'discover', 'bio', 'sessions', 'progress'].map(view => (
+          <button
+            key={view}
+            onClick={() => setActiveView(view as any)}
+            className={`w-full flex items-center gap-2 text-left py-2 px-3 rounded-lg transition-all duration-200 ${
+              activeView === view ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            {viewIcons[view]}
+            <span>{view.charAt(0).toUpperCase() + view.slice(1)}</span>
+          </button>
+        ))}
         </nav>
         <div className="mt-4 pt-4 border-t border-gray-100">
           <div className="flex items-center mb-3 px-1">
@@ -90,7 +102,7 @@ export default function UserDashboard() {
       </aside>
 
       {/* Main Content */}
-      <section className="flex-1 p-8 overflow-auto">{renderView()}</section>
+      <section className="flex-1 p-8 overflow-y-auto">{renderView()}</section>
     </main>
   );
 }
