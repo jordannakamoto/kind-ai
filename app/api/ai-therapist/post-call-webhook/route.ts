@@ -65,12 +65,16 @@ async function getTherapyInsights(transcript: string): Promise<ParsedTherapyInsi
   const input = `
 You are an AI therapy assistant helping summarize therapy sessions. Analyze the transcript below and return the following four outputs.
 
-1. A brief summary of the session written in a second-person "you" - warm, client-facing tone. Avoid headers.
-2. A "Goals:" section listing any specific tasks or goals the client expressed. Only include this if applicable.
-3. A "Themes:" section listing 3–5 emotional or therapeutic themes discussed (e.g. anxiety, relationships, motivation). Only include this if applicable.
-4. A "Bio:" section containing any new biographical information that might enrich the client's bio. Only include this if applicable.
+1. A relevant session title. Avoid quotes or emojis. Use Title Case.
+2. A brief summary of the session written in a second-person "you" - warm, client-facing tone. Avoid headers.
+3. A "Goals:" section listing any specific tasks or goals the client expressed. Only include this if applicable.
+4. A "Themes:" section listing 3–5 emotional or therapeutic themes discussed (e.g. anxiety, relationships, motivation). Only include this if applicable.
+5. A "Bio:" section containing any new biographical information that might enrich the client's bio. Only include this if applicable.
 
 Format the response as:
+
+Title:
+<session title>
 
 Summary:
 <session summary>
