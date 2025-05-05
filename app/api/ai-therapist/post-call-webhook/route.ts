@@ -33,6 +33,7 @@ function transformTranscript(transcriptArray: TranscriptMessage[]): string {
 }
 
 type ParsedTherapyInsights = {
+  title: string;
   summary: string;
   goals: string[];
   themes: string[];
@@ -46,6 +47,7 @@ function parseTherapyInsights(raw: string): ParsedTherapyInsights {
   };
 
   return {
+    title: extract('Title'),
     summary: extract('Summary'),
     goals: extract('Goals')
       .split('\n')
@@ -132,6 +134,10 @@ Incorporate new insights only if they are not already represented.
 Respond with updated values only. Return nothing else.
 
 Format:
+
+Title:
+<a short and relevant session title Avoid quotes or emojis. Use Title Case.>
+
 Bio:
 <updated bio>
 
@@ -215,7 +221,7 @@ export async function POST(req: NextRequest) {
       summary: newInsights.summary,
       transcript: transcriptString,
       duration: metadata?.call_duration_secs ?? null,
-      title: `Therapy Session – ${new Date().toLocaleDateString()}`,
+      title: newInsights.title || `Therapy Session – ${new Date().toLocaleDateString()}`,
     });
 
     // Update user profile
