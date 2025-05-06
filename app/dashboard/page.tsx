@@ -102,7 +102,21 @@ export default function UserDashboard() {
       </aside>
 
       {/* Main Content */}
-      <section className="flex-1 p-8 overflow-y-auto">{renderView()}</section>
-    </main>
+      <section className="flex-1 p-8 overflow-y-auto relative">
+  {['home', 'discover', 'bio', 'sessions', 'progress'].map((view) => (
+    <div
+      key={view}
+      className={`absolute inset-0 transition-all duration-300 ease-in-out
+        ${activeView === view ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none z-0'}
+      `}
+    >
+      {view === 'home' && <HomeView />}
+      {view === 'discover' && <DiscoverView />}
+      {view === 'bio' && <ProfileView />}
+      {view === 'sessions' && <SessionsView />}
+      {view === 'progress' && <ProgressView />}
+    </div>
+  ))}
+</section>  </main>
   );
 }

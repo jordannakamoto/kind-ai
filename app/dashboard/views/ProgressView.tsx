@@ -58,7 +58,7 @@ export default function ProgressView() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6 bg-gray-50 min-h-screen">
+    <div className="max-w-4xl mt-4 mx-auto p-6 space-y-6 bg-gray-50 min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-gray-900">Your Wellness Journey</h2>
         <div className="flex items-center space-x-2">

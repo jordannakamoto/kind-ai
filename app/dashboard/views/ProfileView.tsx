@@ -35,7 +35,7 @@ export default function UserFacingProfile() {
     fetchUser();
   }, []);
 
-  if (!user) return <div className="p-6 text-gray-500">Loading...</div>;
+  if (!user) return
 
   const goalList = user.goals.split('\n')
     .filter(Boolean)
