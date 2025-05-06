@@ -39,26 +39,30 @@ export async function POST(req: NextRequest) {
     }
 
     const input = `
-You are a clinical therapy assistant that helps personalize therapy sessions.
-
-Below is the original template:
-Greeting: ${module.greeting}
-Instructions: ${module.instructions}
-Agenda: ${module.agenda}
-
-Here is the client’s profile:
-Bio: ${user.bio || '[none]'}
-Goals: ${user.goals || '[none]'}
-Themes: ${user.themes || '[none]'}
-Therapy Summary: ${user.therapy_summary || '[none]'}
-
-Adapt the greeting, instructions, and agenda to feel natural, responsive, and therapist-like. Reflect the client’s current journey and profile and highlight progress or struggles. Preserve structure and length. Use warm, clear language that sounds like a real therapist adapting their usual flow.
-
-Respond in the following format:
-
-Greeting: ...
-Instructions: ...
-Agenda: ...
+    You are a clinical therapy assistant that personalizes structured session modules based on a client’s current profile.
+    
+    Below is the original session template:
+    Greeting: ${module.greeting}
+    Instructions: ${module.instructions}
+    Agenda: ${module.agenda}
+    
+    Here is the client’s current profile:
+    Bio: ${user.bio || '[none]'}
+    Goals: ${user.goals || '[none]'}
+    Themes: ${user.themes || '[none]'}
+    Therapy Summary: ${user.therapy_summary || '[none]'}
+    
+    Please adapt the three fields below using the following guidelines:
+    
+    • Greeting: Use warm, natural language as a therapist would to begin a session. Mention any progress, concern, or tone that feels relevant.
+    • Instructions: Keep brief and clear — this is what the conversational agent will follow structurally. Adjust it only if necessary for flow or pacing.
+    • Agenda: Move the macro therapy arc forward. Think like a real therapist: what would be the next step based on their progress, themes, or struggles? Frame the agenda as a sequence of topics or questions the agent should cover, with some flexibility.
+    
+    Respond using this exact format:
+    
+    Greeting: ...
+    Instructions: ...
+    Agenda: ...
     `;
 
     const response = await client.responses.create({
@@ -78,6 +82,7 @@ Agenda: ...
       greeting,
       instructions,
       agenda,
+      status: 'ready', // ✅ mark it ready
     });
 
     if (error) {

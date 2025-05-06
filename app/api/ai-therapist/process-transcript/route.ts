@@ -93,30 +93,45 @@ async function synthesizeUpdatedProfile({
   newInsights: ParsedTherapyInsights;
 }) {
   const prompt = `
-You are an assistant maintaining a long-term therapy profile. Merge the old and new data using professional tone and clarity.
+You are an assistant helping maintain a therapy profile. YDO NOT simply copy the new bio or summary. Instead, use it to improve or subtly extend the existing content.
 
-**Bio:** Summarize the client's character in 3–4 therapist-style sentences. Avoid first-person.
-**Therapy Summary:** Summarize long-term therapy progress in under 4 sentences.
-**Goals:** Prepend new goals, keeping older ones lower in priority.
-**Themes:** Add any new recurring topics not already listed.
+The **Bio** should be written as a brief descriptive profile. 
+It should sound like a therapist’s case summary or intake note, using phrases like:
+
+- “A <descriptive> person who ...”
+
+Avoid first-person phrasing like “I” or “my”. Use clear, concise observations, not speculation or analysis.
+The final compiled bio should be very readable and at maximum 4 sentences.
+
+The **Therapy Summary** should be a therapist's summary/observations of all sessions not just the current one being integrated. reflect overall progress, topics, etc.
+The final compiled therapy Summary should be very readable and at maximum 4 sentences.
+
+The **Goals** should move old goals down the list and prepend new ones to the top.
+
+The **Themes** should track therapy-relevant recurring themes over time.
+
+Incorporate new insights only if they are not already represented.
+
+Respond with updated values only. Return nothing else.
 
 Format:
+
 Title:
-<updated session title>
+<a short and relevant session title Avoid quotes or emojis. Use Title Case.>
 
 Bio:
 <updated bio>
 
 TherapySummary:
-<updated summary>
+<updated therapy summary>
 
 Goals:
-- goal 1
-- goal 2
+- <goal 1>
+- <goal 2>
 
 Themes:
-- theme 1
-- theme 2
+- <theme 1>
+- <theme 2>
 
 Old Data:
 Bio: ${oldBio}
