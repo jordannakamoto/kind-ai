@@ -54,67 +54,66 @@ export default function UserCheckInConversation() {
     },
     onError: (err) => console.error('conversation error:', err),
   });
-
-  useEffect(() => {
-
-    const fetchUserContext = async () => {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-      if (!authUser) return;
-    
-      setUser({ id: authUser.id, email: authUser.email! });
-    
-      const { data: profile } = await supabase
-        .from('users')
-        .select('bio, therapy_summary, themes, goals, email')
-        .eq('id', authUser.id)
+  const fetchUserContext = async () => {
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    if (!authUser) return;
+  
+    setUser({ id: authUser.id, email: authUser.email! });
+  
+    const { data: profile } = await supabase
+      .from('users')
+      .select('bio, therapy_summary, themes, goals, email')
+      .eq('id', authUser.id)
+      .single();
+  
+    const { data: prompt } = await supabase
+      .from('system_prompts')
+      .select('prompt')
+      .eq('name', 'Conversational 1')
+      .single();
+  
+    const { data: nextSession } = await supabase
+      .from('next_sessions')
+      .select('greeting, instructions, agenda, status')
+      .eq('user_id', authUser.id)
+      .single();
+  
+    let finalModule = null;
+  
+    if (nextSession && nextSession.status === 'ready') {
+      finalModule = nextSession;
+      setSessionStatus('ready');
+    } else {
+      setSessionStatus(nextSession?.status || 'pending');
+  
+      const { data: fallback } = await supabase
+        .from('therapy_modules')
+        .select('greeting, instructions, agenda')
+        .eq('name', 'Default Daily Check In')
         .single();
-    
-      const { data: prompt } = await supabase
-        .from('system_prompts')
-        .select('prompt')
-        .eq('name', 'Conversational 1')
-        .single();
-    
-      const { data: nextSession } = await supabase
-        .from('next_sessions')
-        .select('greeting, instructions, agenda, status')
-        .eq('user_id', authUser.id)
-        .single();
-    
-      let finalModule = null;
-    
-      if (nextSession && nextSession.status === 'ready') {
-        finalModule = nextSession;
-        setSessionStatus('ready');
-      } else {
-        setSessionStatus(nextSession?.status || 'pending');
-    
-        const { data: fallback } = await supabase
-          .from('therapy_modules')
-          .select('greeting, instructions, agenda')
-          .eq('name', 'Default Daily Check In')
-          .single();
-    
-        finalModule = fallback;
-      }
-    
-      if (!profile || !prompt || !finalModule) {
-        console.warn('Missing user context data:', { profile, prompt, module: finalModule });
-        return;
-      }
-    
-      varsRef.current = {
-        userProfile: `Bio: ${profile.bio}\nTherapy Summary: ${profile.therapy_summary}\nThemes: ${profile.themes}\nGoals: ${profile.goals}`,
-        therapyModule: `Instructions: ${finalModule.instructions}\nAgenda: ${finalModule.agenda}`,
-        greeting: finalModule.greeting,
-        systemPrompt: prompt.prompt,
-      };
-    
-      setModule(finalModule);
-      setLoadingVars(false);
+  
+      finalModule = fallback;
+    }
+  
+    if (!profile || !prompt || !finalModule) {
+      console.warn('Missing user context data:', { profile, prompt, module: finalModule });
+      return;
+    }
+  
+    varsRef.current = {
+      userProfile: `Bio: ${profile.bio}\nTherapy Summary: ${profile.therapy_summary}\nThemes: ${profile.themes}\nGoals: ${profile.goals}`,
+      therapyModule: `Instructions: ${finalModule.instructions}\nAgenda: ${finalModule.agenda}`,
+      greeting: finalModule.greeting,
+      systemPrompt: prompt.prompt,
     };
+  
+    setModule(finalModule);
+    setLoadingVars(false);
+  };
+  
+  useEffect(() => {
 
     fetchUserContext();
   }, []);
@@ -187,6 +186,20 @@ export default function UserCheckInConversation() {
     await conversation.endSession();
     setStarted(false);
     setAmplitude(0);
+    setAgentMessage('');
+    setDuration(0);
+  
+    // Clear vars and set loading state
+    varsRef.current = {
+      userProfile: '',
+      therapyModule: '',
+      greeting: '',
+      systemPrompt: '',
+    };
+    setLoadingVars(true);
+  
+    // Re-fetch context
+    await fetchUserContext();
   };
 
   const orbSize = 120 + amplitude * 40;
