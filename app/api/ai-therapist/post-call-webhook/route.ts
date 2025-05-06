@@ -94,10 +94,15 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({ userId, conversation_id }),
     });
 
-    await fetch(`https://kind-nine.vercel.app/api/ai-therapist/synthesize-therapy-session`, {
+    await fetch(`https://kind-nine.vercel.app/api/ai-therapist/process-transcript`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({
+        userId,
+        conversationId: conversation_id,
+        transcript: transcriptString,
+        duration: metadata?.call_duration_secs ?? null,
+      }),
     });
 
     return NextResponse.json({ success: true });
