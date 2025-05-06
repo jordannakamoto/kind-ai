@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { supabase } from '@/supabase/client';
 import { useConversation } from '@11labs/react';
+import { useConversationStatus } from '@/app/contexts/ConversationContext';
 
 export default function UserCheckInConversation() {
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
@@ -14,6 +15,8 @@ export default function UserCheckInConversation() {
   const [loadingVars, setLoadingVars] = useState(true);
   const [sessionStatus, setSessionStatus] = useState<string | null>(null);
   const [module, setModule] = useState<{ greeting: string; instructions: string; agenda: string } | null>(null);
+  const { setConversationEnded, setPollingStatus } = useConversationStatus();
+
 
   const varsRef = useRef<{
     userProfile: string;
@@ -201,6 +204,10 @@ export default function UserCheckInConversation() {
       systemPrompt: '',
     };
     setLoadingVars(true);
+
+        // Trigger context flag
+    setConversationEnded(true);
+    setPollingStatus({ sessionsUpdated: false, bioUpdated: false });
   
     // Re-fetch context
     await fetchUserContext();

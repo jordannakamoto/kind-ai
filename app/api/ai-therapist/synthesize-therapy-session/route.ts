@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     
     Please adapt the three fields below using the following guidelines:
     
-    • Greeting: Use warm, natural language as a therapist would to begin a session. Mention any progress, concern, or tone that feels relevant.
+    • Greeting: Use warm, natural language as a therapist would to begin a session.
     • Instructions: Keep brief and clear — this is what the conversational agent will follow structurally. Adjust it only if necessary for flow or pacing.
     • Agenda: Move the macro therapy arc forward. Think like a real therapist: what would be the next step based on their progress, themes, or struggles? Frame the agenda as a sequence of topics or questions the agent should cover, with some flexibility.
     

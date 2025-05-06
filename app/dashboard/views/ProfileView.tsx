@@ -1,9 +1,10 @@
 'use client';
 
-import { BookOpen, ChevronDown, Lightbulb, Target } from 'lucide-react';
+import { BookOpen, Lightbulb, Target } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { supabase } from '@/supabase/client';
+import { useConversationStatus } from '@/app/contexts/ConversationContext';
 
 interface UserProfile {
   full_name: string;
@@ -17,6 +18,9 @@ interface UserProfile {
 export default function UserFacingProfile() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [bioExpanded, setBioExpanded] = useState(false);
+  const { conversationEnded, pollingStatus, setPollingStatus } = useConversationStatus();
+  const [initialBio, setInitialBio] = useState<string | null>(null);
+  const [initialSummary, setInitialSummary] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -30,12 +34,42 @@ export default function UserFacingProfile() {
         .eq('id', authUser.id)
         .single();
 
-      if (!error) setUser(data);
+      if (!error && data) {
+        setUser(data);
+        setInitialBio(data.bio);
+        setInitialSummary(data.therapy_summary);
+      }
     };
     fetchUser();
   }, []);
 
-  if (!user) return
+  useEffect(() => {
+    if (!conversationEnded || pollingStatus.bioUpdated || !user) return;
+
+    const pollInterval = setInterval(async () => {
+      const result = await supabase.auth.getUser();
+      const authUser = result.data?.user;
+      if (!authUser) return;
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('full_name, avatar_url, bio, goals, therapy_summary, themes')
+        .eq('id', authUser.id)
+        .single();
+
+      if (error || !data) return;
+
+      if (data.bio !== initialBio || data.therapy_summary !== initialSummary) {
+        setUser(data);
+        setPollingStatus({ bioUpdated: true });
+        clearInterval(pollInterval);
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [conversationEnded, pollingStatus.bioUpdated, user, initialBio, initialSummary, setPollingStatus]);
+
+  if (!user) return null;
 
   const goalList = user.goals.split('\n')
     .filter(Boolean)
@@ -59,10 +93,9 @@ export default function UserFacingProfile() {
   const remainingBio = bioSentences.slice(1).join(' ');
 
   return (
-    <div className="max-w-4xl mx-auto p-2 space-y-6 font-sans bg-neutral-50">
-      
+    <div className="max-w-4xl mt-4 mx-auto p-2 space-y-6 font-sans bg-neutral-50">
       {/* Bio Card */}
-      <div className=" border-neutral-100">
+      <div className="border-neutral-100">
         <div className="flex items-start gap-6 px-6 pt-6">
           <div 
             className="w-24 h-24 rounded-full flex-shrink-0" 
@@ -92,10 +125,6 @@ export default function UserFacingProfile() {
                   className="flex items-center gap-2 text-gray-600 text-sm font-medium mt-1 hover:text-gray-800 transition-colors"
                 >
                   <span>{bioExpanded ? 'less' : '...'}</span>
-                  {/* <ChevronDown 
-                    size={16} 
-                    className={`transition-transform duration-300 ${bioExpanded ? 'rotate-180' : ''}`} 
-                  /> */}
                 </button>
               </div>
             )}
@@ -105,25 +134,24 @@ export default function UserFacingProfile() {
 
       {/* Goals & Themes */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-{/* Goals */}
-<div className="p-5">
-  <h3 className="flex items-center gap-3 font-semibold text-lg text-neutral-900 mb-5">
-    <Target size={22} className="text-gray-600" />
-    Current Goals
-  </h3>
-  <ul className="space-y-4">
-    {goalList.map((goal, i) => (
-      <li key={i} className="flex items-baseline gap-3">
-        <span className="text-gray-500 font-medium text-sm w-4">{i + 1}</span>
-        <span className="text-neutral-700">{goal}</span>
-      </li>
-    ))}
-  </ul>
-</div>
-
+        {/* Goals */}
+        <div className="p-5">
+          <h3 className="flex items-center gap-3 font-semibold text-lg text-neutral-900 mb-5">
+            <Target size={22} className="text-gray-600" />
+            Current Goals
+          </h3>
+          <ul className="space-y-4">
+            {goalList.map((goal, i) => (
+              <li key={i} className="flex items-baseline gap-3">
+                <span className="text-gray-500 font-medium text-sm w-4">{i + 1}</span>
+                <span className="text-neutral-700">{goal}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
 
         {/* Themes */}
-        <div className=" p-5 border-neutral-100">
+        <div className="p-5 border-neutral-100">
           <h3 className="flex items-center gap-3 font-semibold text-lg text-neutral-900 mb-5">
             <Lightbulb size={22} className="text-gray-600" />
             Key Themes
@@ -139,7 +167,6 @@ export default function UserFacingProfile() {
             ))}
           </div>
         </div>
-
       </div>
 
       {/* Therapy Summary */}

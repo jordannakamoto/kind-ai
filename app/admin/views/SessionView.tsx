@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/supabase/client';
+import { useConversationStatus } from '@/app/contexts/ConversationContext';
 
 interface Session {
   id: string;
@@ -27,6 +28,9 @@ export default function SessionsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Look for state updates
+  const { conversationEnded, setPollingStatus, pollingStatus } = useConversationStatus();
+  
   const fetchUsers = useCallback(async () => {
     const { data, error } = await supabase.from('users').select('id, email');
     if (error) {
@@ -43,13 +47,16 @@ export default function SessionsPage() {
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
-
+  
+    setLoading(false);
+  
     if (error) {
       console.error('Error fetching sessions:', error.message);
+      return []; // Return empty array on error
     } else {
       setSessions(data || []);
+      return data || []; // ✅ Return the session list
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -64,6 +71,22 @@ export default function SessionsPage() {
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  useEffect(() => {
+    if (!selectedUserId || !conversationEnded || pollingStatus.sessionsUpdated) return;
+  
+    const interval = setInterval(() => {
+      fetchSessions(selectedUserId).then((updated) => {
+        if (updated.length > sessions.length) {
+          // Mark sessions as updated
+          setPollingStatus({ sessionsUpdated: true });
+          clearInterval(interval);
+        }
+      });
+    }, 3000);
+  
+    return () => clearInterval(interval);
+  }, [conversationEnded, selectedUserId, sessions.length, fetchSessions, pollingStatus.sessionsUpdated]);
+  
   return (
     <div className="pt-0">
       <h2 className="text-lg font-medium mb-2">Therapy Sessions</h2>
