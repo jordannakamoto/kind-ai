@@ -1,3 +1,11 @@
+// Post-call webhook /api/webhooks/post-call
+// •	Verifies signature
+// •	Stores transcript & creates placeholder session
+// •	Kicks off background synthesis to:
+// •	/api/process-transcript
+// •	/api/synthesize-therapy-session (after the above finishes)
+//
+
 import { NextRequest, NextResponse } from 'next/server';
 
 import OpenAI from 'openai';
@@ -7,6 +15,7 @@ import { supabase } from '@/supabase/client';
 
 const WEBHOOK_SECRET = process.env.ELEVENLABS_WEBHOOK_SECRET;
 const client = new OpenAI();
+
 
 function isSignatureValid(rawBody: string, signatureHeader: string | null): boolean {
   if (!WEBHOOK_SECRET || !signatureHeader) return false;
@@ -40,143 +49,7 @@ type ParsedTherapyInsights = {
   bio: string;
 };
 
-function parseTherapyInsights(raw: string): ParsedTherapyInsights {
-  const extract = (label: string) => {
-    const match = raw.match(new RegExp(`${label}:\\s*([\\s\\S]*?)(?=\\n\\w+:|$)`, 'i'));
-    return match?.[1]?.trim() ?? '';
-  };
-
-  return {
-    title: extract('Title'),
-    summary: extract('Summary'),
-    goals: extract('Goals')
-      .split('\n')
-      .map((g) => g.replace(/^-/, '').trim())
-      .filter(Boolean),
-    themes: extract('Themes')
-      .split('\n')
-      .map((t) => t.replace(/^-/, '').trim())
-      .filter(Boolean),
-    bio: extract('Bio'),
-  };
-}
-
-async function getTherapyInsights(transcript: string): Promise<ParsedTherapyInsights> {
-  const input = `
-You are an AI therapy assistant helping summarize therapy sessions. Analyze the transcript below and return the following four outputs.
-
-1. A relevant session title. Avoid quotes or emojis. Use Title Case.
-2. A brief summary of the session written in a second-person "you" - warm, client-facing tone. Avoid headers.
-3. A "Goals:" section listing any specific tasks or goals the client expressed. Only include this if applicable.
-4. A "Themes:" section listing 3–5 emotional or therapeutic themes discussed (e.g. anxiety, relationships, motivation). Only include this if applicable.
-5. A "Bio:" section containing any new biographical information that might enrich the client's bio. Only include this if applicable.
-
-Format the response as:
-
-Title:
-<session title>
-
-Summary:
-<session summary>
-
-Goals:
-- <goal 1>
-- <goal 2>
-
-Themes:
-- <theme 1>
-- <theme 2>
-
-Bio:
-<short paragraph about new personal insights>
-
-Transcript:
-${transcript}
-  `;
-
-  const response = await client.responses.create({
-    model: 'gpt-4o-mini',
-    input,
-  });
-
-  return parseTherapyInsights(response.output_text.trim());
-}
-
-async function synthesizeUpdatedProfile({
-  oldBio,
-  oldSummary,
-  oldGoals,
-  oldThemes,
-  newInsights,
-}: {
-  oldBio: string;
-  oldSummary: string;
-  oldGoals: string[];
-  oldThemes: string[];
-  newInsights: ParsedTherapyInsights;
-}) {
-  const prompt = `
-You are an assistant helping maintain a therapy profile. YDO NOT simply copy the new bio or summary. Instead, use it to improve or subtly extend the existing content.
-
-The **Bio** should be written as a brief descriptive profile. 
-It should sound like a therapist’s case summary or intake note, using phrases like:
-
-- “A <descriptive> person who ...”
-
-Avoid first-person phrasing like “I” or “my”. Use clear, concise observations, not speculation or analysis.
-The final compiled bio should be very readable and at maximum 4 sentences.
-
-The **Therapy Summary** should be a therapist's summary/observations of all sessions not just the current one being integrated. reflect overall progress, topics, etc.
-The final compiled therapy Summary should be very readable and at maximum 4 sentences.
-
-The **Goals** should move old goals down the list and prepend new ones to the top.
-
-The **Themes** should track therapy-relevant recurring themes over time.
-
-Incorporate new insights only if they are not already represented.
-
-Respond with updated values only. Return nothing else.
-
-Format:
-
-Title:
-<a short and relevant session title Avoid quotes or emojis. Use Title Case.>
-
-Bio:
-<updated bio>
-
-TherapySummary:
-<updated therapy summary>
-
-Goals:
-- <goal 1>
-- <goal 2>
-
-Themes:
-- <theme 1>
-- <theme 2>
-
-Old Data:
-Bio: ${oldBio}
-TherapySummary: ${oldSummary}
-Goals: ${oldGoals.join(', ')}
-Themes: ${oldThemes.join(', ')}
-
-New Session Data:
-Bio: ${newInsights.bio}
-Summary: ${newInsights.summary}
-Goals: ${newInsights.goals.join(', ')}
-Themes: ${newInsights.themes.join(', ')}
-`;
-
-  const response = await client.responses.create({
-    model: 'gpt-4o-mini',
-    input: prompt,
-  });
-
-  return parseTherapyInsights(response.output_text.trim());
-}
-
+// /api/webhooks/post-call.ts
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
@@ -192,52 +65,40 @@ export async function POST(req: NextRequest) {
     }
 
     const { conversation_id, transcript, metadata } = data;
-    if (!conversation_id) {
-      return NextResponse.json({ error: 'Missing conversation_id' }, { status: 400 });
+    if (!conversation_id || !transcript) {
+      return NextResponse.json({ error: 'Missing data' }, { status: 400 });
     }
 
     const redisData = await redis.get<{ userId: string }>(conversation_id);
     const userId = redisData?.userId;
     if (!userId) {
-      return NextResponse.json({ error: 'Missing user_id from Redis' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing user_id' }, { status: 400 });
     }
 
-    const { data: userRecord } = await supabase
-      .from('users')
-      .select('bio, therapy_summary, themes, goals')
-      .eq('id', userId)
-      .single();
-
     const transcriptString = transformTranscript(transcript);
-    const newInsights = await getTherapyInsights(transcriptString);
 
-    const synthesized = await synthesizeUpdatedProfile({
-      oldBio: userRecord?.bio ?? '',
-      oldSummary: userRecord?.therapy_summary ?? '',
-      oldGoals: userRecord?.goals?.split('\n') ?? [],
-      oldThemes: userRecord?.themes?.split(',')?.map((t: string) => t.trim()) ?? [],      newInsights,
-    });
-
-    // Save session
+    // ✅ Just store the session raw data, for now
     await supabase.from('sessions').insert({
       user_id: userId,
       conversation_id,
-      summary: newInsights.summary,
       transcript: transcriptString,
       duration: metadata?.call_duration_secs ?? null,
-      title: newInsights.title || `Therapy Session – ${new Date().toLocaleDateString()}`,
+      summary: 'Summarizing...',
+      title: 'Recent Session',
     });
 
-    // Update user profile
-    await supabase
-      .from('users')
-      .update({
-        bio: synthesized.bio,
-        therapy_summary: synthesized.summary,
-        goals: synthesized.goals.join('\n'),
-        themes: synthesized.themes.join(', '),
-      })
-      .eq('id', userId);
+    // ✅ Kick off background synthesis task
+    await fetch(`/api/process-transcript`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, conversation_id }),
+    });
+
+    await fetch(`/api/synthesize-therapy-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

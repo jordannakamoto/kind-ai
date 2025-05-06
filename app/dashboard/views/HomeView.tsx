@@ -11,7 +11,9 @@ export default function UserCheckInConversation() {
   const [amplitude, setAmplitude] = useState(0);
   const [started, setStarted] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [loadingVars, setLoadingVars] = useState(true); // ✅
+  const [loadingVars, setLoadingVars] = useState(true);
+  const [sessionStatus, setSessionStatus] = useState<string | null>(null);
+  const [module, setModule] = useState<{ greeting: string; instructions: string; agenda: string } | null>(null);
 
   const varsRef = useRef<{
     userProfile: string;
@@ -54,51 +56,93 @@ export default function UserCheckInConversation() {
   });
 
   useEffect(() => {
+
     const fetchUserContext = async () => {
       const {
         data: { user: authUser },
       } = await supabase.auth.getUser();
       if (!authUser) return;
-
+    
       setUser({ id: authUser.id, email: authUser.email! });
-
+    
       const { data: profile } = await supabase
         .from('users')
         .select('bio, therapy_summary, themes, goals, email')
         .eq('id', authUser.id)
         .single();
-
+    
       const { data: prompt } = await supabase
         .from('system_prompts')
         .select('prompt')
         .eq('name', 'Conversational 1')
         .single();
-
-      const synthRes = await fetch('/api/ai-therapist/synthesize-therapy-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: authUser.id }),
-      });
-
-      const module = await synthRes.json();
-
-      if (!profile || !module || !prompt) {
-        console.warn('Missing user context data:', { profile, module, prompt });
+    
+      const { data: nextSession } = await supabase
+        .from('next_sessions')
+        .select('greeting, instructions, agenda, status')
+        .eq('user_id', authUser.id)
+        .single();
+    
+      let finalModule = null;
+    
+      if (nextSession && nextSession.status === 'ready') {
+        finalModule = nextSession;
+        setSessionStatus('ready');
+      } else {
+        setSessionStatus(nextSession?.status || 'pending');
+    
+        const { data: fallback } = await supabase
+          .from('therapy_modules')
+          .select('greeting, instructions, agenda')
+          .eq('name', 'Default Daily Check In')
+          .single();
+    
+        finalModule = fallback;
+      }
+    
+      if (!profile || !prompt || !finalModule) {
+        console.warn('Missing user context data:', { profile, prompt, module: finalModule });
         return;
       }
-
+    
       varsRef.current = {
         userProfile: `Bio: ${profile.bio}\nTherapy Summary: ${profile.therapy_summary}\nThemes: ${profile.themes}\nGoals: ${profile.goals}`,
-        therapyModule: `Instructions: ${module.instructions}\nAgenda: ${module.agenda}`,
-        greeting: module.greeting,
+        therapyModule: `Instructions: ${finalModule.instructions}\nAgenda: ${finalModule.agenda}`,
+        greeting: finalModule.greeting,
         systemPrompt: prompt.prompt,
       };
-
-      setLoadingVars(false); // ✅ done loading
+    
+      setModule(finalModule);
+      setLoadingVars(false);
     };
 
     fetchUserContext();
   }, []);
+
+  // Poll for session processing to finish
+  useEffect(() => {
+    if (sessionStatus !== 'pending') return;
+  
+    const interval = setInterval(async () => {
+      const { data: session } = await supabase
+        .from('next_sessions')
+        .select('greeting, instructions, agenda, status')
+        .eq('user_id', user?.id)
+        .single();
+  
+      if (session?.status === 'ready') {
+        setModule(session);
+        setSessionStatus('ready');
+  
+        varsRef.current.therapyModule = `Instructions: ${session.instructions}\nAgenda: ${session.agenda}`;
+        varsRef.current.greeting = session.greeting;
+  
+        clearInterval(interval);
+      }
+    }, 5000); // every 5 seconds
+  
+    return () => clearInterval(interval);
+  }, [sessionStatus, user?.id]);
 
   useEffect(() => {
     if (!started) return;
@@ -151,14 +195,6 @@ export default function UserCheckInConversation() {
     `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60)
       .toString()
       .padStart(2, '0')}`;
-
-  if (loadingVars) {
-    return (
-      <div className="w-full max-w-2xl mx-auto py-10 px-4 text-center text-gray-500">
-        Preparing your personalized check-in...
-      </div>
-    );
-  }
 
   return (
     <div className="w-full max-w-2xl mx-auto py-10 px-4 flex items-center justify-between transition-all duration-300">

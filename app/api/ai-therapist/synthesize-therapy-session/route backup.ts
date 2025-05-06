@@ -1,7 +1,3 @@
-// /api/synthesize-therapy-session
-// 	•	Uses updated profile + template to create a personalized next_session
-// 	•	Stores in next_sessions table
-
 import { NextRequest, NextResponse } from 'next/server';
 
 import OpenAI from 'openai';
@@ -12,9 +8,7 @@ const client = new OpenAI();
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await req.json();
-    if (!userId) {
-      return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
-    }
+    if (!userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
 
     // Fetch user profile
     const { data: user } = await supabase
@@ -23,9 +17,7 @@ export async function POST(req: NextRequest) {
       .eq('id', userId)
       .single();
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     // Fetch original module
     const { data: module } = await supabase
@@ -34,9 +26,7 @@ export async function POST(req: NextRequest) {
       .eq('name', 'Default Daily Check In')
       .single();
 
-    if (!module) {
-      return NextResponse.json({ error: 'Therapy module not found' }, { status: 404 });
-    }
+    if (!module) return NextResponse.json({ error: 'Therapy module not found' }, { status: 404 });
 
     const input = `
 You are a clinical therapy assistant that helps personalize therapy sessions.
@@ -72,18 +62,7 @@ Agenda: ...
     const instructions = raw.match(/Instructions:\s*([\s\S]*?)Agenda:/)?.[1]?.trim() || '';
     const agenda = raw.match(/Agenda:\s*([\s\S]*)$/)?.[1]?.trim() || '';
 
-    // ✅ Upsert next session record in Supabase
-    const { error } = await supabase.from('next_sessions').upsert({
-      user_id: userId,
-      greeting,
-      instructions,
-      agenda,
-    });
-
-    if (error) {
-      console.error('[Supabase Upsert Error]', error);
-      return NextResponse.json({ error: 'Failed to store next session' }, { status: 500 });
-    }
+    console.log( greeting, instructions, agenda )
 
     return NextResponse.json({ greeting, instructions, agenda });
   } catch (err: any) {
@@ -92,4 +71,3 @@ Agenda: ...
   }
 }
 
-export const dynamic = 'force-dynamic';
