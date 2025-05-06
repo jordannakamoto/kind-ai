@@ -88,13 +88,13 @@ export async function POST(req: NextRequest) {
     });
 
     // ✅ Kick off background synthesis task
-    await fetch(`/api/ai-therapist/process-transcript`, {
+    await fetch(`https://kind-nine.vercel.app/api/ai-therapist/process-transcript`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, conversation_id }),
     });
 
-    await fetch(`/api/ai-therapist/synthesize-therapy-session`, {
+    await fetch(`https://kind-nine.vercel.app/api/ai-therapist/synthesize-therapy-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId }),

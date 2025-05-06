@@ -55,6 +55,9 @@ export default function UserCheckInConversation() {
     onError: (err) => console.error('conversation error:', err),
   });
   const fetchUserContext = async () => {
+
+    setLoadingVars(true);
+
     const {
       data: { user: authUser },
     } = await supabase.auth.getUser();
@@ -99,6 +102,7 @@ export default function UserCheckInConversation() {
   
     if (!profile || !prompt || !finalModule) {
       console.warn('Missing user context data:', { profile, prompt, module: finalModule });
+      setLoadingVars(false); // <- Make sure we don't get stuck
       return;
     }
   
