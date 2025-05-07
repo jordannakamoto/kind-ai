@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import MysticalOrb from '@/app/dashboard/aiorb';
 import { supabase } from '@/supabase/client';
 import { useConversation } from '@11labs/react';
 import { useConversationStatus } from '@/app/contexts/ConversationContext';
@@ -238,7 +239,7 @@ export default function UserCheckInConversation() {
     await fetchUserContext();
   };
 
-  const orbSize = 120 + amplitude * 40;
+  const orbSize = 150 + amplitude * 40;
 
   const formatTime = (seconds: number): string =>
     `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60)
@@ -246,7 +247,7 @@ export default function UserCheckInConversation() {
       .padStart(2, '0')}`;
 
   return (
-    <div className="w-full max-w-2xl mx-auto py-10 px-4 flex items-center justify-between transition-all duration-300">
+    <div className="w-full max-w-2xl mt-12 mx-auto py-10 px-4 flex items-center justify-between transition-all duration-300">
       {/* Left Panel */}
       <div className="text-left space-y-1 text-gray-700">
         <p className="text-lg font-semibold">Maya</p>
@@ -273,10 +274,8 @@ export default function UserCheckInConversation() {
             transform: `scale(${1 + amplitude * 0.15})`,
           }}
         >
-          <div className="absolute inset-0 rounded-full overflow-hidden">
-            <div className="absolute w-full h-full bg-gradient-to-br from-[#dbeafe] via-[#e0e7ff] to-[#c7d2fe] opacity-60 blur-2xl" />
-            <div className="absolute w-full h-full bg-gradient-to-tl from-[#fdf2f8] via-white to-[#f3f4f6] opacity-30 blur-3xl mix-blend-lighten" />
-          </div>
+  <MysticalOrb/>
+
         </div>
       </div>
 

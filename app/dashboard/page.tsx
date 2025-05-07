@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarCheck, Compass, Home, LineChart, User } from 'lucide-react';
+import { CalendarCheck, Compass, Home, LineChart, PanelLeft, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -21,6 +21,7 @@ export default function UserDashboard() {
   const [visibleView, setVisibleView] = useState(activeView);
   const [viewVisible, setViewVisible] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -92,8 +93,11 @@ export default function UserDashboard() {
   return (
     <main className="h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <aside className="w-60 bg-neutral-50 flex flex-col">
-        <div className="pl-4 mt-6 mb-2">
+      <aside
+  className={`w-60 bg-neutral-50 flex flex-col transition-transform duration-300 ease-in-out transform ${
+    sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+  }`}
+>       <div className="pl-4 mt-16 mb-2">
           <h2 className="text-xl font-bold pl-4 pt-4 text-gray-800">kind</h2>
         </div>
         <nav className="space-y-1 p-5 flex-1">
@@ -134,9 +138,22 @@ export default function UserDashboard() {
         </div>
       </aside>
 
-      {/* Main View */}
-      <section  ref={scrollRef}  className="flex-1 p-8 overflow-y-auto relative">
-        {/* View Transitions */}
+      {/* Main View */}       
+      <button
+  onClick={() => setSidebarOpen(!sidebarOpen)}
+  className={`absolute bottom-30 z-30 p-2 rounded-md text-gray-600 hover:text-indigo-600 transition-all duration-300
+      ${sidebarOpen ? 'left-4 text-gray-400 opacity-60' : 'left-4 text-gray-600 hover:text-indigo-600 opacity-100'}
+
+  }`}
+>
+  <PanelLeft className="w-5 h-5" />
+</button>
+<section
+  ref={scrollRef}
+  className={`transition-transform duration-300 ease-in-out transform flex-1 overflow-y-auto relative p-8 ${
+    sidebarOpen ? '-translate-x-30' : '-translate-x-30'
+  }`}
+>      {/* View Transitions */}
         {['home', 'discover', 'bio', 'sessions', 'progress'].map((view) => {
   const isVisible = view === visibleView && !sessionId;
   return (
