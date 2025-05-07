@@ -15,7 +15,7 @@ export default function UserCheckInConversation() {
   const [loadingVars, setLoadingVars] = useState(true);
   const [sessionStatus, setSessionStatus] = useState<string | null>(null);
   const [module, setModule] = useState<{ greeting: string; instructions: string; agenda: string } | null>(null);
-  const { setConversationEnded, setPollingStatus } = useConversationStatus();
+  const { conversationEnded, setConversationEnded, pollingStatus, setPollingStatus } = useConversationStatus();
 
 
   const varsRef = useRef<{
@@ -29,6 +29,9 @@ export default function UserCheckInConversation() {
     greeting: '',
     systemPrompt: '',
   });
+
+  const pollingComplete = pollingStatus.sessionsUpdated && pollingStatus.bioUpdated;
+  const canStart = !loadingVars && (!conversationEnded || pollingComplete);
 
   const animationRef = useRef<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -209,7 +212,22 @@ export default function UserCheckInConversation() {
     setConversationEnded(true);
     setPollingStatus({ sessionsUpdated: false, bioUpdated: false });
   
-    // Re-fetch context
+    // Wait for next_sessions to become 'ready'
+    let tries = 0;
+    while (tries < 200) { // Retry up to ~10 seconds (20 * 500ms)
+      const { data: session } = await supabase
+        .from('next_sessions')
+        .select('status')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (session?.status === 'ready') break;
+
+      await new Promise((r) => setTimeout(r, 500));
+      tries++;
+    }
+
+    // Now fetch updated context
     await fetchUserContext();
   };
 
@@ -278,13 +296,13 @@ export default function UserCheckInConversation() {
             <span className="text-sm">End call</span>
           </button>
         ) : (
-          <button
-            onClick={startConversation}
-            className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 text-sm disabled:opacity-50"
-            disabled={loadingVars}
-          >
-            {loadingVars ? 'Loading...' : 'Start Check-In'}
-          </button>
+<button
+  disabled={!canStart}
+  onClick={startConversation}
+  className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 text-sm disabled:opacity-50"
+>
+  {!canStart ? 'Processing last session...' : 'Start Check-In'}
+</button>
         )}
       </div>
     </div>

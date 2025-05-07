@@ -1,22 +1,67 @@
 'use client';
 
 import { CalendarCheck, Compass, Home, LineChart, User } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import DiscoverView from './views/DiscoverView';
 import HomeView from './views/HomeView';
 import ProfileView from './views/ProfileView';
 import ProgressView from './views/ProgressView';
+import type { ReactElement } from 'react';
+import SessionDetailView from './views/SessionDetailView';
 import SessionsView from './views/SessionsView';
 import { supabase } from '@/supabase/client';
-import { useRouter } from 'next/navigation';
-import { type ReactElement } from 'react';
 
 export default function UserDashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
   const [activeView, setActiveView] = useState<'home' | 'discover' | 'bio' | 'sessions' | 'progress'>('home');
+  const [visibleView, setVisibleView] = useState(activeView);
+  const [viewVisible, setViewVisible] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+
+  const sessionId = searchParams.get('sid');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (
+      tab === 'home' ||
+      tab === 'discover' ||
+      tab === 'bio' ||
+      tab === 'sessions' ||
+      tab === 'progress'
+    ) {
+      setActiveView(tab);
+    } else {
+      setActiveView('home');
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTo({ top: 0, behavior: 'auto' });
+      }
+    }, 30); // Delay must match your fade transition duration
+  
+    return () => clearTimeout(timeout);
+  }, [activeView, sessionId]);
+
+  useEffect(() => {
+    setViewVisible(false);
+    const frame = requestAnimationFrame(() => {
+      setVisibleView(activeView);
+      setViewVisible(true);
+    });
+  
+    return () => cancelAnimationFrame(frame);
+  }, [activeView]);
+  
   useEffect(() => {
     const validateSession = async () => {
       const { data: { user }, error } = await supabase.auth.getUser();
@@ -29,24 +74,6 @@ export default function UserDashboard() {
     };
     validateSession();
   }, [router]);
-  
-
-  const renderView = () => {
-    switch (activeView) {
-      case 'home':
-        return <HomeView />;
-      case 'discover':
-          return <DiscoverView />;
-      case 'bio':
-        return <ProfileView/>;
-      case 'sessions':
-        return <SessionsView />;
-      case 'progress':
-          return <ProgressView />;
-      default:
-        return <div>Welcome</div>;
-    }
-  };
 
   const viewIcons: Record<string, ReactElement> = {
     home: <Home className="w-4 h-4" />,
@@ -56,26 +83,32 @@ export default function UserDashboard() {
     progress: <LineChart className="w-4 h-4" />,
   };
 
+  const handleSidebarNav = (view: typeof activeView) => {
+    setActiveView(view);
+    if (view === 'home') router.push('/dashboard');
+    else router.push(`/dashboard?tab=${view}`);
+  };
+
   return (
     <main className="h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <aside className="w-60 bg-neutral-50 flex flex-col ">
+      <aside className="w-60 bg-neutral-50 flex flex-col">
         <div className="pl-4 mt-6 mb-2">
           <h2 className="text-xl font-bold pl-4 pt-4 text-gray-800">kind</h2>
         </div>
         <nav className="space-y-1 p-5 flex-1">
-        {['home', 'discover', 'bio', 'sessions', 'progress'].map(view => (
-          <button
-            key={view}
-            onClick={() => setActiveView(view as any)}
-            className={`w-full flex items-center gap-2 text-left py-2 px-3 rounded-lg transition-all duration-200 ${
-              activeView === view ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            {viewIcons[view]}
-            <span>{view.charAt(0).toUpperCase() + view.slice(1)}</span>
-          </button>
-        ))}
+          {['home', 'discover', 'bio', 'sessions', 'progress'].map((view) => (
+            <button
+              key={view}
+              onClick={() => handleSidebarNav(view as any)}
+              className={`w-full flex items-center gap-2 text-left py-2 px-3 rounded-lg transition-all duration-200 ${
+                activeView === view ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {viewIcons[view]}
+              <span>{view.charAt(0).toUpperCase() + view.slice(1)}</span>
+            </button>
+          ))}
         </nav>
         <div className="mt-4 pt-4 border-t border-gray-100">
           <div className="flex items-center mb-3 px-1">
@@ -101,22 +134,41 @@ export default function UserDashboard() {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <section className="flex-1 p-8 overflow-y-auto relative">
-  {['home', 'discover', 'bio', 'sessions', 'progress'].map((view) => (
+      {/* Main View */}
+      <section  ref={scrollRef}  className="flex-1 p-8 overflow-y-auto relative">
+        {/* View Transitions */}
+        {['home', 'discover', 'bio', 'sessions', 'progress'].map((view) => {
+  const isVisible = view === visibleView && !sessionId;
+  return (
     <div
       key={view}
-      className={`absolute inset-0 transition-all duration-300 ease-in-out
-        ${activeView === view ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none z-0'}
-      `}
+      className={`absolute inset-0 transition-opacity duration-300 ease-in-out ${
+        isVisible && viewVisible ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none z-0'
+      }`}
     >
       {view === 'home' && <HomeView />}
       {view === 'discover' && <DiscoverView />}
       {view === 'bio' && <ProfileView />}
-      {view === 'sessions' && <SessionsView />}
+      {view === 'sessions' && !sessionId && <SessionsView />}
       {view === 'progress' && <ProgressView />}
     </div>
-  ))}
-</section>  </main>
+  );
+})}
+
+        {/* Session detail overlay */}
+        {activeView === 'sessions' && sessionId && (
+          <div className="absolute inset-0 z-20">
+            <SessionDetailView
+              sessionId={sessionId}
+              onBack={() => {
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.delete('sid');
+                window.history.replaceState({}, '', newUrl.toString());
+              }}
+            />
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
