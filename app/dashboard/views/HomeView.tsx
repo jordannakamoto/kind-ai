@@ -208,13 +208,19 @@ export default function UserCheckInConversation() {
     };
     setLoadingVars(true);
 
-        // Trigger context flag
-    setConversationEnded(true);
-    setPollingStatus({ sessionsUpdated: false, bioUpdated: false });
-  
-    // Wait for next_sessions to become 'ready'
-    let tries = 0;
-    while (tries < 200) { // Retry up to ~10 seconds (20 * 500ms)
+    // 1. Wait for pollingStatus to complete
+    let pollTries = 0;
+    while (pollTries < 100) {
+      const { sessionsUpdated, bioUpdated } = pollingStatus;
+      if (sessionsUpdated && bioUpdated) break;
+
+      await new Promise((r) => setTimeout(r, 100));
+      pollTries++;
+    }
+
+    // 2. Wait for next_sessions to become 'ready'
+    let sessionTries = 0;
+    while (sessionTries < 100) {
       const { data: session } = await supabase
         .from('next_sessions')
         .select('status')
@@ -224,8 +230,9 @@ export default function UserCheckInConversation() {
       if (session?.status === 'ready') break;
 
       await new Promise((r) => setTimeout(r, 500));
-      tries++;
+      sessionTries++;
     }
+
 
     // Now fetch updated context
     await fetchUserContext();
