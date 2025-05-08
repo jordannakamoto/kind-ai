@@ -20,31 +20,45 @@ export async function updateSession(request: NextRequest) {
   );
 
   // console.log('[Middleware] Cookies:', request.cookies.getAll());
+  
+const { data: { user } } = await supabase.auth.getUser();
+const path = request.nextUrl.pathname;
 
-  const { data: { user } } = await supabase.auth.getUser();
-  const path = request.nextUrl.pathname;
+if (!user && !['/', '/login', '/auth/callback'].includes(path)) {
+  const url = request.nextUrl.clone();
+  url.pathname = '/';
+  return NextResponse.redirect(url);
+}
 
-  // 🚫 Redirect unauthenticated users from all protected paths
-  if (!user && !['/', '/login', '/auth/callback'].includes(path)) {
+// 🔒 Restrict /admin to admins only
+if (user && path.startsWith('/admin')) {
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (profile?.role !== 'admin') {
     const url = request.nextUrl.clone();
-    url.pathname = '/';
+    url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }
+}
 
-  // 🔒 Restrict /admin to admins only
-  if (user && path.startsWith('/admin')) {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
+// 🧭 Redirect users still in onboarding
+if (user && path.startsWith('/dashboard')) {
+  const { data: profile } = await supabase
+    .from('users')
+    .select('app_stage')
+    .eq('id', user.id)
+    .single();
 
-    if (profile?.role !== 'admin') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
-      return NextResponse.redirect(url);
-    }
+  if (profile?.app_stage === 'onboarding') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/onboarding';
+    return NextResponse.redirect(url);
   }
+}
 
   return supabaseResponse;
 }

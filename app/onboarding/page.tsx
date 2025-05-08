@@ -3,6 +3,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 
+import { supabase } from "@/supabase/client";
+
 // Refined topic categories with popular tags
 const topicCategories = [
   {
@@ -90,6 +92,23 @@ export default function OnboardingForm() {
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        // Prevent Enter in textareas from triggering it accidentally
+        if (document.activeElement?.tagName === 'TEXTAREA') return;
+  
+        if (isStepComplete()) {
+          e.preventDefault(); // Prevent form submission or other default behavior
+          nextStep();
+        }
+      }
+    };
+  
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentStep, name, experience, topics]);
+
+  useEffect(() => {
     if (currentStep === 1 && nameInputRef.current) {
       nameInputRef.current.focus();
     }
@@ -128,10 +147,42 @@ export default function OnboardingForm() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (topics.length < 2) return;
-    const payload = { name, experience, topics };
-    console.log('Submitting onboarding:', payload);
+  
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('Auth error:', authError);
+      return;
+    }
+  
+    // Upsert onboarding data
+    const { error: onboardingError } = await supabase
+      .from('user_onboarding')
+      .upsert({
+        user_id: user.id,
+        experience_level: experience,
+        topics: topics
+      }, { onConflict: 'user_id' });
+  
+    if (onboardingError) {
+      console.error('Failed to save onboarding:', onboardingError.message);
+      return;
+    }
+  
+    // // Update user's app_stage to 'dashboard'
+    // const { error: stageError } = await supabase
+    //   .from('users')
+    //   .update({ app_stage: 'dashboard' })
+    //   .eq('id', user.id);
+  
+    // if (stageError) {
+    //   console.error('Failed to update user stage:', stageError.message);
+    //   return;
+    // }
+  
+    console.log('Onboarding complete');
+    window.location.href = '/dashboard';
   };
 
   const renderExperienceTimeline = () => {
