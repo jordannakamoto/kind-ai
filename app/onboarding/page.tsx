@@ -3,74 +3,45 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 
+import Link from 'next/link';
 import { supabase } from "@/supabase/client";
 
-// Refined topic categories with popular tags
+// Topic categories (removed popular)
 const topicCategories = [
   {
     name: 'Emotional Well-being',
     topics: [
-      { name: 'Anxiety', popular: true },
-      { name: 'Depression', popular: true },
-      { name: 'Grief' },
-      { name: 'Trauma' },
-      { name: 'Stress', popular: true },
-      { name: 'Burnout' },
-      { name: 'Loneliness' },
-      { name: 'Anger' },
-      { name: 'Social anxiety' }
+      { name: 'Anxiety' }, { name: 'Depression' }, { name: 'Grief' }, { name: 'Trauma' },
+      { name: 'Stress' }, { name: 'Burnout' }, { name: 'Loneliness' }, { name: 'Anger' }, { name: 'Social anxiety' }
     ]
   },
   {
     name: 'Self-Development',
     topics: [
-      { name: 'ADHD', popular: true },
-      { name: 'Body image' },
-      { name: 'Self-esteem', popular: true },
-      { name: 'Chronic illness' },
-      { name: 'Addiction' },
-      { name: 'Motivation' },
-      { name: 'Confidence' }
+      { name: 'ADHD' }, { name: 'Body image' }, { name: 'Self-esteem' }, { name: 'Chronic illness' },
+      { name: 'Addiction' }, { name: 'Motivation' }, { name: 'Confidence' }
     ]
   },
   {
     name: 'Relationships',
     topics: [
-      { name: 'Relationships', popular: true },
-      { name: 'Boundaries', popular: true },
-      { name: 'Parenting' },
-      { name: 'Conflict resolution' },
-      { name: 'Attachment patterns' }
+      { name: 'Relationships' }, { name: 'Boundaries' }, { name: 'Parenting' },
+      { name: 'Conflict resolution' }, { name: 'Attachment patterns' }
     ]
   },
   {
     name: 'Growth & Meaning',
-    collapsed: true, // Start collapsed to reduce overwhelming options
     topics: [
-      { name: 'Life transitions' },
-      { name: 'Identity exploration' },
-      { name: 'Decision making' },
-      { name: 'Creativity' },
-      { name: 'Communication skills' },
-      { name: 'Purpose and meaning' },
-      { name: 'Mindfulness', popular: true },
-      { name: 'Personal growth' },
-      { name: 'Emotional awareness' },
-      { name: 'Inner child work' },
-      { name: 'Resilience' },
-      { name: 'Joy and playfulness' },
-      { name: 'Spirituality' }
+      { name: 'Life transitions' }, { name: 'Identity exploration' }, { name: 'Decision making' }, { name: 'Creativity' },
+      { name: 'Communication skills' }, { name: 'Purpose and meaning' }, { name: 'Mindfulness' },
+      { name: 'Personal growth' }, { name: 'Emotional awareness' }, { name: 'Inner child work' }, { name: 'Resilience' },
+      { name: 'Joy and playfulness' }, { name: 'Spirituality' }
     ]
   }
 ];
 
-
 const experienceOptions = [
-  'None',
-  'Just a little',
-  'Some familiarity',
-  'Pretty comfortable',
-  'Very experienced',
+  'None', 'Just a little', 'Some familiarity', 'Pretty comfortable', 'Very experienced',
 ];
 
 const fadeIn = {
@@ -83,30 +54,66 @@ const slideIn = {
   visible: { x: 0, opacity: 1, transition: { duration: 0.5, ease: 'easeOut' } },
 };
 
+// Helper SVG Icons
+const CheckIcon = ({ className = "w-5 h-5", color = "currentColor" }: { className?: string, color?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12"></polyline>
+  </svg>
+);
+
+const MicIcon = ({ className = "w-8 h-8", color = "currentColor" }: { className?: string, color?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill={color}>
+        <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"></path>
+    </svg>
+);
+
+
 export default function OnboardingForm() {
   const [name, setName] = useState('');
   const [experience, setExperience] = useState('');
   const [topics, setTopics] = useState<string[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 3;
+  const totalSteps = 5;
   const nameInputRef = useRef<HTMLInputElement>(null);
+
+  const [selfCommitment, setSelfCommitment] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+
+  const [showAudioSetup, setShowAudioSetup] = useState(false);
+  const [readiness, setReadiness] = useState({
+    quietSpace: false,
+    micTested: false
+  });
+  const [showMicTestAnimation, setShowMicTestAnimation] = useState(false);
+
+  const allReadyForAudio = Object.values(readiness).every(value => value === true);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (showMicTestAnimation) {
+      timer = setTimeout(() => {
+        setShowMicTestAnimation(false);
+        setReadiness(prev => ({...prev, micTested: true}));
+      }, 3000);
+    }
+    return () => clearTimeout(timer);
+  }, [showMicTestAnimation]);
+
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Enter') {
-        // Prevent Enter in textareas from triggering it accidentally
-        if (document.activeElement?.tagName === 'TEXTAREA') return;
-  
+        const activeElement = document.activeElement as HTMLElement;
+        if (activeElement?.tagName === 'BUTTON' || activeElement?.tagName === 'TEXTAREA') return;
         if (isStepComplete()) {
-          e.preventDefault(); // Prevent form submission or other default behavior
+          e.preventDefault(); 
           nextStep();
         }
       }
     };
-  
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentStep, name, experience, topics]);
+  }, [currentStep, name, experience, topics, selfCommitment, agreed, totalSteps]);
 
   useEffect(() => {
     if (currentStep === 1 && nameInputRef.current) {
@@ -122,66 +129,66 @@ export default function OnboardingForm() {
 
   const isStepComplete = () => {
     switch (currentStep) {
-      case 1:
-        return name.trim() !== '';
-      case 2:
-        return experience !== '';
-      case 3:
-        return topics.length >= 2;
-      default:
-        return false;
+      case 1: return name.trim() !== '';
+      case 2: return experience !== '';
+      case 3: return topics.length >= 2;
+      case 4: return selfCommitment;
+      case 5: return agreed;
+      default: return false;
     }
+  };
+
+  const handleSubmit = async () => {
+    if (currentStep !== totalSteps || !isStepComplete()) { 
+        console.warn("handleSubmit called prematurely or final step not complete.");
+        return;
+    }
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('Auth error:', authError?.message || 'No user found.');
+      return;
+    }
+    const onboardingData = {
+      user_id: user.id,
+      experience_level: experience,
+      topics: topics,
+      agreed_to_terms: agreed,
+      agreed_to_commitment: selfCommitment
+    };
+    const { error: onboardingError } = await supabase
+      .from('user_onboarding')
+      .upsert(onboardingData, { onConflict: 'user_id' });
+    if (onboardingError) {
+      console.error('Failed to save onboarding:', onboardingError.message);
+      return;
+    }
+    const { error: stageError } = await supabase
+    .from('users')
+    .update({ app_stage: 'post-onboarding', full_name: name })
+    .eq('id', user.id);
+    if (stageError) {
+      console.error('Failed to update user stage:', stageError.message);
+      return;
+    }
+    console.log('Onboarding data saved, proceeding to audio setup.');
+    setShowAudioSetup(true);
   };
 
   const nextStep = () => {
-    if (currentStep < totalSteps) {
-      setCurrentStep((prev) => prev + 1);
-    } else {
-      handleSubmit();
+    if (isStepComplete()) {
+        if (currentStep < totalSteps) {
+          setCurrentStep((prev) => prev + 1);
+        } else {
+          handleSubmit();
+        }
     }
   };
-
   const prevStep = () => {
     if (currentStep > 1) {
       setCurrentStep((prev) => prev - 1);
     }
   };
-
-  const handleSubmit = async () => {
-    if (topics.length < 2) return;
-  
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return;
-    }
-  
-    // Upsert onboarding data
-    const { error: onboardingError } = await supabase
-      .from('user_onboarding')
-      .upsert({
-        user_id: user.id,
-        experience_level: experience,
-        topics: topics
-      }, { onConflict: 'user_id' });
-  
-    if (onboardingError) {
-      console.error('Failed to save onboarding:', onboardingError.message);
-      return;
-    }
-  
-    // // Update user's app_stage to 'dashboard'
-    // const { error: stageError } = await supabase
-    //   .from('users')
-    //   .update({ app_stage: 'dashboard' })
-    //   .eq('id', user.id);
-  
-    // if (stageError) {
-    //   console.error('Failed to update user stage:', stageError.message);
-    //   return;
-    // }
-  
-    console.log('Onboarding complete');
+  const startSession = () => {
     window.location.href = '/dashboard';
   };
 
@@ -214,7 +221,7 @@ export default function OnboardingForm() {
                   }`}
                   aria-label={`Select experience level: ${opt}`}
                 />
-                <span className={`mt-3 text-xs text-center transition-colors duration-300 max-w-[80px] break-words ${
+                <span className={`mt-3 text-sm text-center transition-colors duration-300 max-w-[80px] break-words ${
                   isSelected ? 'text-indigo-700 font-medium' : 'text-gray-500'
                 }`}>
                   {opt}
@@ -241,22 +248,20 @@ export default function OnboardingForm() {
                   placeholder="e.g. Jordan"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 text-gray-700 transition-all duration-300"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 text-gray-700 transition-all duration-300 text-sm"
                 />
-                {name && (
+                {name.trim() && (
                   <motion.div
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500"
+                    className="absolute right-10 top-1/2 transform -translate-y-1/2 text-green-500"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
+                    <CheckIcon className="w-5 h-5" color="rgb(34 197 94)" />
                   </motion.div>
                 )}
               </div>
             </div>
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center px-9">
               <p className="text-sm text-gray-500">Join 10,000+ people finding clarity through Kind</p>
             </div>
           </motion.div>
@@ -265,103 +270,293 @@ export default function OnboardingForm() {
         return (
           <motion.div key="step2" variants={fadeIn} initial="hidden" animate="visible" exit="hidden" className="w-full">
             <div className="max-w-full space-y-5">
-              <div className="w-full max-w-md">
-                <label className="block text-sm font-medium text-gray-700 leading-snug px-9">What's your therapy background?</label>
+              <div className="w-full max-w-md px-9">
+                <label className="block text-sm font-medium text-gray-700 leading-snug">What's your therapy background?</label>
               </div>
-              <div className="w-full overflow-x-auto">
+              <div className="w-full overflow-x-auto px-2">
                 <div className="min-w-[500px]">{renderExperienceTimeline()}</div>
               </div>
             </div>
           </motion.div>
         );
-        case 3:
-          return (
-            <motion.div 
-              key="step3"
-              variants={fadeIn}
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
-              className="w-full flex flex-col relative h-[460px]" // force height to allow inner scroll
-            >
-              {/* <div className="flex justify-between items-center mb-4 px-9">
-                <label className="block text-sm font-medium text-gray-700">
-                  What topics are most important to you?
-                </label>
-                <span className={`text-sm font-medium ${
-                  topics.length >= 2 ? 'text-green-600' : 'text-gray-500'
-                }`}>
-                  {topics.length} selected {topics.length >= 2 ? '✓' : `(select at least 2)`}
-                </span>
-              </div> */}
-        
-              {/* Scrollable content */}
-              <div className="flex-1 overflow-y-auto space-y-4 px-6 pb-8">
-                {topicCategories.map((category) => (
-                  <div key={category.name} className="space-y-3 bg-gray-50/50 p-4 rounded-xl">
-                    <h3 className="text-sm font-medium text-gray-700">{category.name}</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {category.topics.map((topic) => (
-                        <button
-                          key={topic.name}
-                          type="button"
-                          onClick={() => toggleTopic(topic.name)}
-                          className={`px-3.5 py-2 rounded-full text-sm transition-all duration-300 ${
-                            topics.includes(topic.name)
-                              ? 'bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-sm'
-                              : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/50'
-                          }`}
-                        >
-                          {topic.name}
-                        </button>
-                      ))}
-                    </div>
+      case 3: // Removed popular feature
+        return (
+          <motion.div 
+            key="step3"
+            variants={fadeIn}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            className="w-full flex flex-col relative h-[460px] px-3"
+          >
+            <div className="flex justify-between items-center mb-4 px-6">
+              <label className="block text-sm font-medium text-gray-700">
+                What topics are most important to you?
+              </label>
+              <span className={`text-sm font-medium ${
+                topics.length >= 2 ? 'text-green-600' : 'text-gray-500'
+              }`}>
+                {topics.length} selected {topics.length >= 2 ? '✓' : `(min. 2)`}
+              </span>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-4 px-3 pb-8 custom-scrollbar">
+              {topicCategories.map((category) => (
+                <div key={category.name} className="bg-gray-50/50 p-4 rounded-xl">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">{category.name}</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {category.topics.map((topic) => (
+                      <button
+                        key={topic.name}
+                        type="button"
+                        onClick={() => toggleTopic(topic.name)}
+                        className={`px-3.5 py-2 rounded-full text-sm transition-all duration-300 ${
+                          topics.includes(topic.name)
+                            ? 'bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-sm'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/50'
+                        }`}
+                      >
+                        {topic.name}
+                      </button>
+                    ))}
                   </div>
+                </div>
+              ))}
+            </div>
+            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent z-10 mx-3" />
+          </motion.div>
+        );
+      case 4:
+        return (
+          <motion.div key="step4-letter" variants={fadeIn} initial="hidden" animate="visible" exit="hidden" className="space-y-6 px-8 text-gray-700 text-sm leading-relaxed">
+            <p>Hi {name?.split(' ')[0] || "there"},</p>
+            {/* with a simple belief: everyone deserves access to mental well-being support that is flexible, affordable, and genuinely helpful. */}
+            <p>
+              Welcome to Kind! We're thrilled to have you join our community. We're working to build a tool for mental well-being support that is accessible, affordable, and hopefully helpful.
+            </p>
+            <p>
+              Your first <span className="font-semibold text-indigo-700">3 voice sessions are completely on us</span>. We hope this gives you a great introduction to the platform.
+            </p>
+            <div className="bg-gray-100 p-4 rounded-lg border border-gray-200 mt-4">
+              <h3 className="font-semibold text-gray-800 mb-2 text-sm">Our Commitment to You</h3>
+              <ul className="space-y-2 text-sm text-gray-600">
+                {[
+                  "Your data stays yours — secure, private, and never shared.",
+                  "Our approaches are designed to support real mental health journeys.",
+                  "Continuous improvement of our product and services based on your feedback."
+                ].map(item => (
+                  <li key={item} className="flex items-start gap-2.5">
+                    <CheckIcon className="w-4 h-4 mt-0.5 shrink-0" color="rgb(74 123 204)" />
+                    <span>{item}</span>
+                  </li>
                 ))}
-              </div>
-        
-              {/* Optional scroll hint gradient */}
-              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent z-10" />
-            </motion.div>
-          );
+              </ul>
+            </div>
+            <p className="mt-4">
+              To make the most of this platform, we ask for a small commitment from you:
+            </p>
+            <label className="flex items-start gap-3 text-sm text-gray-700 hover:bg-gray-50 p-3.5 rounded-lg transition-colors cursor-pointer border border-gray-200 hover:border-gray-300">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 shrink-0"
+                checked={selfCommitment}
+                onChange={(e) => setSelfCommitment(e.target.checked)}
+                id="self-commitment-checkbox"
+              />
+              <span className="flex-1">
+                I commit to respecting the Kind platform, myself, and my goals for using it.
+              </span>
+            </label>
+            <div className="text-sm text-gray-500 space-x-3 text-center pt-2">
+              You can always review our <Link href="/terms" className="text-indigo-600 hover:underline">Terms</Link>,
+              <Link href="/privacy" className="text-indigo-600 hover:underline">Privacy Policy</Link>, and
+              <Link href="/user-agreement" className="text-indigo-600 hover:underline">User Agreement</Link>.
+            </div>
+          </motion.div>
+        );
+      case 5:
+        return (
+          <motion.div key="step5-notice" variants={fadeIn} initial="hidden" animate="visible" exit="hidden" className="space-y-6 px-8 py-4">
+            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-sm">
+              <h3 className="font-semibold text-yellow-800 mb-2 flex items-center gap-2">
+                <svg className="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Important Notice
+              </h3>
+              <p className="text-yellow-700">
+                Kind is not a replacement for professional therapy or medical care. If you need urgent mental health support, please reach out to a licensed provider.
+              </p>
+            </div>
+            <label className="flex items-start gap-3 text-sm text-gray-700 hover:bg-gray-50 p-3.5 rounded-lg transition-colors cursor-pointer border border-gray-200 hover:border-gray-300">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 shrink-0"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                id="agreement-checkbox"
+              />
+              <span className="flex-1">
+                I acknowledge that Kind is an AI support tool and not a substitute for professional mental health services.
+              </span>
+            </label>
+          </motion.div>
+        );
       default:
         return null;
     }
   };
 
+  // Audio Setup Screen: Purple Mic/Animation/Button, Pastel Green Steps
+  if (showAudioSetup) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-12 sm:px-6 font-sans">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="bg-white rounded-xl shadow-m w-full max-w-lg overflow-hidden"
+        >
+          <div className="p-8 md:p-10 text-center">
+            <div className="mb-6 flex justify-center">
+                <div className={`relative w-24 h-24 flex items-center justify-center rounded-full transition-colors duration-300 ${showMicTestAnimation ? 'bg-indigo-100' : 'bg-gray-100'}`}> {/* Purple when testing */}
+                    <MicIcon className={`w-12 h-12 transition-colors duration-300 ${readiness.micTested ? 'text-indigo-500' : 'text-gray-400'}`} color={readiness.micTested ? 'rgb(99 102 241)' : 'rgb(156 163 175)'} /> {/* Purple when tested */}
+                </div>
+            </div>
+
+            <h1 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-3">Ready Your Space</h1>
+            <p className="text-gray-600 text-sm mb-8">
+              A few quick steps to ensure the best experience for your voice session.
+            </p>
+          </div>
+
+          <div className="px-6 md:px-10 pb-8 md:pb-10 space-y-4">
+            {/* Step 1: Quiet Space (Pastel Green) */}
+            <button
+              type="button"
+              onClick={() => setReadiness(prev => ({...prev, quietSpace: !prev.quietSpace}))}
+              className={`w-full flex items-center p-4 rounded-lg border-2 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-300
+                ${readiness.quietSpace ? 'border-green-400 bg-green-50 shadow-md' : 'border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50'}`}
+            >
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center mr-4 shrink-0 transition-colors duration-300 text-white text-sm font-semibold
+                ${readiness.quietSpace ? 'bg-green-300' : 'bg-gray-300'}`}
+              >
+                {readiness.quietSpace ? <CheckIcon className="w-4 h-4" /> : '1'}
+              </div>
+              <div className="text-left">
+                <h3 className={`font-medium text-sm ${readiness.quietSpace ? 'text-green-700' : 'text-gray-700'}`}>Find a quiet space</h3>
+                <p className={`text-sm ${readiness.quietSpace ? 'text-green-600' : 'text-gray-500'}`}>Minimize background noise and distractions.</p>
+              </div>
+              {readiness.quietSpace && <div className="ml-auto shrink-0"><CheckIcon className="w-5 h-5" color="rgb(74 222 128)" /></div>} {/* Pastel Green Check */}
+            </button>
+
+            {/* Step 2: Test Microphone (Pastel Green Step, Purple Animation) */}
+            <button
+              type="button"
+              onClick={() => { if (!readiness.micTested && !showMicTestAnimation) setShowMicTestAnimation(true); }}
+              disabled={readiness.micTested || showMicTestAnimation}
+              className={`w-full flex items-center p-4 rounded-lg border-2 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-300
+                ${readiness.micTested ? 'border-green-400 bg-green-50 shadow-md' : 'border-gray-200 bg-white'}
+                ${!readiness.micTested && !showMicTestAnimation ? 'hover:border-gray-300 hover:bg-gray-50' : ''}
+                ${showMicTestAnimation ? 'cursor-default' : 'cursor-pointer'}`}
+            >
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center mr-4 shrink-0 transition-colors duration-300 text-white text-sm font-semibold
+                ${readiness.micTested ? 'bg-green-300' : (showMicTestAnimation ? 'bg-indigo-400 animate-pulse' : 'bg-gray-300')}`} /* Purple for animation active */
+              >
+                {readiness.micTested ? <CheckIcon className="w-4 h-4" /> : '2'}
+              </div>
+              <div className="text-left flex-1">
+                <h3 className={`font-medium text-sm ${readiness.micTested ? 'text-green-700' : 'text-gray-700'}`}>Test your microphone</h3>
+                <p className={`text-sm ${readiness.micTested ? 'text-green-600' : 'text-gray-500'}`}>
+                  {showMicTestAnimation ? "Listening..." : readiness.micTested ? "Microphone working great!" : "Click here to test your mic."}
+                </p>
+              </div>
+              {/* Mic Test Animation (Purple Bars) */}
+              {showMicTestAnimation && (
+                <div className="ml-auto flex space-x-1 items-end h-6">
+                  <div className="w-1.5 h-3 bg-indigo-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-1.5 h-5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '200ms' }}></div>
+                  <div className="w-1.5 h-4 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '400ms' }}></div>
+                </div>
+              )}
+              {readiness.micTested && <div className="ml-auto shrink-0"><CheckIcon className="w-5 h-5" color="rgb(74 222 128)" /></div>} {/* Pastel Green Check */}
+            </button>
+          </div>
+
+          <div className="px-6 md:px-10 pb-8 md:pb-10 pt-4 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row-reverse gap-3">
+              {/* Final Button (Purple) */}
+              <button
+                disabled={!allReadyForAudio}
+                onClick={startSession}
+                className={`w-full sm:w-auto px-8 py-3 rounded-lg text-sm font-semibold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2
+                  ${allReadyForAudio
+                    ? 'bg-neutral-500 text-white hover:bg-neutral-700 focus:ring-neutral-500 shadow-md hover:shadow-lg'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+              >
+                {allReadyForAudio ? "I'm Ready to Begin" : "Complete All Steps"}
+              </button>
+              <button
+                onClick={() => {
+                    setShowAudioSetup(false);
+                }}
+                className="w-full sm:w-auto px-8 py-3 rounded-lg text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Main Onboarding Form
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50/30 via-white to-purple-50/20 flex items-center justify-center px-6 py-12">
-      <div className="max-w-[38rem] w-full flex flex-col bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-100">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6 px-8 pt-8 ">
-          <motion.h1 className="text-2xl font-medium text-gray-800" key={`title-${currentStep}`} initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }}>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50/30 via-white to-purple-50/20 flex items-center justify-center px-4 py-12 sm:px-6">
+      <div className="max-w-[38rem] w-full flex flex-col bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-100">
+        <div className="flex justify-between items-center mb-6 px-6 sm:px-8 pt-8 ">
+          <motion.h1 className="text-xl sm:text-2xl font-semibold text-gray-800" key={`title-${currentStep}`} initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }}>
             {currentStep === 1 && 'Welcome to Kind'}
             {currentStep === 2 && 'Your Therapy Journey'}
             {currentStep === 3 && 'What Matters to You'}
+            {currentStep === 4 && 'A Note From Us'}
+            {currentStep === 5 && 'Important Acknowledgement'}
           </motion.h1>
           <div className="flex items-center">
-            {[1, 2, 3].map((step) => (
-              <div key={step} className="relative mx-1.5">
-                <div className={`h-1.5 w-7 rounded-full transition-all duration-500 ${step < currentStep ? 'bg-indigo-500' : step === currentStep ? 'bg-indigo-400' : 'bg-gray-200'}`} />
-                <div className={`absolute -bottom-4 left-1/2 transform -translate-x-1/2 text-xs ${step === currentStep ? 'text-indigo-600 font-medium' : 'text-gray-400'}`}>{step}</div>
+            {[1, 2, 3, 4, 5].map((step) => (
+              <div key={step} className="relative mx-1 sm:mx-1.5">
+                <div className={`h-1.5 w-5 sm:w-7 rounded-full transition-all duration-500 ${step < currentStep ? 'bg-indigo-500' : step === currentStep ? 'bg-indigo-400' : 'bg-gray-200'}`} />
               </div>
             ))}
           </div>
         </div>
-        <motion.div className="mx-8  bg-gradient-to-r from-indigo-50 to-purple-50 p-5 rounded-xl border border-indigo-100/60 mb-4" key={`context-${currentStep}`} variants={slideIn} initial="hidden" animate="visible">
-          <p className="text-gray-700 text-sm leading-relaxed">
-            {currentStep === 1 && "We're creating your personalized therapy experience. It takes less than 2 minutes to get started."}
-            {currentStep === 2 && "Understanding your background helps us tailor content to your experience level."}
-            {currentStep === 3 && "Select a few topics that resonate with your therapy journey."}
-          </p>
-        </motion.div>
-        <div className="flex-1 overflow-y-auto min-h-[240px]">
+
+        {currentStep <= 3 && (
+          <motion.div 
+            className="mx-6 sm:mx-8 bg-gradient-to-r from-indigo-50 to-purple-50 p-4 sm:p-5 rounded-xl border border-indigo-100/60 mb-4" 
+            key={`context-${currentStep}`} 
+            variants={slideIn} 
+            initial="hidden" 
+            animate="visible"
+            exit="hidden"
+          >
+            <p className="text-gray-700 text-sm leading-relaxed">
+              {currentStep === 1 && "We're creating your personalized therapy experience. It takes less than 3 minutes to get started."}
+              {currentStep === 2 && "Understanding your background helps us tailor content to your experience level."}
+              {currentStep === 3 && "Select a few topics that resonate with your therapy journey. This helps us personalize your experience."}
+            </p>
+          </motion.div>
+        )}
+        
+        <div className={`flex-1 overflow-y-auto min-h-[320px] sm:min-h-[360px] custom-scrollbar ${currentStep > 3 ? 'pt-4' : ''}`}>
           <AnimatePresence mode="wait">{renderStepContent()}</AnimatePresence>
         </div>
-        <div className="flex justify-between items-center pt-5 px-8">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: currentStep > 1 ? 1 : 0 }} transition={{ duration: 0.5 }}>
+
+        <div className="flex justify-between items-center pt-5 pb-6 px-6 sm:px-8">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: currentStep > 1 ? 1 : 0 }} transition={{ duration: 0.5 }} className="min-w-[80px]">
             {currentStep > 1 ? (
-              <button onClick={prevStep} className="px-4 py-2 text-sm text-gray-500 hover:text-indigo-600 transition-colors duration-300 flex items-center">
+              <button onClick={prevStep} className="px-4 py-2.5 text-sm text-gray-500 hover:text-indigo-600 transition-colors duration-300 flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
                 </svg>
@@ -371,20 +566,16 @@ export default function OnboardingForm() {
               <div></div>
             )}
           </motion.div>
-          <motion.button onClick={nextStep} disabled={!isStepComplete()} className={`px-6 py-2.5 rounded-lg text-white text-sm font-medium transition-all duration-300 ${isStepComplete() ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-300 cursor-not-allowed'}`} whileTap={isStepComplete() ? { scale: 0.98 } : {}}>
-            {currentStep < totalSteps ? 'Continue' : "Let's Begin Your Journey"}
+          <motion.button 
+            onClick={nextStep} 
+            disabled={!isStepComplete()} 
+            className={`px-6 py-3 rounded-lg text-white text-sm font-medium transition-all duration-300 shadow-sm hover:shadow-md ${isStepComplete() ? 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' : 'bg-gray-300 cursor-not-allowed'}`}
+            whileTap={isStepComplete() ? { scale: 0.98 } : {}}
+          >
+            {currentStep < totalSteps ? 'Continue' : "Complete & Prepare for Session"}
           </motion.button>
         </div>
-        {/* <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6, duration: 0.6 }} className="text-center mt-5">
-          <button className="text-sm text-gray-500 hover:text-indigo-600 transition-colors duration-300 flex items-center mx-auto">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-            Save and continue later
-          </button>
-        </motion.div> */}
-        <div className="pt-4 mb-3 border-t border-gray-100 mt-6">
-          {/* <p className="text-xs text-center text-gray-400">We're here to help</p> */}
+        <div className="pt-3 mb-2 border-t border-gray-100 mt-4">
         </div>
       </div>
     </div>

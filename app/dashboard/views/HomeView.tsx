@@ -2,29 +2,40 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import MysticalOrb from "@/app/dashboard/aiorb";
+import MysticalOrb from "@/app/dashboard/aiorb"; // Assuming this component exists
 import { supabase } from "@/supabase/client";
-import { useConversation } from "@11labs/react";
-import { useConversationStatus } from "@/app/contexts/ConversationContext";
+import { useConversation } from "@11labs/react"; // Hook uses micMuted prop
+import { useConversationStatus } from "@/app/contexts/ConversationContext"; // Assuming this context exists
+
+// Define types for modules for better clarity
+interface TherapyModule {
+  greeting: string;
+  instructions: string;
+  agenda: string;
+  name?: string; // Add name to identify the module
+}
+
+interface NextSessionModule extends TherapyModule {
+  status: string;
+}
+
 
 export default function UserCheckInConversation() {
-  const [user, setUser] = useState<{ id: string; email: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email: string, app_stage?: string } | null>(null);
   const [agentMessage, setAgentMessage] = useState("");
   const [amplitude, setAmplitude] = useState(0);
   const [started, setStarted] = useState(false);
   const [duration, setDuration] = useState(0);
   const [loadingVars, setLoadingVars] = useState(true);
   const [sessionStatus, setSessionStatus] = useState<string | null>(null);
-  const [module, setModule] = useState<{
-    greeting: string;
-    instructions: string;
-    agenda: string;
-  } | null>(null);
+  const [module, setModule] = useState<TherapyModule | null>(null);
+  const [autoStartWelcome, setAutoStartWelcome] = useState(false);
+  const [isMuted, setIsMuted] = useState(false); // Local state to control micMuted prop
+
   const {
     conversationEnded,
     setConversationEnded,
     pollingStatus,
-    setPollingStatus,
   } = useConversationStatus();
 
   const varsRef = useRef<{
@@ -39,16 +50,17 @@ export default function UserCheckInConversation() {
     systemPrompt: "",
   });
 
-  const pollingComplete =
-    pollingStatus.sessionsUpdated && pollingStatus.bioUpdated;
-  const canStart = !loadingVars && (!conversationEnded || pollingComplete);
+  const pollingComplete = pollingStatus.sessionsUpdated && pollingStatus.bioUpdated;
+  const canManuallyStart = !loadingVars && (!conversationEnded || pollingComplete) && !autoStartWelcome;
 
   const animationRef = useRef<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startSound = useRef<HTMLAudioElement | null>(null);
   const endSound = useRef<HTMLAudioElement | null>(null);
 
+  // Pass isMuted to the hook
   const conversation = useConversation({
+    micMuted: isMuted, // Controlled prop
     onMessage: (msg) => {
       if (
         typeof msg === "object" &&
@@ -63,73 +75,130 @@ export default function UserCheckInConversation() {
     onConnect: () => {
       intervalRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
       startSound.current?.play();
+      setIsMuted(false); // Ensure conversation starts unmuted
     },
     onDisconnect: () => {
       endSound.current?.play();
       if (intervalRef.current) clearInterval(intervalRef.current);
+      setIsMuted(false); // Reset mute state on disconnect
     },
     onError: (err) => console.error("conversation error:", err),
   });
+
   const fetchUserContext = async () => {
     setLoadingVars(true);
+    setAutoStartWelcome(false);
 
     const {
       data: { user: authUser },
+      error: authError,
     } = await supabase.auth.getUser();
-    if (!authUser) return;
 
-    setUser({ id: authUser.id, email: authUser.email! });
+    if (authError || !authUser) {
+      console.error("Auth error or no user:", authError?.message);
+      setLoadingVars(false);
+      return;
+    }
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("users")
-      .select("bio, therapy_summary, themes, goals, email")
+      .select("bio, therapy_summary, themes, goals, email, app_stage, full_name")
       .eq("id", authUser.id)
       .single();
 
-    const { data: prompt } = await supabase
+    if (profileError || !profile) {
+      console.error("Profile error or no profile:", profileError?.message);
+      setLoadingVars(false);
+      return;
+    }
+
+    setUser({ id: authUser.id, email: authUser.email!, app_stage: profile.app_stage });
+
+    if (profile.app_stage === "post-onboarding") {
+      const { data: welcomePromptData, error: welcomePromptError } = await supabase
+        .from("system_prompts")
+        .select("prompt")
+        .eq("name", "Welcome")
+        .single();
+
+      const { data: welcomeModuleData, error: welcomeModuleError } = await supabase
+        .from("therapy_modules")
+        .select("greeting, instructions, agenda, name")
+        .eq("name", "Welcome")
+        .single();
+
+      if (welcomePromptError || !welcomePromptData || welcomeModuleError || !welcomeModuleData) {
+        console.warn("Missing welcome module or prompt:", { welcomePromptError, welcomeModuleError });
+        setLoadingVars(false);
+        return;
+      }
+
+      const personalizedGreeting = welcomeModuleData.greeting.replace("[User's Name]", profile.full_name || "there");
+
+      varsRef.current = {
+        userProfile: `Name: ${profile.full_name}\nBio: ${profile.bio || 'Not provided'}\nTherapy Summary: ${profile.therapy_summary || 'Not provided'}\nThemes: ${profile.themes || 'Not provided'}\nGoals: ${profile.goals || 'Not provided'}`,
+        therapyModule: `Instructions: ${welcomeModuleData.instructions}\nAgenda: ${welcomeModuleData.agenda}`,
+        greeting: personalizedGreeting,
+        systemPrompt: welcomePromptData.prompt,
+      };
+      setModule({...welcomeModuleData, greeting: personalizedGreeting });
+      setSessionStatus("welcome_ready");
+      setLoadingVars(false);
+      setAutoStartWelcome(true);
+      return;
+    }
+
+    const { data: defaultPrompt, error: defaultPromptError } = await supabase
       .from("system_prompts")
       .select("prompt")
       .eq("name", "Conversational 1")
       .single();
 
-    const { data: nextSession } = await supabase
+    if (defaultPromptError || !defaultPrompt) {
+        console.warn("Missing default system prompt (Conversational 1):", defaultPromptError?.message);
+        setLoadingVars(false);
+        return;
+    }
+
+    const { data: nextSessionData, error: nextSessionError } = await supabase
       .from("next_sessions")
-      .select("greeting, instructions, agenda, status")
+      .select("greeting, instructions, agenda, status, name")
       .eq("user_id", authUser.id)
       .single();
 
-    let finalModule = null;
+    let finalModule: TherapyModule | null = null;
 
-    if (nextSession && nextSession.status === "ready") {
-      finalModule = nextSession;
+    if (nextSessionData && nextSessionData.status === "ready") {
+      finalModule = nextSessionData;
       setSessionStatus("ready");
     } else {
-      setSessionStatus(nextSession?.status || "pending");
+      setSessionStatus(nextSessionData?.status || "pending_regular");
 
-      const { data: fallback } = await supabase
+      const { data: fallbackModule, error: fallbackError } = await supabase
         .from("therapy_modules")
-        .select("greeting, instructions, agenda")
+        .select("greeting, instructions, agenda, name")
         .eq("name", "Default Daily Check In")
         .single();
 
-      finalModule = fallback;
+      if (fallbackError || !fallbackModule) {
+        console.warn("Missing fallback daily check-in module:", fallbackError?.message);
+        setLoadingVars(false);
+        return;
+      }
+      finalModule = fallbackModule;
     }
 
-    if (!profile || !prompt || !finalModule) {
-      console.warn("Missing user context data:", {
-        profile,
-        prompt,
-        module: finalModule,
-      });
-      setLoadingVars(false); // <- Make sure we don't get stuck
+    if (!finalModule) {
+      console.warn("Could not determine a module for the session.");
+      setLoadingVars(false);
       return;
     }
 
     varsRef.current = {
-      userProfile: `Bio: ${profile.bio}\nTherapy Summary: ${profile.therapy_summary}\nThemes: ${profile.themes}\nGoals: ${profile.goals}`,
+      userProfile: `Name: ${profile.full_name}\nBio: ${profile.bio || 'Not provided'}\nTherapy Summary: ${profile.therapy_summary || 'Not provided'}\nThemes: ${profile.themes || 'Not provided'}\nGoals: ${profile.goals || 'Not provided'}`,
       therapyModule: `Instructions: ${finalModule.instructions}\nAgenda: ${finalModule.agenda}`,
       greeting: finalModule.greeting,
-      systemPrompt: prompt.prompt,
+      systemPrompt: defaultPrompt.prompt,
     };
 
     setModule(finalModule);
@@ -138,32 +207,61 @@ export default function UserCheckInConversation() {
 
   useEffect(() => {
     fetchUserContext();
+    // startSound.current = new Audio('/path/to/start-sound.mp3');
+    // endSound.current = new Audio('/path/to/end-sound.mp3');
   }, []);
 
-  // Poll for session processing to finish
   useEffect(() => {
-    if (sessionStatus !== "pending") return;
+    if (autoStartWelcome && !loadingVars && !started) {
+      console.log("Auto-starting welcome session...");
+      startConversation();
+    }
+  }, [autoStartWelcome, loadingVars, started]);
 
+  useEffect(() => {
+    if (sessionStatus !== "pending_regular" || !user?.id || user?.app_stage === "post-onboarding") {
+      return;
+    }
+
+    console.log("Polling for regular session readiness...");
     const interval = setInterval(async () => {
-      const { data: session } = await supabase
+      const { data: session, error } = await supabase
         .from("next_sessions")
-        .select("greeting, instructions, agenda, status")
-        .eq("user_id", user?.id)
+        .select("greeting, instructions, agenda, status, name")
+        .eq("user_id", user.id)
         .single();
 
+      if (error) {
+        console.error("Error polling next_session:", error.message);
+        clearInterval(interval);
+        return;
+      }
+
       if (session?.status === "ready") {
+        console.log("Regular session is now ready.");
         setModule(session);
         setSessionStatus("ready");
 
+        const { data: defaultPrompt, error: promptError } = await supabase
+            .from("system_prompts")
+            .select("prompt")
+            .eq("name", "Conversational 1")
+            .single();
+
+        if(promptError || !defaultPrompt){
+            console.error("Failed to reload default prompt for ready session", promptError?.message);
+        } else {
+            varsRef.current.systemPrompt = defaultPrompt.prompt;
+        }
+
         varsRef.current.therapyModule = `Instructions: ${session.instructions}\nAgenda: ${session.agenda}`;
         varsRef.current.greeting = session.greeting;
-
         clearInterval(interval);
       }
-    }, 5000); // every 5 seconds
+    }, 5000);
 
     return () => clearInterval(interval);
-  }, [sessionStatus, user?.id]);
+  }, [sessionStatus, user?.id, user?.app_stage]);
 
   useEffect(() => {
     if (!started) return;
@@ -171,25 +269,40 @@ export default function UserCheckInConversation() {
     const animate = () => {
       const vol = conversation.isSpeaking
         ? conversation.getOutputVolume()
-        : conversation.getInputVolume();
+        // If the hook provides a way to know if the mic is *actually* muted by it, use that.
+        // Otherwise, rely on our `isMuted` state for visual feedback.
+        : isMuted ? 0 : conversation.getInputVolume();
       setAmplitude((prev) => prev * 0.6 + vol * 0.4);
       animationRef.current = requestAnimationFrame(animate);
     };
 
     animationRef.current = requestAnimationFrame(animate);
-
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [started, conversation.isSpeaking]);
+  }, [started, conversation.isSpeaking, conversation, isMuted]); // Added conversation to dependency array
 
   const startConversation = async () => {
-    if (!user || loadingVars) return;
+    if (!user || loadingVars || !varsRef.current.greeting) {
+        console.warn("Cannot start conversation: User not loaded, vars loading, or greeting missing.");
+        return;
+    }
+    setConversationEnded(false);
+    setIsMuted(false); // Ensure mic is unmuted (by prop) when starting
 
     const res = await fetch(
       `/api/elevenlabs-connection?user_email=${user.email}`
     );
+    if (!res.ok) {
+        console.error("Failed to get signed URL for ElevenLabs connection", await res.text());
+        return;
+    }
     const { signedUrl } = await res.json();
+
+    if (!signedUrl) {
+        console.error("Signed URL is missing from API response");
+        return;
+    }
 
     const id = await conversation.startSession({
       signedUrl,
@@ -204,51 +317,42 @@ export default function UserCheckInConversation() {
 
     setStarted(true);
     setDuration(0);
+    setAutoStartWelcome(false);
   };
 
   const stopConversation = async () => {
+    const wasWelcomeSession = module?.name === "Welcome";
+
     await conversation.endSession();
     setStarted(false);
     setAmplitude(0);
     setAgentMessage("");
     setDuration(0);
+    setConversationEnded(true);
+    setIsMuted(false); // Reset mute state
 
-    // Clear vars and set loading state
-    varsRef.current = {
-      userProfile: "",
-      therapyModule: "",
-      greeting: "",
-      systemPrompt: "",
-    };
+    varsRef.current = { userProfile: "", therapyModule: "", greeting: "", systemPrompt: "" };
     setLoadingVars(true);
+    setModule(null);
 
-    // 1. Wait for pollingStatus to complete
-    let pollTries = 0;
-    while (pollTries < 100) {
-      const { sessionsUpdated, bioUpdated } = pollingStatus;
-      if (sessionsUpdated && bioUpdated) break;
-
-      await new Promise((r) => setTimeout(r, 100));
-      pollTries++;
+    if (wasWelcomeSession && user?.id) {
+      console.log("Welcome session ended. Updating app_stage to dashboard for user:", user.id);
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({ app_stage: "dashboard" })
+        .eq("id", user.id);
+      if (updateError) {
+        console.error("Failed to update user app_stage:", updateError.message);
+      }
+      setUser(prev => prev ? {...prev, app_stage: "dashboard"} : null);
     }
 
-    // 2. Wait for next_sessions to become 'ready'
-    let sessionTries = 0;
-    while (sessionTries < 100) {
-      const { data: session } = await supabase
-        .from("next_sessions")
-        .select("status")
-        .eq("user_id", user?.id)
-        .single();
-
-      if (session?.status === "ready") break;
-
-      await new Promise((r) => setTimeout(r, 500));
-      sessionTries++;
-    }
-
-    // Now fetch updated context
+    console.log("Conversation stopped. Re-fetching user context...");
     await fetchUserContext();
+  };
+
+  const toggleMute = () => {
+    setIsMuted(prevMutedState => !prevMutedState);
   };
 
   const orbSize = 150 + amplitude * 40;
@@ -260,20 +364,20 @@ export default function UserCheckInConversation() {
 
   return (
     <div className="w-full max-w-2xl min-h-screen mx-auto flex flex-col items-center justify-center py-6 px-4 transition-all duration-300">
-      {/* Greeting/Message */}
       <div className="mb-6 text-center">
-        <p className="text-lg font-semibold">Maya</p>
+        <p className="text-lg font-semibold">Kind</p>
         <p className="text-sm">{formatTime(duration)}</p>
         <p className="text-sm text-gray-400">
-          {conversation.status !== "connected"
-            ? "Idle"
-            : conversation.isSpeaking
-            ? "Speaking..."
-            : "Listening..."}
+          {loadingVars && !started ? "Loading session..." :
+           !started && sessionStatus === "welcome_ready" ? "Welcome session ready." :
+           !started && sessionStatus === "pending_regular" && module?.name !== "Welcome" ? "Preparing your check-in..." :
+           !started && sessionStatus === "ready" && module?.name !== "Welcome" ? "Check-in ready." :
+           conversation.status !== "connected" && !started ? "Idle" :
+           conversation.isSpeaking ? "Speaking..." :
+           isMuted ? "Muted (Listening Paused)" : "Listening..."}
         </p>
       </div>
 
-      {/* Orb */}
       <div
         className="relative flex items-center justify-center mb-8"
         style={{ width: "200px", height: "200px" }}
@@ -290,48 +394,59 @@ export default function UserCheckInConversation() {
         </div>
       </div>
 
-      {/* Agent Message */}
       {started && agentMessage && (
-        <p className="text-sm max-w-[280px] text-center text-gray-700 leading-snug mb-4">
+        <p className="text-sm max-w-[320px] text-center text-gray-700 leading-snug mb-4 p-3 bg-gray-100 rounded-lg shadow">
           {agentMessage}
         </p>
       )}
 
-      {/* Controls */}
-      <div className="flex flex-col items-center gap-4 text-gray-600">
+      <div className="flex items-center justify-center gap-3 text-gray-600">
         {started && (
-          <button className="flex items-center gap-2 hover:text-black">
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 1v2m6.364 1.636l-1.414 1.414M21 12h-2m-1.636 6.364l-1.414-1.414M12 21v-2m-6.364-1.636l1.414-1.414M3 12h2m1.636-6.364l1.414 1.414"
-              />
-            </svg>
-            <span className="text-sm">Mute</span>
+          <button
+            onClick={toggleMute}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 transition-colors shadow hover:shadow-md text-sm font-medium"
+            aria-label={isMuted ? "Unmute" : "Mute"}
+          >
+            {isMuted ? (
+              <>
+                {/* Unmute Icon (Microphone) */}
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15c.665 0 1.32.046 1.95.137M6.75 12A5.25 5.25 0 0112 6.75m0 0A5.25 5.25 0 0117.25 12M12 6.75v3.75" />
+                </svg>
+                <span>Unmute</span>
+              </>
+            ) : (
+              <>
+                {/* Mute Icon (Microphone with Slash) */}
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15c.665 0 1.32.046 1.95.137M6.75 12A5.25 5.25 0 0112 6.75m0 0A5.25 5.25 0 0117.25 12M12 6.75v3.75" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.5 3.5l17 17" />
+                </svg>
+                <span>Mute</span>
+              </>
+            )}
           </button>
         )}
         {started ? (
           <button
             onClick={stopConversation}
-            className="flex items-center gap-2 hover:text-black"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 transition-colors shadow hover:shadow-md"
           >
-            <div className="w-3 h-3 bg-red-500 rounded-sm" />
-            <span className="text-sm">End call</span>
+            <svg className="w-4 h-4 fill-current text-gray-600" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+              <path fillRule="evenodd" d="M5 5h10v10H5V5z" clipRule="evenodd"></path>
+            </svg>
+            <span className="text-sm font-medium">End Session</span>
           </button>
         ) : (
           <button
-            disabled={!canStart}
+            disabled={!canManuallyStart && !autoStartWelcome}
             onClick={startConversation}
-            className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 text-sm disabled:opacity-50"
+            className="px-6 py-3 border border-gray-300 rounded-full hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow hover:shadow-md"
           >
-            {!canStart ? "Processing last session..." : "Start Check-In"}
+            {loadingVars ? "Loading..." :
+             sessionStatus === "welcome_ready" ? "Start Welcome Session" :
+             sessionStatus === "pending_regular" ? "Processing previous session..." :
+             "Start Check-In"}
           </button>
         )}
       </div>

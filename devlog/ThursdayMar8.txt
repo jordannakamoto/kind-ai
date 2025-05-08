@@ -1,0 +1,3 @@
+Need to add mic access to the onboarding audio config step.
+Need to fix UI for the conversation after fixing the mute functionality.
+Need to close the data loop on the conversation.
