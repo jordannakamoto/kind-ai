@@ -1,5 +1,6 @@
 "use client";
 
+import { Mic, MicOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import MysticalOrb from "@/app/dashboard/aiorb"; // Assuming this component exists
@@ -373,8 +374,14 @@ export default function UserCheckInConversation() {
            !started && sessionStatus === "pending_regular" && module?.name !== "Welcome" ? "Preparing your check-in..." :
            !started && sessionStatus === "ready" && module?.name !== "Welcome" ? "Check-in ready." :
            conversation.status !== "connected" && !started ? "Idle" :
-           conversation.isSpeaking ? "Speaking..." :
-           isMuted ? "Muted (Listening Paused)" : "Listening..."}
+           conversation.isSpeaking
+           ? isMuted
+             ? "Speaking... (Muted)"
+             : "Speaking..."
+           : isMuted
+             ? "Listening... (Muted)"
+             : "Listening..."
+          }
         </p>
       </div>
 
@@ -404,33 +411,24 @@ export default function UserCheckInConversation() {
         {started && (
           <button
             onClick={toggleMute}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-full text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 transition-colors shadow hover:shadow-md text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full text-gray-700 bg-white hover:bg-gray-100 border border-gray-100 transition-colors shadow hover:shadow-md text-sm font-medium"
             aria-label={isMuted ? "Unmute" : "Mute"}
           >
             {isMuted ? (
-              <>
-                {/* Unmute Icon (Microphone) */}
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15c.665 0 1.32.046 1.95.137M6.75 12A5.25 5.25 0 0112 6.75m0 0A5.25 5.25 0 0117.25 12M12 6.75v3.75" />
-                </svg>
-                <span>Unmute</span>
-              </>
-            ) : (
-              <>
-                {/* Mute Icon (Microphone with Slash) */}
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15c.665 0 1.32.046 1.95.137M6.75 12A5.25 5.25 0 0112 6.75m0 0A5.25 5.25 0 0117.25 12M12 6.75v3.75" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.5 3.5l17 17" />
-                </svg>
-                <span>Mute</span>
-              </>
-            )}
+  <>
+    <MicOff className="w-5 h-5" />
+  </>
+) : (
+  <>
+    <Mic className="w-5 h-5" />
+  </>
+)}
           </button>
         )}
         {started ? (
           <button
             onClick={stopConversation}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 transition-colors shadow hover:shadow-md"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full text-gray-700 bg-white hover:bg-gray-100 border border-gray-100 transition-colors shadow hover:shadow-md"
           >
             <svg className="w-4 h-4 fill-current text-gray-600" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
               <path fillRule="evenodd" d="M5 5h10v10H5V5z" clipRule="evenodd"></path>
