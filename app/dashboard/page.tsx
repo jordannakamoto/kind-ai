@@ -18,6 +18,7 @@ import ProgressView from "./views/ProgressView";
 import type { ReactElement } from "react";
 import SessionDetailView from "./views/SessionDetailView";
 import SessionsView from "./views/SessionsView";
+import { Suspense } from "react";
 import { supabase } from "@/supabase/client";
 
 export default function UserDashboard() {

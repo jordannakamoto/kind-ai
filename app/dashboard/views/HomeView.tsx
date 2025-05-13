@@ -163,7 +163,7 @@ export default function UserCheckInConversation() {
 
     const { data: nextSessionData, error: nextSessionError } = await supabase
       .from("next_sessions")
-      .select("greeting, instructions, agenda, status, name")
+      .select("greeting, instructions, agenda, status")
       .eq("user_id", authUser.id)
       .single();
 
@@ -177,7 +177,7 @@ export default function UserCheckInConversation() {
 
       const { data: fallbackModule, error: fallbackError } = await supabase
         .from("therapy_modules")
-        .select("greeting, instructions, agenda, name")
+        .select("greeting, instructions, agenda")
         .eq("name", "Default Daily Check In")
         .single();
 
@@ -228,7 +228,7 @@ export default function UserCheckInConversation() {
     const interval = setInterval(async () => {
       const { data: session, error } = await supabase
         .from("next_sessions")
-        .select("greeting, instructions, agenda, status, name")
+        .select("greeting, instructions, agenda, status")
         .eq("user_id", user.id)
         .single();
 
