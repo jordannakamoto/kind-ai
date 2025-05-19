@@ -406,4 +406,4 @@ export default function UserSessionHistory() {
       )}
     </div>
   );
-}up
+}
