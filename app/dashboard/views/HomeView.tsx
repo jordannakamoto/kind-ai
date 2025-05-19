@@ -356,7 +356,7 @@ export default function UserCheckInConversation() {
     setIsMuted(prevMutedState => !prevMutedState);
   };
 
-  const orbSize = 150 + amplitude * 40;
+  const orbSize = 160 + amplitude * 50;
 
   const formatTime = (seconds: number): string =>
     `${Math.floor(seconds / 60)
@@ -364,9 +364,9 @@ export default function UserCheckInConversation() {
       .padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
 
   return (
-    <div className="w-full max-w-2xl min-h-screen mx-auto flex flex-col items-center justify-center py-6 px-4 transition-all duration-300">
+    <div className="w-full max-w-2xl h-screen mx-auto flex flex-col items-center justify-center  px-4 transition-all duration-300">
       <div className="mb-6 text-center">
-        <p className="text-lg font-semibold">Kind</p>
+        <p className="text-lg font-semibold">Mira</p>
         <p className="text-sm">{formatTime(duration)}</p>
         <p className="text-sm text-gray-400">
           {loadingVars && !started ? "Loading session..." :
@@ -439,7 +439,7 @@ export default function UserCheckInConversation() {
           <button
             disabled={!canManuallyStart && !autoStartWelcome}
             onClick={startConversation}
-            className="px-6 py-3 border border-gray-300 rounded-full hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow hover:shadow-md"
+            className="px-6 py-3 border mb-36 border-gray-300 rounded-full hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow hover:shadow-md"
           >
             {loadingVars ? "Loading..." :
              sessionStatus === "welcome_ready" ? "Start Welcome Session" :

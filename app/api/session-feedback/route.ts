@@ -28,13 +28,13 @@ async function generateFeedbackFromTranscript(transcript: string): Promise<Feedb
   const input = `
 You are a therapist reviewing a session transcript. Return a structured analysis in three parts:
 
-1. **Next Steps**: Practical and helpful next actions for the client.
+1. **Next Steps**: Brief,bulleted 1 sentence practical and helpful next actions or contemplations for the client.
 2. **Insight**: A thoughtful reflection or reframe that deepens the client’s self-understanding.
 3. **Challenge**: A respectful but direct challenge to a core assumption, belief, or pattern.
 
-Do not use excessive praise or generic validation. Your tone should be intelligent, supportive, and willing to provoke growth.
+Do not use excessive praise or generic validation. Your tone should be intelligent, supportive, and willing to provoke growth. Language should be simple, readable, and brief.
 
-Use this format:
+Use this format and do not bold any sections:
 
 Next Steps:
 <text>

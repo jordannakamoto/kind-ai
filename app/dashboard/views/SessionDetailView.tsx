@@ -82,7 +82,7 @@ export default function SessionDetailView({
   const isPlaceholder = title === 'Recent Session' && summary === 'Summarizing...';
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10 space-y-10 animate-fade-in">
+    <div className="max-w-3xl mx-auto h-full px-4 py-10 space-y-10 animate-fade-in overflow-scroll bg-gray-50">
       {onBack && (
         <button
           onClick={onBack}

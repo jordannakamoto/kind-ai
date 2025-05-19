@@ -85,7 +85,7 @@ export default function TherapyLibraryFeed() {
     : modules;
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-10">
+    <div className="w-full max-w-4xl mx-auto px-4 py-10 pl-10">
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-4">Therapy Library</h2>
 

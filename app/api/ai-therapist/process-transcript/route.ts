@@ -44,7 +44,7 @@ async function getTherapyInsights(transcript: string): Promise<ParsedTherapyInsi
 You are an AI therapy assistant helping summarize therapy sessions. Analyze the transcript below and return the following five outputs.
 
 1. A relevant session title (no quotes or emojis, in Title Case).
-2. A brief summary in second-person ("you") tone.
+2. A brief summary in second-person ("you") or "we talked about" tone, speaking to the client.
 3. A "Goals:" section (only if applicable).
 4. A "Themes:" section (only if applicable).
 5. A "Bio:" section (only if applicable).

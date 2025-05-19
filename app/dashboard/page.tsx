@@ -168,10 +168,10 @@ export default function UserDashboard() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 flex">
+    <main className="h-full bg-gray-50 flex">
       {/* Sidebar */}
       <aside
-        className={`relative transition-all duration-300 ease-in-out h-screen bg-neutral-50 border-r border-gray-100 flex flex-col z-20 ${
+        className={`fixed transition-all z-30 duration-300 ease-in-out h-screen bg-neutral-50 border-r border-gray-100 flex flex-col z-20 ${
           sidebarOpen ? "w-60" : "w-0"
         }`}
       >
@@ -314,7 +314,7 @@ export default function UserDashboard() {
       {/* Sidebar Toggle Button (always visible, outside sidebar) */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className={`fixed top-6 z-30 p-2 rounded-lg bg-white border border-gray-200 shadow hover:bg-gray-100 transition-colors ${
+        className={`fixed top-3 z-30 p-2 rounded-lg border shadow bg-white border-gray-200 gray-100 hover:bg-gray-100 transition-colors ${
           sidebarOpen ? "left-65" : "left-4"
         }`}
         style={{ transition: "left 0.3s cubic-bezier(0.4,0,0.2,1)" }}
@@ -328,7 +328,7 @@ export default function UserDashboard() {
       {/* Main Content */}
       <section
         ref={scrollRef}
-        className="flex-1 relative p-8 h-screen overflow-hidden transition-all duration-300 ease-in-out"
+        className="flex-1 relative h-screen transition-all duration-300 ease-in-out"
       >
         {/* View Transitions */}
         {["home", "discover", "bio", "sessions", "progress"].map((view) => {
@@ -336,17 +336,19 @@ export default function UserDashboard() {
           return (
             <div
               key={view}
-              className={`absolute inset-0 transition-opacity duration-300 ease-in-out ${
+              className={`absolute h-full bg-gray-50 inset-0 transition-opacity duration-300 ease-in-out ${
                 isVisible && viewVisible
                   ? "opacity-100 z-10"
                   : "opacity-0 pointer-events-none z-0"
               }`}
             >
+               <div className="w-full h-full overflow-y-auto">
               {view === "home" && <HomeView />}
               {view === "discover" && <DiscoverView />}
               {view === "bio" && <ProfileView />}
               {view === "sessions" && !sessionId && <SessionsView />}
               {view === "progress" && <ProgressView />}
+              </div>
             </div>
           );
         })}

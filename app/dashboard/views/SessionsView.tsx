@@ -122,7 +122,7 @@ export default function UserSessionHistory() {
   const showEmptyMessage = !loading && filteredSessions.length === 0;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10 bg-neutral-50">
+    <div className="max-w-3xl mx-auto px-4 py-10 bg-neutral-50 overflow-scroll">
       <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-6 bg-white p-4 rounded-xl shadow-sm">
         <div className="relative flex-1 w-full">
           <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
