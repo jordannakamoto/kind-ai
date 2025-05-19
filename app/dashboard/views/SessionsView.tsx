@@ -233,7 +233,7 @@ export default function UserSessionHistory() {
 
   return (
     <div className="bg-gray-50 min-h-screen py-8 sm:py-12 w-full">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 mb-10"> {/* Search Bar */}
+      <div className="hidden max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 mb-10"> {/* Search Bar */}
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
             <svg className="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" /></svg>
@@ -289,7 +289,7 @@ export default function UserSessionHistory() {
                           <li key={session.id}>
                             <button onClick={() => !isListItemPlaceholder && handleSelectSession(session.id)} disabled={isListItemPlaceholder}
                               aria-label={`View session: ${session.title || 'Untitled Session'}`}
-                              className={`w-full flex items-center bg-white p-3.5 sm:p-4 rounded-xl shadow-sm border border-slate-200/80 transition-all duration-200 ease-in-out group ${isListItemPlaceholder ? 'opacity-60 animate-pulse cursor-default' : 'hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'}`}>
+                              className={`w-full flex items-center bg-white p-3.5 sm:p-4 rounded-xl shadow  transition-all duration-200 ease-in-out group ${isListItemPlaceholder ? 'opacity-60 animate-pulse cursor-default' : 'hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'}`}>
                               {isListItemPlaceholder ? (<> {/* Placeholder for recent list item */}
                                 <div className="mr-4 text-center w-16 h-6 bg-slate-300/70 rounded-md flex-shrink-0"></div> <div className="flex-grow min-w-0"><div className="h-4 bg-slate-300 rounded w-3/4 mb-1.5"></div><div className="h-3 bg-slate-300 rounded w-1/2"></div></div> <div className="h-4 bg-slate-300 rounded w-10 ml-3"></div>
                               </>) : (<>
@@ -297,7 +297,7 @@ export default function UserSessionHistory() {
                                   <span className="text-[11px] sm:text-xs font-medium text-slate-500 group-hover:text-slate-600 bg-slate-200/70 group-hover:bg-slate-200 rounded px-1.5 py-0.5">{formatRelativeDateForRecent(session.created_at)}</span>
                                 </div>
                                 <div className="flex-grow min-w-0">
-                                  <h3 className="text-sm sm:text-base font-semibold text-slate-800 group-hover:text-indigo-700 truncate transition-colors">{session.title || 'Untitled Session'}</h3>
+                                  <h3 className="text-sm sm:text-base font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">{session.title || 'Untitled Session'}</h3>
                                   <p className="text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">{formatDuration(session.duration)}</p>
                                 </div>
                                 <svg className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 ml-3 flex-shrink-0 transition-colors" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
@@ -331,13 +331,13 @@ export default function UserSessionHistory() {
                           <li key={session.id}>
                             <button onClick={() => handleSelectSession(session.id)}
                               aria-label={`View session: ${session.title || 'Untitled Session'} from ${fullDate}`}
-                              className={`w-full flex items-center bg-white p-3.5 sm:p-4 rounded-xl shadow-sm border border-slate-200/80 transition-all duration-200 ease-in-out group hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none`}>
+                              className={`w-full flex items-center bg-white p-3.5 sm:p-4 rounded-xl shadow transition-all duration-200 ease-in-out group hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none`}>
                                 <div className="mr-3 sm:mr-4 text-center w-12 flex-shrink-0" aria-hidden="true">
                                   <div className="text-xs text-gray-400 tracking-wide">{dayOfWeek}</div>
                                   <div className="text-s font-bold text-slate-700 group-hover:text-slate-800">{dayOfMonth}</div>
                                 </div>
                                 <div className="flex-grow min-w-0">
-                                  <h3 className="text-sm sm:text-base font-semibold text-slate-800 group-hover:text-indigo-700 truncate transition-colors">{session.title || 'Untitled Session'}</h3>
+                                  <h3 className="text-sm sm:text-base font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">{session.title || 'Untitled Session'}</h3>
                                   <p className="text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">{formatDuration(session.duration)}</p>
                                 </div>
                                 <svg className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 ml-3 flex-shrink-0 transition-colors" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
@@ -351,7 +351,7 @@ export default function UserSessionHistory() {
                             <button onClick={() => !isDayPlaceholder && toggleExpandedDay(dayGroup.date)} disabled={isDayPlaceholder}
                               aria-expanded={isExpanded} aria-controls={`sessions-for-${dayGroup.date}`}
                               aria-label={`${isExpanded ? 'Collapse' : 'Expand'} sessions from ${fullDate}`}
-                              className={`w-full flex items-center bg-white p-3.5 sm:p-4 rounded-xl shadow-sm border border-slate-200/80 transition-all duration-200 ease-in-out group ${isDayPlaceholder ? 'opacity-60 animate-pulse cursor-default' : 'hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'}`}>
+                              className={`w-full flex items-center bg-white p-3.5 sm:p-4 rounded-xl shadow transition-all duration-200 ease-in-out group ${isDayPlaceholder ? 'opacity-60 animate-pulse cursor-default' : 'hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'}`}>
                               {isDayPlaceholder ? (<> {/* Placeholder for day group tile */}
                                 <div className="mr-4 text-center w-12 h-10 bg-slate-300/70 rounded-md flex-shrink-0"></div> <div className="flex-grow min-w-0"><div className="h-4 bg-slate-300 rounded w-3/4 mb-1.5"></div><div className="h-3 bg-slate-300 rounded w-1/2"></div></div> <div className="h-4 bg-slate-300 rounded w-10 ml-3"></div>
                               </>) : (<>
@@ -360,7 +360,7 @@ export default function UserSessionHistory() {
                                   <div className="text-s font-bold text-slate-700 group-hover:text-slate-800">{dayOfMonth}</div>
                                 </div>
                                 <div className="flex-grow min-w-0">
-                                  <h3 className="text-sm sm:text-base font-semibold text-slate-800 group-hover:text-indigo-700 truncate transition-colors">
+                                  <h3 className="text-sm sm:text-base font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">
                                     {dayGroup.sessions.length} {dayGroup.sessions.length === 1 ? 'session' : 'sessions'}
                                   </h3>
                                   <p className="text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">
