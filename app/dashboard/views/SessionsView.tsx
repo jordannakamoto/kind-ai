@@ -1,7 +1,7 @@
 'use client';
 
 import { sessionCache, setSessionCache } from '@/app/contexts/sessionCache';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { supabase } from '@/supabase/client';
 import { useConversationStatus } from '@/app/contexts/ConversationContext';
@@ -14,12 +14,163 @@ interface Session {
   summary: string | null;
   notes: string | null;
   transcript: string | null;
-  duration_minutes: number | null;
+  duration: number | null;
 }
 
+// --- Helper Functions ---
+
+const truncateSummary = (summary: string | null, sentenceLimit: number = 3): string => {
+  if (!summary) return '';
+  const sentences = summary.match(/[^.!?]+[.!?\s]*/g);
+  if (!sentences || sentences.length === 0) {
+    return summary.length > 200 ? summary.substring(0, 197) + '...' : summary; // Adjusted for potentially longer summary display
+  }
+  if (sentences.length <= sentenceLimit) {
+    return sentences.join('').trim();
+  }
+  return sentences.slice(0, sentenceLimit).join('').trim() + '...';
+};
+
+const getStartOfDay = (date: Date): Date => {
+  const newDate = new Date(date);
+  newDate.setHours(0, 0, 0, 0);
+  return newDate;
+};
+
+// Groups sessions by time periods.
+const groupSessionsByTime = (sessions: Session[]): Array<{ title: string; sessions: Session[] }> => {
+  // This function remains largely the same, as it groups the provided sessions.
+  // The filtering of the "most recent" session will happen before calling this.
+  if (!sessions || sessions.length === 0) return [];
+  const groups: { [key: string]: Session[] } = {};
+  const standardGroupKeys = ['Recent', 'Last Week', 'This Month']; // "Recent" will now be for items other than the absolute most recent
+  standardGroupKeys.forEach(key => groups[key] = []);
+
+  const now = new Date();
+  const todayDt = getStartOfDay(now);
+  const yesterdayDt = new Date(todayDt);
+  yesterdayDt.setDate(todayDt.getDate() - 1);
+
+  // For "Recent" group, we usually mean things that are not "Today's" absolute latest if it's shown separately.
+  // But for grouping logic, we can keep it broad and filter specific items (like the top one) at the component level.
+  // Effectively, "Recent" here will catch items from yesterday up to (but not including) the most recent special one.
+
+  const currentDayOfWeek = todayDt.getDay();
+  const startOfThisWeekDt = new Date(todayDt);
+  startOfThisWeekDt.setDate(todayDt.getDate() - currentDayOfWeek);
+  const startOfLastWeekDt = new Date(startOfThisWeekDt);
+  startOfLastWeekDt.setDate(startOfThisWeekDt.getDate() - 7);
+  const endOfLastWeekDt = new Date(startOfThisWeekDt);
+  endOfLastWeekDt.setTime(endOfLastWeekDt.getTime() - 1);
+  const startOfThisMonthDt = new Date(todayDt.getFullYear(), todayDt.getMonth(), 1);
+  const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'long' });
+  const yearFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric' });
+
+  for (const session of sessions) {
+    const sessionDate = new Date(session.created_at);
+    const sessionDayStart = getStartOfDay(new Date(session.created_at));
+
+    // The logic for pushing into "Recent" might seem to overlap with the "most recent" special view,
+    // but remember `groupSessionsByTime` is called with `sessionsForGrouping` which already excludes the special one.
+    if (sessionDayStart.getTime() >= yesterdayDt.getTime()) { // Catches yesterday and older "recent" items
+      groups.Recent.push(session);
+    } else if (sessionDayStart.getTime() >= startOfLastWeekDt.getTime() && sessionDayStart.getTime() <= endOfLastWeekDt.getTime()) {
+      groups['Last Week'].push(session);
+    } else if (sessionDayStart.getTime() >= startOfThisMonthDt.getTime()) {
+      groups['This Month'].push(session);
+    } else {
+      const monthName = monthFormatter.format(sessionDate);
+      const year = yearFormatter.format(sessionDate);
+      const groupKey = `${monthName} ${year}`;
+      if (!groups[groupKey]) groups[groupKey] = [];
+      groups[groupKey].push(session);
+    }
+  }
+  // ... (rest of grouping and sorting logic is the same)
+  const result: Array<{ title: string; sessions: Session[] }> = [];
+  for (const title of standardGroupKeys) {
+    if (groups[title] && groups[title].length > 0) {
+      result.push({ title, sessions: groups[title] });
+    }
+  }
+  const monthKeys = Object.keys(groups)
+    .filter(key => !standardGroupKeys.includes(key))
+    .sort((a, b) => {
+        const dateA = new Date(a.replace(/(\w+)\s(\d{4})/, '$1 1, $2'));
+        const dateB = new Date(b.replace(/(\w+)\s(\d{4})/, '$1 1, $2'));
+        return dateB.getTime() - dateA.getTime();
+    });
+  for (const monthKey of monthKeys) {
+    if (groups[monthKey] && groups[monthKey].length > 0) {
+      result.push({ title: monthKey, sessions: groups[monthKey] });
+    }
+  }
+  return result;
+};
+
+
+const formatSessionListDate = (dateString: string): { dayOfWeek: string; dayOfMonth: string; fullDate: string } => {
+  const date = new Date(dateString);
+  const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+  const dayOfMonth = date.toLocaleDateString('en-US', { day: 'numeric' });
+  const fullDate = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  return { dayOfWeek, dayOfMonth, fullDate };
+};
+
+const formatRelativeDateForRecent = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const todayStart = getStartOfDay(now);
+    const yesterdayStart = getStartOfDay(new Date(new Date().setDate(now.getDate() - 1)));
+    const dateStart = getStartOfDay(date);
+
+    const diffTime = todayStart.getTime() - dateStart.getTime(); // Difference from today
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (dateStart.getTime() === todayStart.getTime()) return "Today"; // Should ideally not happen if the most recent is shown separately
+    if (dateStart.getTime() === yesterdayStart.getTime()) return "Yesterday";
+    if (diffDays > 0 && diffDays <= 7) return `${diffDays} days ago`; // For items within the "Recent" group
+    
+    // Fallback for older items if they somehow get into "Recent" group or for general use
+    return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const formatDetailedTimestamp = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const todayStart = getStartOfDay(now);
+    const yesterdayStart = getStartOfDay(new Date(new Date().setDate(now.getDate() - 1)));
+    const dateStart = getStartOfDay(date);
+    const timeFormat: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+
+    if (dateStart.getTime() === todayStart.getTime()) {
+        return `Today at ${date.toLocaleTimeString('en-US', timeFormat)}`;
+    }
+    if (dateStart.getTime() === yesterdayStart.getTime()) {
+        return `Yesterday at ${date.toLocaleTimeString('en-US', timeFormat)}`;
+    }
+    return `${date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at ${date.toLocaleTimeString('en-US', timeFormat)}`;
+};
+
+const formatDuration = (seconds: number | null): string => {
+  if (seconds === null || seconds === undefined) return 'Processing duration...';
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes <= 0) return 'Short session';
+  if (minutes < 60) return `${minutes} min`;
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (remainingMinutes === 0) return `${hours} hr`;
+  return `${hours} hr ${remainingMinutes} min`;
+};
+
+
+// --- Component ---
 export default function UserSessionHistory() {
-  const [sessions, setSessions] = useState(() => sessionCache);
-  const [loading, setLoading] = useState(() => sessionCache.length === 0);  
+  const [allUserSessionsData, setAllUserSessionsData] = useState<Session[]>(() => sessionCache);
+  const [loading, setLoading] = useState<boolean>(() => sessionCache.length === 0);  
   const [userId, setUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -42,7 +193,7 @@ export default function UserSessionHistory() {
   }, []);
 
   useEffect(() => {
-    const fetchSessions = async () => {
+    const fetchAndUpdateSessions = async () => {
       if (!userId) return;
       setLoading(true);
       const { data, error } = await supabase
@@ -52,145 +203,263 @@ export default function UserSessionHistory() {
         .order('created_at', { ascending: false });
 
       if (!error && data) {
-        setSessionCache(data);
-        setSessions(data); // ← This ensures sessions state is set too
-            } else {
+        const typedData = data as Session[];
+        setSessionCache(typedData); 
+        setAllUserSessionsData(typedData);
+      } else {
         console.error('Error loading sessions:', error?.message);
       }
       setLoading(false);
     };
-    fetchSessions();
+    
+    if (userId) {
+      const cachedSessions = sessionCache; // Directly use the imported array
+      if (cachedSessions.length === 0) {
+        fetchAndUpdateSessions();
+      } else {
+        setAllUserSessionsData(cachedSessions);
+        setLoading(false); 
+        fetchAndUpdateSessions(); // Refresh in background
+      }
+    }
   }, [userId]);
 
-  useEffect(() => {
-    if (!userId || !conversationEnded || pollingStatus.sessionsUpdated) return;
 
-    const interval = setInterval(async () => {
+  useEffect(() => { // Polling
+    if (!userId || !conversationEnded || pollingStatus.sessionsUpdated) return;
+    const intervalId = setInterval(async () => {
       const { data, error } = await supabase
         .from('sessions')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
-
       if (!error && data) {
-        setSessionCache(data);
-        setSessions(data);
-
-        const newest = data[0];
-        const isPlaceholder =
-          newest?.title === 'Recent Session' && newest?.summary === 'Summarizing...';
-
-        if (!isPlaceholder) {
+        const typedData = data as Session[];
+        setSessionCache(typedData);
+        setAllUserSessionsData(typedData);
+        const newest = typedData[0];
+        // Check if the newest session is still a placeholder
+        const isNewestStillPlaceholder = newest?.title === 'Recent Session' && newest?.summary === 'Summarizing...';
+        if (!isNewestStillPlaceholder && typedData.length > 0) {
           setPollingStatus({ sessionsUpdated: true });
-          clearInterval(interval);
+          clearInterval(intervalId);
         }
       } else {
         console.error('Polling error:', error?.message);
       }
     }, 3000);
-
-    return () => clearInterval(interval);
+    return () => clearInterval(intervalId);
   }, [conversationEnded, pollingStatus.sessionsUpdated, userId, setPollingStatus]);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    }) + ' • ' + date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-  };
+  // Derived state for the special "Most Recent" view and the list
+  const mostRecentSessionActual = useMemo(() => {
+    if (allUserSessionsData.length > 0) return allUserSessionsData[0];
+    return null;
+  }, [allUserSessionsData]);
 
-  const baseSessions = loading && sessionCache.length > 0
-  ? sessionCache
-  : sessions;
+  const sessionsForGrouping = useMemo(() => {
+    // If search is active, or there's no "most recent" to show specially, group all sessions.
+    if (searchQuery || !mostRecentSessionActual) {
+        return allUserSessionsData;
+    }
+    // Otherwise, group all sessions *except* the one shown in the special view.
+    return allUserSessionsData.slice(1);
+  }, [allUserSessionsData, searchQuery, mostRecentSessionActual]);
 
-  const filteredSessions = baseSessions.filter((session) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      session.title?.toLowerCase().includes(q) ||
-      session.summary?.toLowerCase().includes(q) ||
-      session.notes?.toLowerCase().includes(q)
-    );
-  });
+  const filteredSessionsForList = useMemo(() =>
+    sessionsForGrouping.filter((session) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        session.title?.toLowerCase().includes(q) ||
+        session.summary?.toLowerCase().includes(q) ||
+        session.notes?.toLowerCase().includes(q)
+      );
+    }), [sessionsForGrouping, searchQuery]);
 
-  const showEmptyMessage = !loading && filteredSessions.length === 0;
+  const groupedSessions = useMemo(() => {
+    return groupSessionsByTime(filteredSessionsForList);
+  }, [filteredSessionsForList]);
+
+  const showSpecialMostRecentView = !searchQuery && mostRecentSessionActual && !loading;
+  const isMostRecentActualPlaceholder = mostRecentSessionActual?.title === 'Recent Session' && mostRecentSessionActual?.summary === 'Summarizing...';
+
+  const showEmptyMessage = !loading && allUserSessionsData.length === 0; // Check allUserSessionsData for true empty state
+  const showInitialLoading = loading && allUserSessionsData.length === 0;
+
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10 bg-neutral-50 overflow-scroll">
-      <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-6 bg-white p-4 rounded-xl shadow-sm">
-        <div className="relative flex-1 w-full">
-          <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+    <div className="bg-gray-50 min-h-screen py-8 sm:py-12 w-full">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+            <svg className="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
+            </svg>
+          </div>
           <input
             type="text"
             placeholder="Search sessions..."
-            className="w-full py-2.5 pl-10 pr-4 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="block w-full rounded-xl border-0 bg-white py-3.5 pl-11 pr-4 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
       </div>
 
-      {showEmptyMessage ? (
-        <p className="text-sm text-neutral-500 italic">
-          {searchQuery ? 'No sessions match your search.' : 'You haven’t had any sessions yet.'}
-        </p>
+      {showInitialLoading ? (
+        <div className="text-center py-10"> {/* Loading Spinner */}
+          <svg className="mx-auto h-10 w-10 text-indigo-500 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="mt-3 text-sm font-medium text-slate-600">Loading your sessions...</p>
+        </div>
+      ) : showEmptyMessage ? (
+        <div className="text-center py-10 px-4 max-w-md mx-auto"> {/* Empty State */}
+           <svg className="mx-auto h-12 w-12 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 10.5v3.75m-9.303 3.376C1.82 19.513 3.252 21 5.006 21h13.988c1.754 0 3.186-1.487 2.31-3.374L13.949 4.878c-.875-1.887-3.021-1.887-3.896 0L2.697 17.626ZM12 17.25h.007v.008H12v-.008Z" />
+           </svg>
+          <h3 className="mt-4 text-lg font-semibold text-slate-700">
+            {searchQuery ? 'No Sessions Found' : 'Your Session History is Empty'}
+          </h3>
+          <p className="mt-1.5 text-sm text-slate-500">
+            {searchQuery ? 'Try different keywords or clear your search.' : 'Once you complete a session, it will appear here.'}
+          </p>
+        </div>
       ) : (
-        <div className="space-y-4">
-          {filteredSessions.map((session) => {
-            const isPlaceholder =
-              session.title === 'Recent Session' && session.summary === 'Summarizing...';
-
-            return (
-              <div
-                key={session.id}
-                className={`bg-white rounded-xl overflow-hidden transition-all duration-500 ease-in-out transform hover:shadow-md hover:-translate-y-0.5 relative ${
-                  isPlaceholder ? 'opacity-50' : 'opacity-100 shadow-sm'
-                }`}
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* --- Most Recent Session Special View --- */}
+          {showSpecialMostRecentView && mostRecentSessionActual && (
+            <section className="mb-10" aria-labelledby="most-recent-session-title">
+              <h2 id="most-recent-session-title" className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-1">
+                Latest Session
+              </h2>
+              <button
+                onClick={() => !isMostRecentActualPlaceholder && handleSelectSession(mostRecentSessionActual.id)}
+                disabled={isMostRecentActualPlaceholder}
+                aria-label={`View latest session: ${mostRecentSessionActual.title || 'Untitled Session'}`}
+                className={`w-full text-left bg-white p-5 sm:p-6 rounded-xl shadow-lg border border-slate-200 
+                            transition-all duration-200 ease-in-out group
+                            ${isMostRecentActualPlaceholder 
+                              ? 'opacity-70 animate-pulse cursor-default' 
+                              : 'hover:shadow-xl hover:border-indigo-300 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'
+                            }`}
               >
-                <button
-                  onClick={() => handleSelectSession(session.id)}
-                  className="block w-full text-left text-inherit no-underline"
+                {isMostRecentActualPlaceholder ? (
+                  <>
+                    <div className="h-5 bg-slate-300 rounded w-3/5 mb-3"></div>
+                    <div className="space-y-2">
+                        <div className="h-3 bg-slate-300/80 rounded w-full"></div>
+                        <div className="h-3 bg-slate-300/80 rounded w-full"></div>
+                        <div className="h-3 bg-slate-300/80 rounded w-3/4"></div>
+                    </div>
+                    <div className="h-4 bg-slate-300 rounded w-1/3 mt-4"></div>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-800 group-hover:text-indigo-700 mb-1.5 transition-colors">
+                      {mostRecentSessionActual.title || 'Untitled Session'}
+                    </h3>
+                    <p className="text-xs text-slate-500 mb-3">
+                      {formatDetailedTimestamp(mostRecentSessionActual.created_at)}
+                      {mostRecentSessionActual.duration !== null && 
+                       ` • ${formatDuration(mostRecentSessionActual.duration)}`}
+                    </p>
+                    {mostRecentSessionActual.summary && (
+                      <p className="text-sm text-slate-600 leading-relaxed line-clamp-3 group-hover:text-slate-700">
+                        {truncateSummary(mostRecentSessionActual.summary, 3)}
+                      </p>
+                    )}
+                    <div className="mt-4 flex justify-end">
+                        <span className="text-xs font-medium text-indigo-600 group-hover:text-indigo-700">
+                            View Details →
+                        </span>
+                    </div>
+                  </>
+                )}
+              </button>
+            </section>
+          )}
+
+          {/* --- Regular Grouped Session List --- */}
+          {groupedSessions.map((group) => (
+            group.sessions.length > 0 && (
+              <section key={group.title} className="mb-10 last:mb-0" aria-labelledby={`section-title-${group.title.replace(/\s+/g, '-').toLowerCase()}`}>
+                <h2 
+                  id={`section-title-${group.title.replace(/\s+/g, '-').toLowerCase()}`} 
+                  className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-1"
                 >
-                  <div className="grid grid-cols-[1fr_auto] items-center p-5 w-full">
-                    <h2 className="text-base font-semibold text-neutral-900">
-                      {session.title || 'Untitled Session'}
-                    </h2>
-                    <div className="flex items-center gap-2 text-sm text-neutral-500 text-right">
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                        <line x1="16" y1="2" x2="16" y2="6" />
-                        <line x1="8" y1="2" x2="8" y2="6" />
-                        <line x1="3" y1="10" x2="21" y2="10" />
-                      </svg>
-                      {formatDate(session.created_at)}
-                    </div>
-                  </div>
-                  <div className="h-px bg-neutral-100 w-full" />
-                  {session.summary && (
-                    <div className="flex items-start">
-                      <div className="flex-1 p-5 text-sm text-neutral-700 leading-relaxed">
-                        {session.summary}
-                      </div>
-                      <div className="flex items-center justify-center w-10 h-full pt-5">
-                        <svg className="w-4 h-4 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="9 18 15 12 9 6" />
-                        </svg>
-                      </div>
-                    </div>
-                  )}
-                </button>
-              </div>
-            );
-          })}
+                  {group.title}
+                </h2>
+                <ul className="space-y-2.5">
+                  {group.sessions.map((session) => {
+                    const isListItemPlaceholder = session.title === 'Recent Session' && session.summary === 'Summarizing...';
+                    const { dayOfWeek, dayOfMonth, fullDate } = formatSessionListDate(session.created_at);
+
+                    return (
+                      <li key={session.id}>
+                        <button
+                          onClick={() => !isListItemPlaceholder && handleSelectSession(session.id)}
+                          disabled={isListItemPlaceholder}
+                          aria-label={`View session: ${session.title || 'Untitled Session'} from ${fullDate}`}
+                          className={`w-full flex items-center bg-white p-3.5 sm:p-4 rounded-xl shadow-sm border border-slate-200/80 
+                                      transition-all duration-200 ease-in-out group
+                                      ${isListItemPlaceholder 
+                                        ? 'opacity-60 animate-pulse cursor-default' 
+                                        : 'hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'
+                                      }`}
+                        >
+                          {isListItemPlaceholder ? ( /* Placeholder for list item */
+                            <>
+                              <div className="mr-4 text-center w-12 h-10 bg-slate-300/70 rounded-md flex-shrink-0"></div>
+                              <div className="flex-grow min-w-0">
+                                <div className="h-4 bg-slate-300 rounded w-3/4 mb-1.5"></div>
+                                <div className="h-3 bg-slate-300 rounded w-1/2"></div>
+                              </div>
+                              <div className="h-4 bg-slate-300 rounded w-10 ml-3"></div>
+                            </>
+                          ) : ( /* Actual list item content */
+                            <>
+                              {group.title === 'Recent' ? (
+                                <div className="mr-3 sm:mr-4 text-center w-16 sm:w-20 flex-shrink-0 py-1 px-1">
+                                  <span className="text-[11px] sm:text-xs font-medium text-slate-500 group-hover:text-slate-600 bg-slate-200/70 group-hover:bg-slate-200 rounded px-1.5 py-0.5">
+                                    {formatRelativeDateForRecent(session.created_at)}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="mr-3 sm:mr-4 text-center w-12 flex-shrink-0" aria-hidden="true">
+                                  <div className="text-xs text-gray-400 tracking-wide">
+                                    {dayOfWeek}
+                                  </div>
+                                  <div className="text-s font-bold text-slate-700 group-hover:text-slate-800">
+                                    {dayOfMonth}
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="flex-grow min-w-0">
+                                <h3 className="text-sm sm:text-base font-semibold text-slate-800 group-hover:text-indigo-700 truncate transition-colors">
+                                  {session.title || 'Untitled Session'}
+                                </h3>
+                                <p className="text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">
+                                    {formatDuration(session.duration)}
+                                </p>
+                              </div>
+
+                              <svg className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 ml-3 flex-shrink-0 transition-colors" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                              </svg>
+                            </>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )
+          ))}
         </div>
       )}
     </div>
