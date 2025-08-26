@@ -19,8 +19,11 @@ import type { ReactElement } from "react";
 import SessionDetailView from "./views/SessionDetailView";
 import SessionsView from "./views/SessionsView";
 import { supabase } from "@/supabase/client";
+import { ActiveSessionProvider, useActiveSession } from "@/app/contexts/ActiveSessionContext";
+import MiniSessionPlayer from "./components/MiniSessionPlayer";
 
-function UserDashboardContent() {
+function DashboardInner() {
+  const { isSessionActive } = useActiveSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
@@ -29,9 +32,6 @@ function UserDashboardContent() {
   >("home");
   const [visibleView, setVisibleView] = useState(activeView);
   const [viewVisible, setViewVisible] = useState(false);
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
-    null
-  );
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -228,6 +228,7 @@ function UserDashboardContent() {
       <section
         ref={scrollRef}
         className="flex-1 relative h-screen transition-all duration-300 ease-in-out"
+        style={{ paddingBottom: isSessionActive && activeView !== 'home' ? '60px' : '0' }}
       >
         {/* View Transitions */}
         {["home", "discover", "bio", "sessions", "progress"].map((view) => {
@@ -265,7 +266,17 @@ function UserDashboardContent() {
           </div>
         )}
       </section>
+      {/* Mini Player - Only show when session is active and not on home view */}
+      {isSessionActive && activeView !== 'home' && <MiniSessionPlayer />}
     </main>
+  );
+}
+
+function UserDashboardContent() {
+  return (
+    <ActiveSessionProvider>
+      <DashboardInner />
+    </ActiveSessionProvider>
   );
 }
 

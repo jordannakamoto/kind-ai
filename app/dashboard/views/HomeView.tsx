@@ -7,6 +7,7 @@ import MysticalOrb from "@/app/dashboard/aiorb"; // Assuming this component exis
 import { supabase } from "@/supabase/client";
 import { useConversation } from "@11labs/react"; // Hook uses micMuted prop
 import { useConversationStatus } from "@/app/contexts/ConversationContext"; // Assuming this context exists
+import { useActiveSession } from "@/app/contexts/ActiveSessionContext";
 
 // Define types for modules for better clarity
 interface TherapyModule {
@@ -32,6 +33,8 @@ export default function UserCheckInConversation() {
   const [module, setModule] = useState<TherapyModule | null>(null);
   const [autoStartWelcome, setAutoStartWelcome] = useState(false);
   const [isMuted, setIsMuted] = useState(false); // Local state to control micMuted prop
+  
+  const { setSessionActive, updateSessionData, endSession: endActiveSession, setToggleMute } = useActiveSession();
 
   const {
     conversationEnded,
@@ -70,18 +73,29 @@ export default function UserCheckInConversation() {
         "source" in msg &&
         (msg as any).source === "agent"
       ) {
-        setAgentMessage((msg as any).message);
+        const message = (msg as any).message;
+        setAgentMessage(message);
+        updateSessionData({ agentMessage: message });
       }
     },
     onConnect: () => {
-      intervalRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
+      intervalRef.current = setInterval(() => {
+        setDuration((d) => {
+          const newDuration = d + 1;
+          updateSessionData({ duration: newDuration });
+          return newDuration;
+        });
+      }, 1000);
       startSound.current?.play();
       setIsMuted(false); // Ensure conversation starts unmuted
+      setSessionActive(true);
+      updateSessionData({ status: 'connected', isMuted: false });
     },
     onDisconnect: () => {
       endSound.current?.play();
       if (intervalRef.current) clearInterval(intervalRef.current);
       setIsMuted(false); // Reset mute state on disconnect
+      endActiveSession();
     },
     onError: (err) => console.error("conversation error:", err),
   });
@@ -274,6 +288,10 @@ export default function UserCheckInConversation() {
         // Otherwise, rely on our `isMuted` state for visual feedback.
         : isMuted ? 0 : conversation.getInputVolume();
       setAmplitude((prev) => prev * 0.6 + vol * 0.4);
+      
+      // Update the active session context with speaking state
+      updateSessionData({ isSpeaking: conversation.isSpeaking });
+      
       animationRef.current = requestAnimationFrame(animate);
     };
 
@@ -281,7 +299,7 @@ export default function UserCheckInConversation() {
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [started, conversation.isSpeaking, conversation, isMuted]); // Added conversation to dependency array
+  }, [started, conversation.isSpeaking, conversation, isMuted, updateSessionData]); // Added conversation to dependency array
 
   const startConversation = async () => {
     if (!user || loadingVars || !varsRef.current.greeting) {
@@ -353,8 +371,17 @@ export default function UserCheckInConversation() {
   };
 
   const toggleMute = () => {
-    setIsMuted(prevMutedState => !prevMutedState);
+    setIsMuted(prevMutedState => {
+      const newMutedState = !prevMutedState;
+      updateSessionData({ isMuted: newMutedState });
+      return newMutedState;
+    });
   };
+
+  // Register toggleMute function with context when component mounts or toggleMute changes
+  useEffect(() => {
+    setToggleMute(toggleMute);
+  }, [setToggleMute]);
 
   const orbSize = 160 + amplitude * 50;
 
