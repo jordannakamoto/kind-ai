@@ -27,11 +27,17 @@ interface TherapyModule {
   updated_at: string;
 }
 
+// Type for course being edited (with tags/themes as strings for input)
+type EditableCourse = Omit<Partial<Course>, 'tags' | 'themes'> & {
+  tags?: string;
+  themes?: string;
+}
+
 export default function ComprehensiveTherapyEditor() {
   // --- Course State ---
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
-  const [editableCourse, setEditableCourse] = useState<Partial<Course>>({});
+  const [editableCourse, setEditableCourse] = useState<EditableCourse>({});
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [savingCourse, setSavingCourse] = useState(false);
@@ -139,8 +145,8 @@ export default function ComprehensiveTherapyEditor() {
         !!editableCourse.title?.trim() ||
         !!editableCourse.description?.trim() ||
         !!editableCourse.image_path?.trim() ||
-        !!(editableCourse.tags?.some(tag => tag.trim() !== '')) ||
-        !!(editableCourse.themes?.some(theme => theme.trim() !== ''))// Cast to string for check
+        !!editableCourse.tags?.trim() ||
+        !!editableCourse.themes?.trim()
       );
       return;
     }
@@ -157,8 +163,8 @@ export default function ComprehensiveTherapyEditor() {
       editableCourse.title !== originalCourse.title ||
       editableCourse.description !== originalCourse.description ||
       editableCourse.image_path !== (originalCourse.image_path || '') ||
-      (editableCourse.tags?.toString() || '') !== (originalCourse.tags?.join(', ') || '') ||
-      (editableCourse.themes?.toString() || '') !== (originalCourse.themes?.join(', ') || '')
+      (editableCourse.tags || '') !== (originalCourse.tags?.join(', ') || '') ||
+      (editableCourse.themes || '') !== (originalCourse.themes?.join(', ') || '')
     setHasCourseChanges(changed);
   }, [editableCourse, selectedCourseId, courses, isCreatingCourse]);
 
@@ -193,7 +199,7 @@ export default function ComprehensiveTherapyEditor() {
   }, [editableModule, selectedModuleId, modules, isCreatingModule]);
 
 
-  const handleCourseInputChange = (field: keyof Course | 'tags' | 'themes', value: string) => {
+  const handleCourseInputChange = (field: keyof EditableCourse, value: string) => {
     setEditableCourse(prev => ({ ...prev, [field]: value }));
     if (courseSuccess) setCourseSuccess(null);
     clearNotifications();
@@ -265,7 +271,7 @@ export default function ComprehensiveTherapyEditor() {
       ...editableCourse,
       title: editableCourse.title || 'Untitled Course',
       description: editableCourse.description || '',
-      image_path: editableCourse.image_path || null,
+      image_path: editableCourse.image_path || undefined,
       tags: parseList(editableCourse.tags as string), // Parse back to array
       themes: parseList(editableCourse.themes as string), // Parse back to array
       updated_at: new Date().toISOString(),
