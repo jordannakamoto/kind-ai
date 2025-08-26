@@ -33,73 +33,10 @@ function UserDashboardContent() {
     null
   );
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sessionCount, setSessionCount] = useState(0);
-  const [monthlySessionCount, setMonthlySessionCount] = useState(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const sessionId = searchParams.get("sid");
-
-  // Function to determine subscription status based on session count
-  const getSubscriptionStatus = (count: number, monthlyCount: number) => {
-    if (monthlyCount >= 20) return "Pro";
-    if (monthlyCount >= 8) return "Plus";
-    if (count >= 3) return "Free";
-    return "Free";
-  };
-
-  // Function to calculate progress percentage
-  const getProgressPercentage = (count: number, monthlyCount: number) => {
-    const status = getSubscriptionStatus(count, monthlyCount);
-    if (status === "Pro") return 100;
-    if (status === "Plus") return (monthlyCount / 20) * 100;
-    return (count / 3) * 100;
-  };
-
-  // Function to get session limit for current tier
-  const getSessionLimit = (status: string) => {
-    switch (status) {
-      case "Pro":
-        return "20/month";
-      case "Plus":
-        return "8/month";
-      case "Free":
-        return "3 total";
-      default:
-        return "3 total";
-    }
-  };
-
-  useEffect(() => {
-    const fetchSessionCount = async () => {
-      if (!user?.id) return;
-
-      // Get total sessions
-      const { data: totalData, error: totalError } = await supabase
-        .from("sessions")
-        .select("id", { count: "exact" })
-        .eq("user_id", user.id);
-
-      // Get monthly sessions
-      const now = new Date();
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const { data: monthlyData, error: monthlyError } = await supabase
-        .from("sessions")
-        .select("id", { count: "exact" })
-        .eq("user_id", user.id)
-        .gte("created_at", firstDayOfMonth.toISOString());
-
-      if (!totalError && totalData) {
-        setSessionCount(totalData.length);
-      }
-
-      if (!monthlyError && monthlyData) {
-        setMonthlySessionCount(monthlyData.length);
-      }
-    };
-
-    fetchSessionCount();
-  }, [user?.id]);
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -208,7 +145,7 @@ function UserDashboardContent() {
             <div className="mt-auto border-t border-gray-100 p-2 transition-all duration-200">
               {/* User Profile */}
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-medium flex-shrink-0">
+                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-medium flex-shrink-0">
                   {user?.email?.charAt(0).toUpperCase() || "U"}
                 </div>
                 <div className="min-w-0">
@@ -216,45 +153,8 @@ function UserDashboardContent() {
                     {user?.email || "User"}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {getSubscriptionStatus(sessionCount, monthlySessionCount)}
+                    3/3 sessions
                   </p>
-                </div>
-              </div>
-              {/* Subscription Status */}
-              <div className="mb-4">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-gray-600">
-                      Subscription
-                    </span>
-                    <span className="text-xs font-medium text-indigo-600">
-                      {getSubscriptionStatus(sessionCount, monthlySessionCount)}
-                    </span>
-                  </div>
-                  <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-indigo-600 rounded-full"
-                      style={{
-                        width: `${getProgressPercentage(
-                          sessionCount,
-                          monthlySessionCount
-                        )}%`,
-                      }}
-                    ></div>
-                  </div>
-                  <div className="mt-1 text-xs text-gray-500 text-right">
-                    {getSubscriptionStatus(
-                      sessionCount,
-                      monthlySessionCount
-                    ) === "Free"
-                      ? `${sessionCount} / 3 sessions`
-                      : `${monthlySessionCount} / ${getSessionLimit(
-                          getSubscriptionStatus(
-                            sessionCount,
-                            monthlySessionCount
-                          )
-                        )}`}
-                  </div>
                 </div>
               </div>
               {/* Settings & Sign Out */}
@@ -285,12 +185,12 @@ function UserDashboardContent() {
                     await supabase.auth.signOut();
                     router.push("/");
                   }}
-                  className="w-full flex items-center gap-3 text-left py-2.5 px-3 rounded-lg text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 transition-colors border border-indigo-100 hover:border-indigo-200 font-medium"
+                  className="w-full flex items-center gap-3 text-left py-2 px-3 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
+                    width="18"
+                    height="18"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -303,7 +203,7 @@ function UserDashboardContent() {
                     <polyline points="16 17 21 12 16 7"></polyline>
                     <line x1="21" y1="12" x2="9" y2="12"></line>
                   </svg>
-                  <span>Sign Out</span>
+                  <span className="text-sm">Sign Out</span>
                 </button>
               </div>
             </div>
