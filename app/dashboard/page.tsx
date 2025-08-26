@@ -8,7 +8,7 @@ import {
   PanelLeft,
   User,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import DiscoverView from "./views/DiscoverView";
@@ -18,10 +18,9 @@ import ProgressView from "./views/ProgressView";
 import type { ReactElement } from "react";
 import SessionDetailView from "./views/SessionDetailView";
 import SessionsView from "./views/SessionsView";
-import { Suspense } from "react";
 import { supabase } from "@/supabase/client";
 
-export default function UserDashboard() {
+function UserDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
@@ -367,5 +366,13 @@ export default function UserDashboard() {
         )}
       </section>
     </main>
+  );
+}
+
+export default function UserDashboard() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <UserDashboardContent />
+    </Suspense>
   );
 }
