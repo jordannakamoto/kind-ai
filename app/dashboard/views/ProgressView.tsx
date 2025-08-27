@@ -122,10 +122,12 @@ export default function ProgressView() {
                 key={formattedDate}
                 onClick={() => changeDayFocus(date)}
                 className={`
-                  relative min-h-[60px] p-2 border-r border-b border-blue-100/50 cursor-pointer transition-all duration-200
-                  ${index % 7 === 6 ? 'border-r-0' : ''}
+                  relative min-h-[60px] p-2 cursor-pointer transition-all duration-200
+                  ${isSelected 
+                    ? 'bg-gradient-to-br from-blue-100 to-indigo-100 border-2 border-blue-400' 
+                    : 'border-r border-b border-blue-100/50 ' + (index % 7 === 6 ? 'border-r-0' : '')
+                  }
                   ${!isCurrentMonth ? 'bg-slate-50/50 text-gray-400' : 'bg-white/70 text-gray-900 hover:bg-blue-50/40'}
-                  ${isSelected ? 'bg-gradient-to-br from-blue-100 to-indigo-100 ring-2 ring-blue-300 shadow-sm' : ''}
                   ${isTodayDate ? 'font-bold' : ''}
                 `}
               >
