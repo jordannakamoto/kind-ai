@@ -48,19 +48,24 @@ const fragmentShaderSource = String.raw`
 
         // --- Outer Shell ---
         float shell_radius = 0.4;
-        float shell_feather_outer = shell_radius + 0.02;
-        float shell_feather_inner = shell_radius - 0.02;
+        float shell_feather_outer = shell_radius + 0.03;
+        float shell_feather_inner = shell_radius - 0.03;
         
         float shell_dist = length(centered_uv);
-        float shell_edge_alpha = 1.0 - smoothstep(shell_feather_inner, shell_feather_outer, shell_dist);
-        float max_radius = shell_feather_outer;
-        if (shell_dist > max_radius) {
+        
+        // Hard cutoff with no feathering to prevent transition artifacts
+        if (shell_dist > shell_radius) {
             gl_FragColor = vec4(0.0);
             return;
         }
         
+        // Create smooth edge effect within the boundary
+        float edge_smooth_zone = 0.02;
+        float shell_edge_alpha = shell_dist > (shell_radius - edge_smooth_zone) ? 
+            smoothstep(shell_radius, shell_radius - edge_smooth_zone, shell_dist) : 1.0;
+        
         vec3 shell_material_color = vec3(0.95, 0.95, 1.0); // Slightly bluish white
-        float shell_material_opacity = shell_edge_alpha * (0.2 + 0.2 * smoothFalloff(shell_dist, 0.0, shell_radius));
+        float shell_material_opacity = shell_edge_alpha * (0.15 + 0.15 * smoothFalloff(shell_dist, 0.0, shell_radius));
         
         // --- Marble-like Edge Illumination ---
         // The main light direction (as if coming from top-right)
@@ -73,14 +78,14 @@ const fragmentShaderSource = String.raw`
         float light_intensity = 0.5 + 0.5 * dot(normal_dir, light_dir);
         
         // Create a refraction-like effect at the edge
-        float edge_thickness = 0.03;
+        float edge_thickness = 0.035;
         float edge_dist = abs(shell_dist - shell_radius);
         float edge_intensity = smoothstep(edge_thickness, 0.0, edge_dist) * shell_edge_alpha;
         
         // Create a bright highlight on the edge where light hits directly
         float edge_highlight = pow(light_intensity, 5.0) * edge_intensity;
-        // Create subtle color variation for the edge (slightly blue tinted)
-        vec3 edge_color = mix(vec3(0.7, 0.8, 1.0), vec3(0.9, 0.95, 1.0), light_intensity);
+        // Create subtle fade to white at the edge
+        vec3 edge_color = mix(vec3(0.85, 0.9, 0.95), vec3(0.98, 0.98, 0.98), light_intensity);
         
         // --- Inner Core (Swirling Animation) ---
         vec3 inner_core_final_color = vec3(0.0);
@@ -141,7 +146,7 @@ const fragmentShaderSource = String.raw`
         vec3 color_behind_shell = mix(bg_color, inner_core_final_color, inner_core_final_alpha);
         
         // Add marble-like edge illumination
-        color_behind_shell = mix(color_behind_shell, edge_color, edge_intensity * 0.5);
+        color_behind_shell = mix(color_behind_shell, edge_color, edge_intensity * 0.2);
         
         // Add the translucent shell
         vec3 final_color = mix(color_behind_shell, shell_material_color, shell_material_opacity);
@@ -164,7 +169,7 @@ vec3 specular_color = vec3(0.9, 0.195, 0.01);
 final_color += specular_color * specular * shell_edge_alpha;
         
         // Add the edge highlight on top
-        final_color += edge_color * edge_highlight * 0.7;
+        final_color += edge_color * edge_highlight * 0.4;
         
         // Add subtle outer glow
         float outer_glow_dist = shell_dist - shell_radius;
@@ -242,7 +247,13 @@ gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     <canvas
       ref={canvasRef}
       className="w-full h-full"
-      style={{ display: 'block', backgroundColor: 'transparent' }}
+      style={{ 
+        display: 'block', 
+        backgroundColor: 'transparent',
+        pointerEvents: 'none',
+        position: 'relative',
+        zIndex: 1
+      }}
     />
   );
 }

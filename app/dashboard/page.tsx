@@ -103,7 +103,20 @@ function DashboardInner() {
   };
 
   return (
-    <main className="h-full bg-gray-50 flex">
+    <>
+      <style jsx global>{`
+        .hide-orb canvas {
+          opacity: 0 !important;
+          visibility: hidden;
+          transition: none !important;
+        }
+        .show-orb-delayed canvas {
+          opacity: 1;
+          visibility: visible;
+          transition: opacity 200ms ease-in-out 150ms !important;
+        }
+      `}</style>
+      <main className="h-full bg-gray-50 flex">
       {/* Sidebar */}
       <aside
         className={`fixed transition-all z-30 duration-300 ease-in-out h-screen bg-neutral-50 border-r border-gray-100 flex flex-col z-20 ${
@@ -239,7 +252,7 @@ function DashboardInner() {
                 isVisible && viewVisible
                   ? "opacity-100 z-10"
                   : "opacity-0 pointer-events-none z-0"
-              }`}
+              } ${view === "home" ? (activeView !== "home" || !viewVisible ? "hide-orb" : "show-orb-delayed") : ""}`}
             >
                <div className="w-full h-full overflow-y-auto">
               {view === "home" && <HomeView />}
@@ -268,6 +281,7 @@ function DashboardInner() {
       {/* Mini Player - Only show when session is active and not on home view */}
       {isSessionActive && activeView !== 'home' && <MiniSessionPlayer />}
     </main>
+    </>
   );
 }
 

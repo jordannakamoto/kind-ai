@@ -18,7 +18,7 @@ interface Course {
 interface TherapyModule {
   id: string;
   name: string;
-  description: string;
+  description: string;ma
   greeting: string;
   instructions: string;
   agenda: string;

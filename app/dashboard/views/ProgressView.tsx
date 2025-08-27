@@ -96,7 +96,7 @@ export default function ProgressView() {
       </div>
 
       {/* Calendar Grid */}
-      <div className="bg-gradient-to-br from-slate-50 to-blue-50/30 rounded-xl shadow-md border border-blue-100">
+      <div className="bg-gradient-to-br from-slate-50 to-blue-50/30 rounded-xl">
         {/* Day Headers */}
         <div className="grid grid-cols-7 border-b border-blue-100 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-t-xl">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (

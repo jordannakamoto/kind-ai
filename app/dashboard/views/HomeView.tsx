@@ -416,7 +416,7 @@ export default function UserCheckInConversation() {
       </div>
 
       <div
-        className="relative flex items-center justify-center mb-8"
+        className="relative flex items-center justify-center mb-8 transition-opacity duration-300"
         style={{ width: "200px", height: "200px" }}
       >
         <div
