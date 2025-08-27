@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, createContext, useContext, useState } from 'react';
+import { ReactNode, createContext, useContext, useState, useCallback } from 'react';
 
 type ActiveSessionContextType = {
   isSessionActive: boolean;
@@ -25,7 +25,7 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
   const [sessionData, setSessionData] = useState<ActiveSessionContextType['sessionData']>(null);
   const [toggleMute, setToggleMuteInternal] = useState<(() => void) | undefined>(undefined);
 
-  const setSessionActive = (active: boolean) => {
+  const setSessionActive = useCallback((active: boolean) => {
     setIsSessionActive(active);
     if (active && !sessionData) {
       setSessionData({
@@ -36,21 +36,21 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
         agentMessage: '',
       });
     }
-  };
+  }, [sessionData]);
 
-  const updateSessionData = (data: Partial<ActiveSessionContextType['sessionData']>) => {
+  const updateSessionData = useCallback((data: Partial<ActiveSessionContextType['sessionData']>) => {
     setSessionData(prev => prev ? { ...prev, ...data } : null);
-  };
+  }, []);
 
-  const endSession = () => {
+  const endSession = useCallback(() => {
     setIsSessionActive(false);
     setSessionData(null);
     setToggleMuteInternal(undefined);
-  };
+  }, []);
 
-  const setToggleMute = (fn: () => void) => {
+  const setToggleMute = useCallback((fn: () => void) => {
     setToggleMuteInternal(() => fn);
-  };
+  }, []);
 
   return (
     <ActiveSessionContext.Provider

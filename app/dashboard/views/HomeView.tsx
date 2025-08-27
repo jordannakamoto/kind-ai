@@ -1,7 +1,7 @@
 "use client";
 
 import { Mic, MicOff } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import MysticalOrb from "@/app/dashboard/aiorb"; // Assuming this component exists
 import { supabase } from "@/supabase/client";
@@ -240,17 +240,20 @@ export default function UserCheckInConversation() {
 
     console.log("Polling for regular session readiness...");
     const interval = setInterval(async () => {
-      const { data: session, error } = await supabase
+      const { data: sessions, error } = await supabase
         .from("next_sessions")
         .select("greeting, instructions, agenda, status")
         .eq("user_id", user.id)
-        .single();
+        .eq("status", "ready")
+        .limit(1);
 
       if (error) {
         console.error("Error polling next_session:", error.message);
         clearInterval(interval);
         return;
       }
+
+      const session = sessions?.[0];
 
       if (session?.status === "ready") {
         console.log("Regular session is now ready.");
@@ -370,18 +373,18 @@ export default function UserCheckInConversation() {
     await fetchUserContext();
   };
 
-  const toggleMute = () => {
+  const toggleMute = useCallback(() => {
     setIsMuted(prevMutedState => {
       const newMutedState = !prevMutedState;
       updateSessionData({ isMuted: newMutedState });
       return newMutedState;
     });
-  };
+  }, [updateSessionData]);
 
   // Register toggleMute function with context when component mounts or toggleMute changes
   useEffect(() => {
     setToggleMute(toggleMute);
-  }, [setToggleMute]);
+  }, [setToggleMute, toggleMute]);
 
   const orbSize = 160 + amplitude * 50;
 

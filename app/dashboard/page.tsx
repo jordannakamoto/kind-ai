@@ -5,7 +5,6 @@ import {
   Compass,
   Home,
   LineChart,
-  PanelLeft,
   User,
 } from "lucide-react";
 import { useEffect, useRef, useState, Suspense } from "react";
@@ -32,7 +31,7 @@ function DashboardInner() {
   >("home");
   const [visibleView, setVisibleView] = useState(activeView);
   const [viewVisible, setViewVisible] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -210,8 +209,8 @@ function DashboardInner() {
           </>
         )}
       </aside>
-      {/* Sidebar Toggle Button (always visible, outside sidebar) */}
-      <button
+      {/* Sidebar Toggle Button - Hidden */}
+      {/* <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
         className={`fixed top-3 z-30 p-2 rounded-lg border shadow bg-white border-gray-200 gray-100 hover:bg-gray-100 transition-colors ${
           sidebarOpen ? "left-65" : "left-4"
@@ -223,7 +222,7 @@ function DashboardInner() {
             !sidebarOpen ? "rotate-180" : ""
           }`}
         />
-      </button>
+      </button> */}
       {/* Main Content */}
       <section
         ref={scrollRef}
@@ -236,7 +235,7 @@ function DashboardInner() {
           return (
             <div
               key={view}
-              className={`absolute h-full bg-gray-50 inset-0 transition-opacity duration-300 ease-in-out ${
+              className={`absolute h-full bg-white inset-0 transition-opacity duration-300 ease-in-out ${
                 isVisible && viewVisible
                   ? "opacity-100 z-10"
                   : "opacity-0 pointer-events-none z-0"

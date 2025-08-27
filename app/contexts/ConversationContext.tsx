@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, createContext, useContext, useEffect, useState } from 'react';
+import { ReactNode, createContext, useContext, useEffect, useState, useCallback } from 'react';
 
 // Define the context type
 type ConversationContextType = {
@@ -25,9 +25,9 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
   });
 
   // Wrapper to allow partial updates
-  const setPollingStatus = (updates: Partial<typeof pollingStatus>) => {
+  const setPollingStatus = useCallback((updates: Partial<typeof pollingStatus>) => {
     setPollingStatusInternal((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   // Automatically reset state when both polling targets are updated
   useEffect(() => {

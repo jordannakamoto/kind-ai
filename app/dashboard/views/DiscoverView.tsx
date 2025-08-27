@@ -69,9 +69,9 @@ const modules: TherapyModule[] = [
 
 // 3. Size styling
 const sizeClass: Record<ModuleSize, string> = {
-  square: 'row-span-1 h-[300px]',
-  tall: 'row-span-2 h-[620px]',
-  wide: 'col-span-2 row-span-1 h-[300px]',
+  square: 'row-span-1 h-[220px]',
+  tall: 'row-span-2 h-[460px]',
+  wide: 'col-span-2 row-span-1 h-[220px]',
 };
 
 // 4. Main component
@@ -108,11 +108,11 @@ export default function TherapyLibraryFeed() {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-3 grid-rows-2 gap-6">
+      <div className="grid grid-cols-3 grid-rows-2 gap-4">
         {filteredModules.map((mod) => (
           <div
             key={mod.id}
-            className={`relative group overflow-hidden rounded-2xl shadow-lg transition-all duration-300 hover:shadow-xl ${sizeClass[mod.size]}`}
+            className={`relative group overflow-hidden rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl ${sizeClass[mod.size]}`}
           >
             {/* Image */}
             <div className="absolute inset-0 z-0">
@@ -126,17 +126,17 @@ export default function TherapyLibraryFeed() {
             </div>
 
             {/* Overlay Content */}
-            <div className="relative z-10 flex flex-col justify-end h-full p-6 text-white">
-              <div className="space-y-2 transition-transform duration-300 group-hover:-translate-y-2">
-                <h3 className="text-2xl font-bold drop-shadow-lg">{mod.title}</h3>
-                <p className="text-sm opacity-80 line-clamp-2 drop-shadow-md">
+            <div className="relative z-10 flex flex-col justify-end h-full p-4 text-white">
+              <div className="space-y-1 transition-transform duration-300 group-hover:-translate-y-1">
+                <h3 className="text-lg font-bold drop-shadow-lg">{mod.title}</h3>
+                <p className="text-xs opacity-80 line-clamp-2 drop-shadow-md">
                   {mod.description}
                 </p>
-                <div className="flex gap-2 flex-wrap pt-2">
+                <div className="flex gap-1 flex-wrap pt-1">
                   {mod.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="text-xs bg-white/20 backdrop-blur-sm text-white rounded-full px-2.5 py-1 hover:bg-white/30 transition"
+                      className="text-[10px] bg-white/20 backdrop-blur-sm text-white rounded-full px-2 py-0.5 hover:bg-white/30 transition"
                     >
                       {tag}
                     </span>

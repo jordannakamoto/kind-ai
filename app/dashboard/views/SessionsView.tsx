@@ -167,6 +167,7 @@ export default function UserSessionHistory() {
   const [userId, setUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedDays, setExpandedDays] = useState<{ [key: string]: boolean }>({}); // For expanding day groups
+  const [autoExpanded, setAutoExpanded] = useState<boolean>(false); // Track if auto-expansion has been done
 
   const { conversationEnded, pollingStatus, setPollingStatus } = useConversationStatus();
   const router = useRouter();
@@ -226,13 +227,37 @@ export default function UserSessionHistory() {
     }), [sessionsForPrimaryGrouping, searchQuery]);
   const timePeriodGroups = useMemo(() => groupSessionsByTimePeriod(filteredSessionsForPrimaryGrouping), [filteredSessionsForPrimaryGrouping]);
 
+  // Auto-expand days with multiple sessions
+  useEffect(() => {
+    if (!autoExpanded && timePeriodGroups.length > 0) {
+      const daysToExpand: { [key: string]: boolean } = {};
+      
+      timePeriodGroups.forEach(periodGroup => {
+        if (periodGroup.title !== 'Recent') {
+          const dailyGroups = groupSessionsWithinPeriodByDay(periodGroup.sessions);
+          dailyGroups.forEach(dayGroup => {
+            // Auto-expand if day has more than one session
+            if (dayGroup.sessions.length > 1) {
+              daysToExpand[dayGroup.date] = true;
+            }
+          });
+        }
+      });
+      
+      if (Object.keys(daysToExpand).length > 0) {
+        setExpandedDays(daysToExpand);
+        setAutoExpanded(true);
+      }
+    }
+  }, [timePeriodGroups, autoExpanded]);
+
   const showSpecialMostRecentView = !searchQuery && mostRecentSessionActual && !loading;
   const isMostRecentActualPlaceholder = mostRecentSessionActual?.title === 'Recent Session' && mostRecentSessionActual?.summary === 'Summarizing...';
   const showEmptyMessage = !loading && allUserSessionsData.length === 0;
   const showInitialLoading = loading && allUserSessionsData.length === 0;
 
   return (
-    <div className="bg-gray-50 min-h-screen py-8 sm:py-12 w-full">
+    <div className="bg-white min-h-screen py-8 sm:py-12 w-full">
       <div className="hidden max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 mb-10"> {/* Search Bar */}
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
