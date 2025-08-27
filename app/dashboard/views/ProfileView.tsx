@@ -117,7 +117,7 @@ export default function UserFacingProfile() {
   return (
     <div className="min-h-screen bg-white">
       {/* Notion-style page container */}
-      <div className="max-w-4xl mx-auto px-6 py-12">
+      <div className="max-w-4xl mx-auto px-6 py-12 pl-12">
         
         {/* Page header with avatar */}
         <div className="flex items-start gap-4 mb-8">

@@ -125,7 +125,9 @@ export default function ProgressView() {
                   relative min-h-[60px] p-2 cursor-pointer transition-all duration-200
                   ${isSelected 
                     ? 'bg-gradient-to-br from-blue-100 to-indigo-100 border-2 border-blue-400' 
-                    : 'border-r border-b border-blue-100/50 ' + (index % 7 === 6 ? 'border-r-0' : '')
+                    : 'border-r border-b border-blue-100/50 ' + 
+                      (index % 7 === 0 ? 'border-l' : '') + ' ' +
+                      (index % 7 === 6 ? 'border-r' : '')
                   }
                   ${!isCurrentMonth ? 'bg-slate-50/50 text-gray-400' : 'bg-white/70 text-gray-900 hover:bg-blue-50/40'}
                   ${isTodayDate ? 'font-bold' : ''}

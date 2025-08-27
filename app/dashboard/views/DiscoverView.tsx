@@ -267,19 +267,6 @@ export default function TherapyLibraryFeed() {
                   <div className="absolute inset-0 bg-black opacity-20 group-hover:opacity-30 transition-opacity duration-300" />
                 </div>
 
-                {/* Course Thumbnail Badge */}
-                <div className="absolute top-3 left-3 z-20">
-                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/90 backdrop-blur-sm shadow-lg">
-                    <Image
-                      src={course.image_path || DEFAULT_COURSE_IMAGE}
-                      alt={course.title}
-                      width={48}
-                      height={48}
-                      className="object-cover w-full h-full"
-                    />
-                  </div>
-                </div>
-
                 {/* Progress Indicator */}
                 {totalModules > 0 && (
                   <div className="absolute top-3 right-3 z-20">
@@ -301,7 +288,7 @@ export default function TherapyLibraryFeed() {
 
                 {/* Course Status Badge */}
                 {progress?.is_completed && (
-                  <div className="absolute top-16 left-3 z-20">
+                  <div className="absolute top-3 left-3 z-20">
                     <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full font-medium">
                       ✓ Completed
                     </div>
