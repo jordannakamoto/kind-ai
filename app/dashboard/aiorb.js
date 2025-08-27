@@ -10,7 +10,11 @@ export default function MysticalOrb() {
     if (!canvas) return;
     const gl = canvas.getContext('webgl', {
       alpha: true,
-      premultipliedAlpha: false // Tells browser output is NOT premultiplied
+      premultipliedAlpha: false, // Tells browser output is NOT premultiplied
+      antialias: true,
+      depth: false,
+      stencil: false,
+      preserveDrawingBuffer: false
     });
 
     const vertexShaderSource = String.raw`
@@ -44,12 +48,12 @@ const fragmentShaderSource = String.raw`
 
         // --- Outer Shell ---
         float shell_radius = 0.4;
-        float shell_feather_outer = shell_radius + 0.08;
-        float shell_feather_inner = shell_radius - 0.08;
+        float shell_feather_outer = shell_radius + 0.02;
+        float shell_feather_inner = shell_radius - 0.02;
         
         float shell_dist = length(centered_uv);
         float shell_edge_alpha = 1.0 - smoothstep(shell_feather_inner, shell_feather_outer, shell_dist);
-        float max_radius = shell_feather_inner + 0.015;
+        float max_radius = shell_feather_outer;
         if (shell_dist > max_radius) {
             gl_FragColor = vec4(0.0);
             return;
@@ -209,8 +213,11 @@ gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      canvas.width = rect.width * devicePixelRatio;
+      canvas.height = rect.height * devicePixelRatio;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
       gl.viewport(0, 0, canvas.width, canvas.height);
     };
     window.addEventListener('resize', resize);
@@ -234,13 +241,8 @@ gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   return (
     <canvas
       ref={canvasRef}
-      className="w-full h-full rounded-full"
+      className="w-full h-full"
       style={{ display: 'block', backgroundColor: 'transparent' }}
     />
   );
-}
-
-// Optional helper to strip shader indentation
-function stripIndents(str) {
-  return str.split('\n').map(s => s.trim()).join('\n');
 }
