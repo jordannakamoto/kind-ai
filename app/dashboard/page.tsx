@@ -6,6 +6,7 @@ import {
   Home,
   LineChart,
   User,
+  PanelLeft,
 } from "lucide-react";
 import { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -31,7 +32,7 @@ function DashboardInner() {
   >("home");
   const [visibleView, setVisibleView] = useState(activeView);
   const [viewVisible, setViewVisible] = useState(false);
-  const [sidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -119,14 +120,14 @@ function DashboardInner() {
       <main className="h-full bg-gray-50 flex">
       {/* Sidebar */}
       <aside
-        className={`fixed transition-all z-30 duration-300 ease-in-out h-screen bg-neutral-50 border-r border-gray-100 flex flex-col z-20 ${
+        className={`fixed transition-all z-30 duration-300 ease-in-out h-screen bg-neutral-50 border-r border-gray-100 flex flex-col ${
           sidebarOpen ? "w-60" : "w-0"
         }`}
       >
         {/* Only render sidebar content if open */}
         {sidebarOpen && (
           <>
-            {/* Header (no toggle button here) */}
+            {/* Header */}
             <div className="flex items-center p-4 pt-5">
               <h2 className="text-xl font-bold text-gray-800">kind</h2>
             </div>
@@ -222,7 +223,7 @@ function DashboardInner() {
           </>
         )}
       </aside>
-      {/* Sidebar Toggle Button - Hidden */}
+      
       {/* <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
         className={`fixed top-3 z-30 p-2 rounded-lg border shadow bg-white border-gray-200 gray-100 hover:bg-gray-100 transition-colors ${
