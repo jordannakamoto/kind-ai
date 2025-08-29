@@ -296,15 +296,6 @@ export default function TherapyLibraryFeed() {
                   </div>
                 )}
 
-                {/* Progress Bar */}
-                {totalModules > 0 && progressPercentage > 0 && (
-                  <div className="absolute top-0 left-0 right-0 z-10 h-1 bg-black/20">
-                    <div 
-                      className="h-full bg-green-400 transition-all duration-300"
-                      style={{ width: `${progressPercentage}%` }}
-                    />
-                  </div>
-                )}
 
                 {/* Course Status Badge */}
                 {progress?.is_completed && (
@@ -320,10 +311,20 @@ export default function TherapyLibraryFeed() {
                   <div className="space-y-1 transition-transform duration-300 group-hover:-translate-y-1">
                     <h3 className="text-base font-bold drop-shadow-lg">{course.title}</h3>
                     
-                    {/* Module Count */}
+                    {/* Session Count */}
                     <div className="text-xs opacity-70 mt-1">
-                      {totalModules} {totalModules === 1 ? 'module' : 'modules'}
+                      {totalModules} {totalModules === 1 ? 'session' : 'sessions'}
                     </div>
+                    
+                    {/* Progress Bar - Below module count */}
+                    {totalModules > 0 && progressPercentage > 0 && (
+                      <div className="mt-2 w-full h-1 bg-white/20 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-white/80 transition-all duration-300 rounded-full"
+                          style={{ width: `${progressPercentage}%` }}
+                        />
+                      </div>
+                    )}
                     
                     {/* Tags */}
                     <div className="flex gap-1 flex-wrap pt-1">

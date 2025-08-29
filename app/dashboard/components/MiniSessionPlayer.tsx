@@ -1,6 +1,6 @@
 'use client';
 
-import { Mic, MicOff, Phone, X } from 'lucide-react';
+import { Mic, MicOff, Phone } from 'lucide-react';
 import { useActiveSession } from '@/app/contexts/ActiveSessionContext';
 import { useRouter } from 'next/navigation';
 
@@ -21,8 +21,24 @@ export default function MiniSessionPlayer() {
   };
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 flex justify-center">
-      <div className="bg-gray-50/50 border border-gray-100 rounded-lg shadow-lg backdrop-blur-sm max-w-2xl w-full transition-all duration-300 hover:bg-gray-50 hover:border-gray-200">
+    <>
+      <style jsx>{`
+        @keyframes slideUp {
+          from {
+            transform: translateY(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        .animate-slide-up {
+          animation: slideUp 0.3s ease-out forwards;
+        }
+      `}</style>
+      <div className="fixed bottom-4 left-4 right-4 z-50 flex justify-center">
+        <div className="bg-gray-50/50 border border-gray-100 rounded-lg backdrop-blur-sm max-w-3xl w-full transition-all duration-300 hover:bg-gray-50 hover:border-gray-200 animate-slide-up">
         <div className="px-5 py-4">
           <div className="flex items-center justify-between">
             {/* Left Section - Session Info */}
@@ -85,5 +101,6 @@ export default function MiniSessionPlayer() {
         </div>
       </div>
     </div>
+    </>
   );
 }

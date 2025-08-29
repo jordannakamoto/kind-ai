@@ -862,50 +862,32 @@ export default function UserCheckInConversation() {
               </div>
             ))}
 
-            {/* Available Course Cards - Show new courses to start */}
-            {availableCourses.slice(0, 3).map((course) => (
+            {/* Recommended Course Card - Show one available course as recommendation */}
+            {availableCourses.length > 0 && (
               <div 
-                key={course.id}
-                onClick={() => handleStartCourse(course)}
+                key={availableCourses[0].id}
+                onClick={() => handleStartCourse(availableCourses[0])}
                 className={`group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative ${
-                  enrolling === course.id ? 'opacity-50 cursor-wait' : ''
+                  enrolling === availableCourses[0].id ? 'opacity-50 cursor-wait' : ''
                 }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <BookOpen className="w-4 h-4 text-gray-500" />
-                  </div>
-                  <div className="flex-1 pr-6">
-                    <p className="text-sm font-medium text-gray-700">
-                      {enrolling === course.id ? 'Starting...' : `Start ${course.title}`}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {course.therapy_modules?.length || 0} modules available
-                    </p>
-                  </div>
-                </div>
-                <div className="absolute right-5 top-1/2 transform -translate-y-1/2 text-xs text-gray-300 group-hover:text-gray-400 transition-colors duration-300">→</div>
-              </div>
-            ))}
-
-            {/* Browse More Courses Card - Always show if there are more courses or no courses shown */}
-            {(availableCourses.length > 3 || (inProgressCourses.length === 0 && availableCourses.length === 0)) && (
-              <div 
-                onClick={handleBrowseCourses}
-                className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative"
               >
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
                     <Sparkles className="w-4 h-4 text-gray-500" />
                   </div>
                   <div className="flex-1 pr-6">
-                    <p className="text-sm font-medium text-gray-700">Browse all courses</p>
-                    <p className="text-xs text-gray-400">Explore therapy library</p>
+                    <p className="text-sm font-medium text-gray-700">
+                      {enrolling === availableCourses[0].id ? 'Starting...' : `Try ${availableCourses[0].title}`}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Recommended for you
+                    </p>
                   </div>
                 </div>
                 <div className="absolute right-5 top-1/2 transform -translate-y-1/2 text-xs text-gray-300 group-hover:text-gray-400 transition-colors duration-300">→</div>
               </div>
             )}
+
 
             {/* Mindful Moments Card - Keep as a standalone quick session option */}
             <div className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative">
