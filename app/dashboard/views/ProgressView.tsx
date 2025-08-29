@@ -99,10 +99,10 @@ export default function ProgressView() {
   };
 
   return (
-    <div className="max-w-4xl mt-4 mx-auto p-6 pl-20 space-y-4 bg-white min-h-screen">
+    <div className="max-w-4xl mt-2 mx-auto p-4 pl-20 space-y-2 bg-white min-h-[calc(100vh+200px)]">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-800">Your Wellness Journey</h2>
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-lg font-semibold text-gray-800">Your Wellness Journey</h2>
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setCurrentMonth(new Date())}
@@ -195,56 +195,64 @@ export default function ProgressView() {
       </div>
 
       {/* Mood Selector */}
-      <div className="mt-6">
-        <h3 className="text-sm font-medium text-gray-700 mb-3">
-          How are you feeling on {format(selectedDate, "MMM d")}?
-        </h3>
+      <div className="mt-4">
+        <div className="mb-2 ml-2">
+          <span className="text-xs font-medium text-gray-600">mood</span>
+        </div>
         <div className="flex items-center space-x-3">
           {moodOptions.map((option) => (
             <button
               key={option.value}
               onClick={() => handleMoodSelect(selectedDate, option.value)}
               className={`
-                flex items-center space-x-2 px-4 py-3 rounded-xl transition-all duration-200 transform hover:scale-105
+                flex flex-col items-center space-y-1 px-4 py-3 transition-all duration-200 transform hover:scale-105
                 ${moods[format(selectedDate, "yyyy-MM-dd")] === option.value 
-                  ? `${option.color} ${option.shadowColor} font-semibold shadow-lg` 
-                  : "hover:bg-gradient-to-br hover:from-gray-50 hover:to-gray-100 hover:shadow-md"}
+                  ? "font-semibold" 
+                  : ""}
               `}
             >
-              <span className="text-xl drop-shadow-sm">{option.label}</span>
-              <span className="text-sm capitalize font-medium">{option.value}</span>
+              <div className="flex items-center space-x-2">
+                <span className="text-xl">{option.label}</span>
+                <span className="text-sm capitalize font-medium">{option.value}</span>
+              </div>
+              <div className={`w-12 h-0.5 rounded-full transition-opacity duration-300 ${option.dotColor.replace('bg-gradient-to-r', 'bg-gradient-to-r')} ${moods[format(selectedDate, "yyyy-MM-dd")] === option.value ? 'opacity-100' : 'opacity-0'}`} />
             </button>
           ))}
         </div>
       </div>
 
       {/* Journal Entry */}
-      <div className="mt-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-gray-700">
-            Daily Reflection - {format(selectedDate, "EEEE, MMMM d, yyyy")}
-          </h3>
+      <div className="mt-4">
+        <div className="flex items-center justify-between mb-2">
           {journalEntries[format(selectedDate, "yyyy-MM-dd")] && (
             <span className="text-xs text-green-600 font-medium">Saved ✓</span>
           )}
         </div>
         
-        <p className="text-sm text-gray-600 italic mb-2">
-          Today's prompt: {prompt}
-        </p>
-        
-        <textarea
-          className="
-            w-full p-3 border border-gray-300 rounded-lg 
-            text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 
-            focus:border-blue-500 transition-all
-            resize-none min-h-[100px] bg-gray-50 focus:bg-white
-            placeholder:text-gray-400
-          "
-          placeholder="Write your thoughts here..."
-          value={journalEntries[format(selectedDate, "yyyy-MM-dd")] || ""}
-          onChange={handleJournalChange}
-        />
+        <div className="relative bg-white p-6 rounded-lg border border-gray-100 shadow-sm min-h-[300px] overflow-visible">
+          <div className="mb-4 pb-2 border-b border-gray-100">
+            <h3 className="text-base font-medium text-gray-800">
+              Daily Reflection
+            </h3>
+            <p className="text-xs text-gray-500 mt-1">
+              {format(selectedDate, "EEEE, MMMM d, yyyy")}
+            </p>
+          </div>
+          <textarea
+            className="
+              w-full px-0 py-0 border-0 bg-transparent
+              text-sm focus:outline-none 
+              resize-none min-h-[220px] 
+              placeholder:text-gray-400 placeholder:italic
+              leading-relaxed
+              text-gray-700
+              font-light
+            "
+            placeholder={prompt}
+            value={journalEntries[format(selectedDate, "yyyy-MM-dd")] || ""}
+            onChange={handleJournalChange}
+          />
+        </div>
       </div>
 
     </div>
