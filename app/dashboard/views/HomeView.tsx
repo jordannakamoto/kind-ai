@@ -9,6 +9,7 @@ import LoadingDots from '@/components/LoadingDots';
 import { useConversation } from "@11labs/react"; // Hook uses micMuted prop
 import { useConversationStatus } from "@/app/contexts/ConversationContext"; // Assuming this context exists
 import { useActiveSession } from "@/app/contexts/ActiveSessionContext";
+import { useRouter } from "next/navigation";
 
 // Define types for modules for better clarity
 interface TherapyModule {
@@ -41,6 +42,7 @@ interface UserCourseProgress {
 }
 
 export default function UserCheckInConversation() {
+  const router = useRouter();
   const [user, setUser] = useState<{ id: string; email: string, app_stage?: string } | null>(null);
   const [agentMessage, setAgentMessage] = useState("");
   const [amplitude, setAmplitude] = useState(0);
@@ -53,6 +55,8 @@ export default function UserCheckInConversation() {
   const [isMuted, setIsMuted] = useState(false); // Local state to control micMuted prop
   const [inProgressCourses, setInProgressCourses] = useState<UserCourseProgress[]>([]);
   const [recommendedSessions, setRecommendedSessions] = useState<any[]>([]);
+  const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
+  const [enrolling, setEnrolling] = useState<string | null>(null);
   
   const { setSessionActive, updateSessionData, endSession: endActiveSession, setToggleMute } = useActiveSession();
 
@@ -262,6 +266,22 @@ export default function UserCheckInConversation() {
       setInProgressCourses(progressData);
     }
 
+    // Fetch available courses (not enrolled yet)
+    const enrolledCourseIds = progressData?.map(p => p.course_id) || [];
+    const { data: availableCoursesData } = await supabase
+      .from("courses")
+      .select(`
+        id, title, description, image_path,
+        therapy_modules (id, name)
+      `)
+      .not("id", "in", `(${enrolledCourseIds.join(",") || "null"})`)
+      .order("updated_at", { ascending: false })
+      .limit(6);
+
+    if (availableCoursesData) {
+      setAvailableCourses(availableCoursesData);
+    }
+
     // Fetch recommended sessions (you can customize this logic)
     const { data: modulesData } = await supabase
       .from("therapy_modules")
@@ -457,6 +477,142 @@ export default function UserCheckInConversation() {
     });
   }, [updateSessionData]);
 
+  // Handle starting a new course
+  const handleStartCourse = async (course: Course) => {
+    if (!user || !course.therapy_modules?.length) return;
+    setEnrolling(course.id);
+
+    try {
+      // Enroll user in the course
+      const { error: enrollError } = await supabase
+        .from('user_course_progress')
+        .insert({
+          user_id: user.id,
+          course_id: course.id,
+          current_module_index: 0,
+          completed_modules: [],
+          is_completed: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
+      if (enrollError) throw enrollError;
+
+      // Get the first module of the course
+      const { data: firstModule, error: moduleError } = await supabase
+        .from('therapy_modules')
+        .select('greeting, instructions, agenda, name')
+        .eq('course_id', course.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (moduleError || !firstModule) {
+        console.error('Error fetching first module:', moduleError);
+        throw new Error('Could not load course module');
+      }
+
+      // Load the module into varsRef and start session
+      await initializeSessionWithModule(firstModule);
+      
+      // Refresh course data
+      await fetchCourseProgress();
+      console.log('Starting course:', course.title);
+    } catch (err: any) {
+      console.error('Error starting course:', err.message);
+    } finally {
+      setEnrolling(null);
+    }
+  };
+
+  // Handle continuing a course 
+  const handleContinueCourse = async (courseProgress: UserCourseProgress) => {
+    if (!user || !courseProgress.courses?.therapy_modules?.length) return;
+
+    try {
+      // Get the current module based on progress
+      const currentModuleIndex = courseProgress.current_module_index;
+      const { data: currentModule, error: moduleError } = await supabase
+        .from('therapy_modules')
+        .select('greeting, instructions, agenda, name')
+        .eq('course_id', courseProgress.course_id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .range(currentModuleIndex, currentModuleIndex)
+        .single();
+
+      if (moduleError || !currentModule) {
+        console.error('Error fetching current module:', moduleError);
+        return;
+      }
+
+      // Load the module and start session
+      await initializeSessionWithModule(currentModule);
+      console.log('Continuing course:', courseProgress.courses?.title);
+    } catch (err: any) {
+      console.error('Error continuing course:', err.message);
+    }
+  };
+
+  // Helper function to initialize session with a specific module
+  const initializeSessionWithModule = async (module: TherapyModule) => {
+    if (!user) return;
+
+    setLoadingVars(true);
+    
+    try {
+      // Get user profile
+      const { data: profile, error: profileError } = await supabase
+        .from("users")
+        .select("full_name, bio, therapy_summary, themes, goals")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError || !profile) {
+        console.error("Error fetching user profile:", profileError);
+        return;
+      }
+
+      // Get system prompt
+      const { data: defaultPrompt, error: promptError } = await supabase
+        .from("system_prompts")
+        .select("prompt")
+        .eq("name", "Conversational 1")
+        .single();
+
+      if (promptError || !defaultPrompt) {
+        console.error("Error fetching system prompt:", promptError);
+        return;
+      }
+
+      // Set up the session variables
+      varsRef.current = {
+        userProfile: `Name: ${profile.full_name}\nBio: ${profile.bio || 'Not provided'}\nTherapy Summary: ${profile.therapy_summary || 'Not provided'}\nThemes: ${profile.themes || 'Not provided'}\nGoals: ${profile.goals || 'Not provided'}`,
+        therapyModule: `Instructions: ${module.instructions}\nAgenda: ${module.agenda}`,
+        greeting: module.greeting,
+        systemPrompt: defaultPrompt.prompt,
+      };
+
+      setModule(module);
+      setSessionStatus("ready");
+      setLoadingVars(false);
+
+      // Auto-start the conversation after a brief delay
+      setTimeout(() => {
+        startConversation();
+      }, 500);
+
+    } catch (error: any) {
+      console.error("Error initializing session:", error.message);
+      setLoadingVars(false);
+    }
+  };
+
+  // Handle browsing courses
+  const handleBrowseCourses = () => {
+    router.push('/dashboard?tab=discover');
+  };
+
   // Register toggleMute function with context when component mounts or toggleMute changes
   useEffect(() => {
     setToggleMute(toggleMute);
@@ -568,53 +724,74 @@ export default function UserCheckInConversation() {
       {!started && (
         <div className="flex-1 flex flex-col items-center justify-start max-w-4xl mx-auto mt-10">
           <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Continue Course Card */}
-            {inProgressCourses.length > 0 && (
-              <div className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative">
+            {/* Continue Course Cards - Show all in-progress courses */}
+            {inProgressCourses.map((courseProgress) => (
+              <div 
+                key={courseProgress.id}
+                onClick={() => handleContinueCourse(courseProgress)}
+                className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative"
+              >
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
                     <PlayCircle className="w-4 h-4 text-gray-500" />
                   </div>
                   <div className="flex-1 pr-6">
-                    <p className="text-sm font-medium text-gray-700">Continue {inProgressCourses[0].courses?.title || 'Course'}</p>
-                    <p className="text-xs text-gray-400">Pick up where you left off</p>
+                    <p className="text-sm font-medium text-gray-700">Continue {courseProgress.courses?.title || 'Course'}</p>
+                    <p className="text-xs text-gray-400">
+                      {courseProgress.completed_modules?.length || 0} of {courseProgress.courses?.therapy_modules?.length || 0} modules completed
+                    </p>
                   </div>
                 </div>
                 <div className="absolute right-5 top-1/2 transform -translate-y-1/2 text-xs text-gray-300 group-hover:text-gray-400 transition-colors duration-300">→</div>
               </div>
-            )}
+            ))}
 
-            {/* Browse Courses Card */}
-            <div className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <BookOpen className="w-4 h-4 text-gray-500" />
+            {/* Available Course Cards - Show new courses to start */}
+            {availableCourses.slice(0, 3).map((course) => (
+              <div 
+                key={course.id}
+                onClick={() => handleStartCourse(course)}
+                className={`group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative ${
+                  enrolling === course.id ? 'opacity-50 cursor-wait' : ''
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <BookOpen className="w-4 h-4 text-gray-500" />
+                  </div>
+                  <div className="flex-1 pr-6">
+                    <p className="text-sm font-medium text-gray-700">
+                      {enrolling === course.id ? 'Starting...' : `Start ${course.title}`}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {course.therapy_modules?.length || 0} modules available
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 pr-6">
-                  <p className="text-sm font-medium text-gray-700">Browse courses</p>
-                  <p className="text-xs text-gray-400">Explore therapy modules</p>
-                </div>
+                <div className="absolute right-5 top-1/2 transform -translate-y-1/2 text-xs text-gray-300 group-hover:text-gray-400 transition-colors duration-300">→</div>
               </div>
-              <div className="absolute right-5 top-1/2 transform -translate-y-1/2 text-xs text-gray-300 group-hover:text-gray-400 transition-colors duration-300">→</div>
-            </div>
+            ))}
 
-            {/* Recommended Sessions */}
-            {recommendedSessions.length > 0 && (
-              <div className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative">
+            {/* Browse More Courses Card - Always show if there are more courses or no courses shown */}
+            {(availableCourses.length > 3 || (inProgressCourses.length === 0 && availableCourses.length === 0)) && (
+              <div 
+                onClick={handleBrowseCourses}
+                className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative"
+              >
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
                     <Sparkles className="w-4 h-4 text-gray-500" />
                   </div>
                   <div className="flex-1 pr-6">
-                    <p className="text-sm font-medium text-gray-700">Try {recommendedSessions[0].name}</p>
-                    <p className="text-xs text-gray-400">Recommended for you</p>
+                    <p className="text-sm font-medium text-gray-700">Browse all courses</p>
+                    <p className="text-xs text-gray-400">Explore therapy library</p>
                   </div>
                 </div>
                 <div className="absolute right-5 top-1/2 transform -translate-y-1/2 text-xs text-gray-300 group-hover:text-gray-400 transition-colors duration-300">→</div>
               </div>
             )}
 
-            {/* Mindful Moments Card */}
+            {/* Mindful Moments Card - Keep as a standalone quick session option */}
             <div className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative">
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
