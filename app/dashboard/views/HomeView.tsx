@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, MicOff } from "lucide-react";
+import { Mic, MicOff, PlayCircle, BookOpen, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import MysticalOrb from "@/app/dashboard/aiorb"; // Assuming this component exists
@@ -22,6 +22,23 @@ interface NextSessionModule extends TherapyModule {
 }
 
 
+interface Course {
+  id: string;
+  title: string;
+  description: string;
+  image_path?: string;
+  therapy_modules?: any[];
+}
+
+interface UserCourseProgress {
+  id: string;
+  course_id: string;
+  current_module_index: number;
+  completed_modules: string[];
+  is_completed: boolean;
+  courses?: Course;
+}
+
 export default function UserCheckInConversation() {
   const [user, setUser] = useState<{ id: string; email: string, app_stage?: string } | null>(null);
   const [agentMessage, setAgentMessage] = useState("");
@@ -33,6 +50,8 @@ export default function UserCheckInConversation() {
   const [module, setModule] = useState<TherapyModule | null>(null);
   const [autoStartWelcome, setAutoStartWelcome] = useState(false);
   const [isMuted, setIsMuted] = useState(false); // Local state to control micMuted prop
+  const [inProgressCourses, setInProgressCourses] = useState<UserCourseProgress[]>([]);
+  const [recommendedSessions, setRecommendedSessions] = useState<any[]>([]);
   
   const { setSessionActive, updateSessionData, endSession: endActiveSession, setToggleMute } = useActiveSession();
 
@@ -220,8 +239,43 @@ export default function UserCheckInConversation() {
     setLoadingVars(false);
   };
 
+  const fetchCourseProgress = async () => {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
+
+    // Fetch in-progress courses
+    const { data: progressData } = await supabase
+      .from("user_course_progress")
+      .select(`
+        *,
+        courses (
+          id, title, description, image_path,
+          therapy_modules (id, name)
+        )
+      `)
+      .eq("user_id", authUser.id)
+      .eq("is_completed", false)
+      .order("updated_at", { ascending: false });
+
+    if (progressData) {
+      setInProgressCourses(progressData);
+    }
+
+    // Fetch recommended sessions (you can customize this logic)
+    const { data: modulesData } = await supabase
+      .from("therapy_modules")
+      .select("id, name, description")
+      .in("name", ["Anxiety Management", "Mindfulness Practice", "Sleep Hygiene"])
+      .limit(3);
+
+    if (modulesData) {
+      setRecommendedSessions(modulesData);
+    }
+  };
+
   useEffect(() => {
     fetchUserContext();
+    fetchCourseProgress();
     // startSound.current = new Audio('/path/to/start-sound.mp3');
     // endSound.current = new Audio('/path/to/end-sound.mp3');
   }, []);
@@ -394,7 +448,7 @@ export default function UserCheckInConversation() {
       .padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
 
   return (
-    <div className="w-full max-w-2xl h-screen mx-auto flex flex-col items-center justify-center  px-4 transition-all duration-300">
+    <div className="w-full max-w-2xl h-screen mx-auto flex flex-col items-center justify-center px-4 transition-all duration-300">
       <div className="mb-6 text-center">
         <p className="text-lg font-semibold">Mira</p>
         <p className="text-sm">{formatTime(duration)}</p>
@@ -416,8 +470,8 @@ export default function UserCheckInConversation() {
       </div>
 
       <div
-        className="relative flex items-center justify-center mb-8 transition-opacity duration-300"
-        style={{ width: "200px", height: "200px" }}
+        className="relative flex items-center justify-center mb-6 transition-opacity duration-300"
+        style={{ width: "180px", height: "180px" }}
       >
         <div
           className="absolute rounded-full transition-transform duration-100 ease-in-out"
@@ -469,7 +523,7 @@ export default function UserCheckInConversation() {
           <button
             disabled={!canManuallyStart && !autoStartWelcome}
             onClick={startConversation}
-            className="px-6 py-3 border mb-36 border-gray-300 rounded-full hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow hover:shadow-md"
+            className="px-6 py-3 border mb-6 border-gray-300 rounded-full hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow hover:shadow-md"
           >
             {loadingVars ? "Loading..." :
              sessionStatus === "welcome_ready" ? "Start Welcome Session" :
@@ -478,6 +532,21 @@ export default function UserCheckInConversation() {
           </button>
         )}
       </div>
+      
+      {/* Activity suggestions - positioned as a subtle footer */}
+      {!started && (
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-md">
+          <div className="flex justify-center gap-6 text-xs text-gray-400">
+            <button className="hover:text-gray-600 transition-colors" onClick={() => console.log('Continue course')}>
+              Continue: Anxiety Management
+            </button>
+            <span className="text-gray-300">•</span>
+            <button className="hover:text-gray-600 transition-colors" onClick={() => console.log('Browse courses')}>
+              Browse courses
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
