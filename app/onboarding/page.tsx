@@ -331,10 +331,10 @@ export default function OnboardingForm() {
             <p>Hi {name?.split(' ')[0] || "there"},</p>
             {/* with a simple belief: everyone deserves access to mental well-being support that is flexible, affordable, and genuinely helpful. */}
             <p>
-              Welcome to Kind! We're thrilled to have you join our community. We're working to build a tool for mental well-being support that is accessible, affordable, and hopefully helpful.
+              Welcome to Kind! We're thrilled to have you join our community.
             </p>
             <p>
-              Your first <span className="font-semibold text-indigo-700">3 voice sessions are completely on us</span>. We hope this gives you a great introduction to the platform.
+            Our app isn't perfect, and you shouldn't have to be either. What matters most is your mental well-being and feeling better out in the real world.
             </p>
             <div className="bg-gray-100 p-4 rounded-lg border border-gray-200 mt-4">
               <h3 className="font-semibold text-gray-800 mb-2 text-sm">Our Commitment to You</h3>

@@ -18,7 +18,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { NoHurdlesSection } from './NoHurdlesSection';
-import {TestimonialsSection} from './TestimonialsSection'
+import {TestimonialsSection} from './TestimonialsSection';
 
 // --- Data for "What You'll Experience" cards (mimicking the 3-card layout) ---
 const alphaExperiencePillars = [
@@ -115,8 +115,6 @@ const faqDataAlpha = [
 // --- Main Page Component ---
 export default function AlphaLandingPageClone() {
   const [activeFAQ, setActiveFAQ] = useState<number | null>(null);
-  const [email, setEmail] = useState('');
-  const [submitted, setSubmitted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -130,13 +128,6 @@ export default function AlphaLandingPageClone() {
   }, []);
 
   const toggleFAQ = (index: number) => setActiveFAQ(activeFAQ === index ? null : index);
-
-  const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!email) return;
-    console.log("Email submitted for alpha access:", email);
-    setSubmitted(true);
-  };
 
   // Helper function to get text alignment classes based on textPosition
   const getTextPositionClasses = (position?: string) => { // Made position optional
@@ -163,11 +154,11 @@ export default function AlphaLandingPageClone() {
       >
         <div className="container mx-auto px-6 flex justify-between items-center">
           <Link href="/" className="text-2xl md:text-3xl font-bold text-gray-800 hover:text-indigo-600 transition-colors tracking-tight">
-            Kind<span className="text-indigo-600">AI</span> {/* Changed to KindAI with indigo AI */}
+            Kind
             <span className={`ml-2 text-xs font-normal uppercase px-2 py-1 rounded-full tracking-wider align-middle transition-colors duration-300
                               ${scrolled ? 'bg-indigo-100 text-indigo-700' : 'bg-white/30 text-gray-700 backdrop-blur-sm'}`}
             >
-              Early Access {/* Changed from Alpha to Early Access for consistency with navbar badge */}
+              Early Access
             </span>
           </Link>
           <Link href="#faq" className={`text-sm font-medium transition-colors duration-300
@@ -177,12 +168,12 @@ export default function AlphaLandingPageClone() {
         </div>
       </nav>
 
-      {/* --- Hero Section (Styled like example) --- */}
+      {/* --- Hero Section --- */}
       <header
         className="relative pt-32 pb-20 md:pt-48 md:pb-32 text-center overflow-hidden"
       >
         <div className="absolute inset-0 bg-gradient-to-b from-indigo-100/70 via-pink-50/50 to-white -z-10"></div>
-        <div className="container mx-auto px-6 relative z-10 mt-8 md:mt-6"> {/* Added margin-top to account for navbar */}
+        <div className="container mx-auto px-6 relative z-10 mt-8 md:mt-6">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 mb-5 md:mb-6 leading-tight tracking-tight">
             Talk Therapy
           </h1>
@@ -190,26 +181,23 @@ export default function AlphaLandingPageClone() {
             The best AI for mental health. Have a conversation — and get started on feeling your best.
           </p>
 
-          <div className="max-w-3xl mx-auto mb-10 md:mb-12 px-4">
-            <div className="bg-white rounded-xl shadow-2xl p-2 md:p-3 transform transition-all hover:scale-[1.02] duration-500">
-              <div className="overflow-hidden rounded-lg">
-                <img
-                  src="screenshot.png" // Ensure this path is correct and image exists in /public
-                  alt="Kind AI Desktop Application Screenshot"
-                  className="w-full object-cover scale-150 translate-y-2"
-                />
-              </div>
-            </div>
+          {/* Primary CTA Section */}
+          <div className="max-w-sm mx-auto">
+            <Link
+              href="/onboarding"
+              className="inline-block px-6 py-3 bg-indigo-600 text-white font-semibold text-base rounded-lg hover:bg-indigo-700 transition-colors duration-200 shadow-md hover:shadow-lg"
+            >
+              Get Started
+            </Link>
+            <p className="text-xs text-gray-500 text-center mt-4 leading-relaxed">
+              3 free conversations on us.
+            </p>
           </div>
-
-          {/* Email form removed from here */}
         </div>
       </header>
 
-      {/* --- "What You'll Experience" Section - Simplified --- */}
-
-      {/* --- New Section: Text on Left, Asymmetric Tiles on Right --- */}
-      <section className="py-16 md:py-0 bg-white overflow-hidden"> {/* Adjusted padding */}
+      {/* --- Enhanced Problem/Solution Section --- */}
+      <section className="py-16 md:py-20 bg-white overflow-hidden">
         <div className="container mx-auto px-6">
           <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16 xl:gap-20">
             <div className="lg:w-5/12 xl:w-4/12 text-center mb-20 lg:text-left">
@@ -217,15 +205,19 @@ export default function AlphaLandingPageClone() {
                   <Zap className="w-9 h-9 text-indigo-600" strokeWidth={1.5} />
               </div>
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 tracking-tight leading-tight">
-              A new mental health resource
-
+                A new mental health resource
               </h2>
+              
               <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-                Kind is designed to help you process your thoughts and emotions.
+                Traditional therapy costs $100-300 per session with waitlists and scheduling difficulty.
               </p>
 
               <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-                Go through conversational AI therapy, as casual or deep as you want to share. Explore a library of sessions and worksheets to work through what matters most to you.
+                Kind is easy to try and helps you create the space to get better.
+              </p>
+
+              <p className="text-lg text-gray-700 mb-6 leading-relaxed">
+                Explore a library of sessions and worksheets to work through what matters most to you.
               </p>
              
             </div>
@@ -282,12 +274,37 @@ export default function AlphaLandingPageClone() {
 
              <div className="mt-10">
                 <Link
-                    href="#faq" // Or your primary CTA link for alpha sign-up
+                    href="/onboarding"
                     className="inline-block px-8 py-3 border border-indigo-600 text-base font-medium rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors duration-300 ease-in-out shadow-sm hover:shadow-md"
-                    // Using an outlined button style for a more modest CTA
                 >
                     Get Started
                 </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- Screenshot Section --- */}
+      <section className="py-16 md:py-20 bg-gray-50">
+        <div className="container mx-auto px-6">
+          <div className="max-w-4xl mx-auto text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight">
+              See Kind AI in Action
+            </h2>
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Experience natural, empathetic conversations designed to help you process thoughts and emotions.
+            </p>
+          </div>
+          
+          <div className="max-w-4xl mx-auto px-4">
+            <div className="bg-white rounded-xl shadow-2xl p-3 md:p-4 transform transition-all hover:scale-[1.01] duration-500">
+              <div className="overflow-hidden rounded-lg">
+                <img
+                  src="screenshot.png"
+                  alt="Kind AI Desktop Application Screenshot"
+                  className="w-full object-cover"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -296,8 +313,6 @@ export default function AlphaLandingPageClone() {
 
 
 
-      {/* --- NEW: Social Proof / Testimonials Section --- */}
-      <TestimonialsSection />
       
 
       {/* --- FAQ Section --- */}
@@ -380,7 +395,7 @@ export default function AlphaLandingPageClone() {
       <footer className="py-12 md:py-16 bg-white text-center border-t border-gray-200">
         <div className="container mx-auto px-6">
           <Link href="/" className="text-2xl font-bold text-gray-800 hover:text-indigo-600 transition-colors tracking-tight">
-            Kind<span className="text-indigo-600">AI</span>
+            Kind
           </Link>
           <p className="text-sm text-gray-600 mt-3 mb-2 max-w-md mx-auto">
             Co-creating the future of empathetic AI support. Thank you for being part of our Alpha journey.
