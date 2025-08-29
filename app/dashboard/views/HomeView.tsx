@@ -440,6 +440,81 @@ export default function UserCheckInConversation() {
     }
   };
 
+  const updateCourseProgress = async () => {
+    if (!user || !activeCourse || !module) return;
+
+    try {
+      // First, get the current progress to understand where we are
+      const { data: currentProgress, error: progressError } = await supabase
+        .from('user_course_progress')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('course_id', activeCourse.id)
+        .single();
+
+      if (progressError || !currentProgress) {
+        console.error('Error fetching current progress:', progressError);
+        return;
+      }
+
+      // Get the module ID we just completed
+      const { data: moduleData, error: moduleError } = await supabase
+        .from('therapy_modules')
+        .select('id')
+        .eq('course_id', activeCourse.id)
+        .eq('name', module.name)
+        .single();
+
+      if (moduleError || !moduleData) {
+        console.error('Error finding module ID:', moduleError);
+        return;
+      }
+
+      // Update completed modules and current index
+      const completedModules = [...(currentProgress.completed_modules || [])];
+      if (!completedModules.includes(moduleData.id)) {
+        completedModules.push(moduleData.id);
+      }
+
+      // Get total modules in course to check if complete
+      const { data: allModules, error: allModulesError } = await supabase
+        .from('therapy_modules')
+        .select('id')
+        .eq('course_id', activeCourse.id)
+        .order('created_at', { ascending: true });
+
+      if (allModulesError || !allModules) {
+        console.error('Error fetching all modules:', allModulesError);
+        return;
+      }
+
+      const isCompleted = completedModules.length >= allModules.length;
+      const nextModuleIndex = Math.min(currentProgress.current_module_index + 1, allModules.length - 1);
+
+      // Update the progress
+      const { error: updateError } = await supabase
+        .from('user_course_progress')
+        .update({
+          completed_modules: completedModules,
+          current_module_index: isCompleted ? currentProgress.current_module_index : nextModuleIndex,
+          is_completed: isCompleted,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', currentProgress.id);
+
+      if (updateError) {
+        console.error('Error updating course progress:', updateError);
+      } else {
+        console.log(`Course progress updated - completed: ${completedModules.length}/${allModules.length}`);
+        // Refresh course data to show updated progress
+        await fetchCourseProgress();
+      }
+
+    } catch (error: any) {
+      console.error('Error updating course progress:', error.message);
+    }
+  };
+
   const stopConversation = async () => {
     const wasWelcomeSession = module?.name === "Welcome";
 
@@ -455,6 +530,11 @@ export default function UserCheckInConversation() {
     setLoadingVars(true);
     setModule(null);
     setActiveCourse(null);
+
+    // Update course progress if we were working on a course
+    if (activeCourse && module && user?.id && !wasWelcomeSession) {
+      await updateCourseProgress();
+    }
 
     if (wasWelcomeSession && user?.id) {
       console.log("Welcome session ended. Updating app_stage to dashboard for user:", user.id);

@@ -132,14 +132,14 @@ export default function UserFacingProfile() {
             </div>
           )}
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">{user.full_name}</h1>
+            <h1 className="text-xl font-bold text-gray-900 mb-1">{user.full_name}</h1>
             {user.bio && (
-              <div className="text-gray-600 text-base leading-relaxed">
+              <div className="text-gray-600 text-sm leading-relaxed">
                 <span>{displayBio}</span>
                 {bioSentences.length > 1 && (
                   <button
                     onClick={() => setBioExpanded(!bioExpanded)}
-                    className="text-blue-600 hover:text-blue-700 ml-1 text-sm font-medium transition-colors"
+                    className="text-blue-600 hover:text-blue-700 ml-1 text-xs font-medium transition-colors"
                   >
                     {bioExpanded ? 'Show less' : 'Read more'}
                   </button>
@@ -155,7 +155,7 @@ export default function UserFacingProfile() {
           {/* Goals Section - Notion style */}
           <section>
             <div className="flex items-center gap-2 mb-6">
-              <h2 className="text-2xl font-semibold text-gray-900">Goals</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Goals</h2>
             </div>
             {goalList.length > 0 ? (
               <div className="space-y-2">
@@ -164,21 +164,21 @@ export default function UserFacingProfile() {
                     <div className="mt-1">
                       <Circle className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
                     </div>
-                    <span className="text-gray-700 text-base leading-relaxed flex-1 group-hover:text-gray-900 transition-colors">
+                    <span className="text-gray-700 text-sm leading-relaxed flex-1 group-hover:text-gray-900 transition-colors">
                       {goal}
                     </span>
                   </div>
                 ))}
                 <button className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors mt-2">
                   <Plus className="w-4 h-4" />
-                  <span className="text-sm">Add a goal</span>
+                  <span className="text-xs">Add a goal</span>
                 </button>
               </div>
             ) : (
               <div className="py-6">
                 <button className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
                   <Plus className="w-4 h-4" />
-                  <span className="text-sm">Add a goal</span>
+                  <span className="text-xs">Add a goal</span>
                 </button>
               </div>
             )}
@@ -187,14 +187,14 @@ export default function UserFacingProfile() {
           {/* Themes Section - Notion style */}
           <section>
             <div className="flex items-center gap-2 mb-6">
-              <h2 className="text-2xl font-semibold text-gray-900">Emerging Themes</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Emerging Themes</h2>
             </div>
             {themeTags.length > 0 ? (
               <div className="space-y-2">
                 {themeTags.map((theme, i) => (
                   <div key={i} className="flex items-center gap-3 group">
                     <ChevronRight className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-700 text-base group-hover:text-gray-900 transition-colors">
+                    <span className="text-gray-700 text-sm group-hover:text-gray-900 transition-colors">
                       {theme}
                     </span>
                   </div>
@@ -202,7 +202,7 @@ export default function UserFacingProfile() {
               </div>
             ) : (
               <div className="py-6">
-                <p className="text-gray-400 text-sm">No themes yet</p>
+                <p className="text-gray-400 text-xs">No themes yet</p>
               </div>
             )}
           </section>
@@ -212,19 +212,19 @@ export default function UserFacingProfile() {
           
           {/* Progress section - pushed down off initial viewport */}
           <section className="border-t pt-8">
-            <h3 className="text-lg font-medium text-gray-500 mb-4">Progress</h3>
+            <h3 className="text-base font-medium text-gray-500 mb-4">Progress</h3>
             <div className="grid grid-cols-3 gap-6">
               <div className="text-center">
-                <div className="text-3xl font-semibold text-gray-900">{goalList.length}</div>
-                <div className="text-sm text-gray-500 mt-1">Active Goals</div>
+                <div className="text-2xl font-semibold text-gray-900">{goalList.length}</div>
+                <div className="text-xs text-gray-500 mt-1">Active Goals</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-semibold text-gray-900">{themeTags.length}</div>
-                <div className="text-sm text-gray-500 mt-1">Themes</div>
+                <div className="text-2xl font-semibold text-gray-900">{themeTags.length}</div>
+                <div className="text-xs text-gray-500 mt-1">Themes</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-semibold text-gray-900">0</div>
-                <div className="text-sm text-gray-500 mt-1">Completed</div>
+                <div className="text-2xl font-semibold text-gray-900">0</div>
+                <div className="text-xs text-gray-500 mt-1">Completed</div>
               </div>
             </div>
           </section>
