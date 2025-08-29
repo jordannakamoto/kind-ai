@@ -521,12 +521,12 @@ export default function ComprehensiveTherapyEditor() {
       {moduleError && <div className="mb-4 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md text-sm">Module Error: {moduleError}</div>}
       {moduleSuccess && <div className="mb-4 p-3 bg-green-100 text-green-700 border border-green-300 rounded-md text-sm">Module Success: {moduleSuccess}</div>}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* --- LEFT PANE: Courses & Unassigned --- */}
         <div className="lg:col-span-1 space-y-4">
-          <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+          <div className="bg-white p-3 rounded-lg shadow border border-gray-200">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="text-md font-medium text-gray-800">Courses</h3>
+              <h3 className="text-sm font-medium text-gray-800">Courses</h3>
               <button 
                 onClick={createNewCourse} 
                 className="px-3 py-1.5 text-xs bg-blue-500 text-white rounded-md hover:bg-blue-600 transition"
@@ -542,26 +542,26 @@ export default function ComprehensiveTherapyEditor() {
                   <div 
                     key={course.id} 
                     onClick={() => selectCourse(course.id)} 
-                    className={`p-3 rounded-md cursor-pointer text-sm transition-colors border ${selectedCourseId === course.id && !viewingUnassignedModules ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50 border-gray-200'}`}
+                    className={`p-2 rounded-md cursor-pointer text-sm transition-colors border ${selectedCourseId === course.id && !viewingUnassignedModules ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50 border-gray-200'}`}
                   >
-                    <div className="font-medium truncate text-gray-700">{course.title || 'Untitled Course'}</div>
-                    <div className="text-xs text-gray-500 truncate">{course.description?.substring(0,50) || 'No description'}...</div>
+                    <div className="font-medium truncate text-gray-700 text-sm">{course.title || 'Untitled Course'}</div>
+                    <div className="text-xs text-gray-500 truncate">{course.description?.substring(0,30) || 'No description'}...</div>
                   </div>
                 ))}
               </div>
             )}
              <div
                 onClick={selectUnassignedModulesView}
-                className={`p-3 mt-4 rounded-md cursor-pointer text-sm transition-colors border ${viewingUnassignedModules ? 'bg-indigo-50 border-indigo-300' : 'hover:bg-gray-50 border-gray-200 '}`}
+                className={`p-2 mt-3 rounded-md cursor-pointer text-sm transition-colors border ${viewingUnassignedModules ? 'bg-indigo-50 border-indigo-300' : 'hover:bg-gray-50 border-gray-200 '}`}
             >
-                <div className="font-medium text-gray-700">Unassigned Modules</div>
-                <div className="text-xs text-gray-500">Modules not linked to any course.</div>
+                <div className="font-medium text-gray-700 text-sm">Unassigned Modules</div>
+                <div className="text-xs text-gray-500">Not linked to courses</div>
             </div>
           </div>
         </div>
 
         {/* --- RIGHT PANE: Editor Area --- */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-4 space-y-6">
           {/* Course Editor */}
           {(selectedCourseId || isCreatingCourse) && !viewingUnassignedModules && (
             <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
@@ -688,15 +688,15 @@ export default function ComprehensiveTherapyEditor() {
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-700 mb-1">Greeting</label>
-                          <textarea value={editableModule.greeting || ''} onChange={(e) => handleModuleTextareaChange(e, 'greeting')} className="module-field w-full p-1.5 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" style={{ minHeight: '60px' }} placeholder="Enter greeting message" />
+                          <textarea value={editableModule.greeting || ''} onChange={(e) => handleModuleTextareaChange(e, 'greeting')} className="module-field w-full p-3 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" style={{ minHeight: '80px' }} placeholder="Enter greeting message" />
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-700 mb-1">Instructions</label>
-                          <textarea value={editableModule.instructions || ''} onChange={(e) => handleModuleTextareaChange(e, 'instructions')} className="module-field w-full p-1.5 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" style={{ minHeight: '100px' }} placeholder="Enter instructions for this module" />
+                          <textarea value={editableModule.instructions || ''} onChange={(e) => handleModuleTextareaChange(e, 'instructions')} className="module-field w-full p-3 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" style={{ minHeight: '120px' }} placeholder="Enter instructions for this module" />
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-700 mb-1">Agenda</label>
-                          <textarea value={editableModule.agenda || ''} onChange={(e) => handleModuleTextareaChange(e, 'agenda')} className="module-field w-full p-1.5 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" style={{ minHeight: '100px' }} placeholder="Enter agenda for this module" />
+                          <textarea value={editableModule.agenda || ''} onChange={(e) => handleModuleTextareaChange(e, 'agenda')} className="module-field w-full p-3 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" style={{ minHeight: '120px' }} placeholder="Enter agenda for this module" />
                         </div>
                       </div>
                     </>

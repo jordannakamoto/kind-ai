@@ -5,11 +5,46 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const moodOptions = [
-  { label: "😊", value: "happy", color: "bg-green-100", borderColor: "border-green-300", dotColor: "bg-green-500" },
-  { label: "😐", value: "neutral", color: "bg-yellow-100", borderColor: "border-yellow-300", dotColor: "bg-yellow-500" },
-  { label: "😢", value: "sad", color: "bg-blue-100", borderColor: "border-blue-300", dotColor: "bg-blue-500" },
-  { label: "😡", value: "angry", color: "bg-red-100", borderColor: "border-red-300", dotColor: "bg-red-500" },
-  { label: "😴", value: "tired", color: "bg-purple-100", borderColor: "border-purple-300", dotColor: "bg-purple-500" },
+  { 
+    label: "😊", 
+    value: "happy", 
+    color: "bg-gradient-to-br from-emerald-50 to-green-100", 
+    borderColor: "border-emerald-300", 
+    dotColor: "bg-gradient-to-r from-emerald-400 to-green-500",
+    shadowColor: "shadow-emerald-200/60"
+  },
+  { 
+    label: "😐", 
+    value: "neutral", 
+    color: "bg-gradient-to-br from-amber-50 to-yellow-100", 
+    borderColor: "border-amber-300", 
+    dotColor: "bg-gradient-to-r from-amber-400 to-orange-400",
+    shadowColor: "shadow-amber-200/60"
+  },
+  { 
+    label: "😢", 
+    value: "sad", 
+    color: "bg-gradient-to-br from-sky-50 to-blue-100", 
+    borderColor: "border-sky-300", 
+    dotColor: "bg-gradient-to-r from-sky-400 to-blue-500",
+    shadowColor: "shadow-sky-200/60"
+  },
+  { 
+    label: "😡", 
+    value: "angry", 
+    color: "bg-gradient-to-br from-rose-50 to-red-100", 
+    borderColor: "border-rose-300", 
+    dotColor: "bg-gradient-to-r from-rose-400 to-red-500",
+    shadowColor: "shadow-rose-200/60"
+  },
+  { 
+    label: "😴", 
+    value: "tired", 
+    color: "bg-gradient-to-br from-violet-50 to-purple-100", 
+    borderColor: "border-violet-300", 
+    dotColor: "bg-gradient-to-r from-violet-400 to-purple-500",
+    shadowColor: "shadow-violet-200/60"
+  },
 ];
 
 const journalPrompts = [
@@ -147,7 +182,7 @@ export default function ProgressView() {
                 {/* Indicators */}
                 <div className="absolute bottom-1.5 left-2 right-2 flex gap-1">
                   {mood && (
-                    <div className={`w-1.5 h-1.5 rounded-full ${moodOption?.dotColor} shadow-sm`} />
+                    <div className={`w-1.5 h-1.5 rounded-full ${moodOption?.dotColor} ${moodOption?.shadowColor} shadow-sm`} />
                   )}
                   {hasJournal && (
                     <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-indigo-400 to-purple-400 shadow-sm" />
@@ -164,20 +199,20 @@ export default function ProgressView() {
         <h3 className="text-sm font-medium text-gray-700 mb-3">
           How are you feeling on {format(selectedDate, "MMM d")}?
         </h3>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3">
           {moodOptions.map((option) => (
             <button
               key={option.value}
               onClick={() => handleMoodSelect(selectedDate, option.value)}
               className={`
-                flex items-center space-x-2 px-3 py-2 rounded-lg transition-all
+                flex items-center space-x-2 px-4 py-3 rounded-xl transition-all duration-200 transform hover:scale-105
                 ${moods[format(selectedDate, "yyyy-MM-dd")] === option.value 
-                  ? `${option.color} ${option.borderColor} border-2 font-medium` 
-                  : "hover:bg-gray-50 border border-gray-200"}
+                  ? `${option.color} ${option.shadowColor} font-semibold shadow-lg` 
+                  : "hover:bg-gradient-to-br hover:from-gray-50 hover:to-gray-100 hover:shadow-md"}
               `}
             >
-              <span className="text-lg">{option.label}</span>
-              <span className="text-sm capitalize">{option.value}</span>
+              <span className="text-xl drop-shadow-sm">{option.label}</span>
+              <span className="text-sm capitalize font-medium">{option.value}</span>
             </button>
           ))}
         </div>

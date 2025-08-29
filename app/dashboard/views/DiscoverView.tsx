@@ -263,9 +263,8 @@ export default function TherapyLibraryFeed() {
           <p className="text-gray-600">No courses available yet.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-3 grid-rows-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           {filteredCourses.map((course, index) => {
-            const courseSize = getCourseSize(index);
             const progress = course.user_progress;
             const completedCount = progress?.completed_modules?.length || 0;
             const totalModules = course.modules?.length || 0;
@@ -274,7 +273,7 @@ export default function TherapyLibraryFeed() {
             return (
               <div
                 key={course.id}
-                className={`relative group overflow-hidden rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl cursor-pointer ${sizeClass[courseSize]} ${enrolling === course.id ? 'opacity-50 cursor-wait' : ''}`}
+                className={`relative group overflow-hidden rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl cursor-pointer h-[380px] ${enrolling === course.id ? 'opacity-50 cursor-wait' : ''}`}
                 onClick={() => handleCourseClick(course)}
               >
                 {/* Image */}
@@ -320,9 +319,6 @@ export default function TherapyLibraryFeed() {
                 <div className="relative z-10 flex flex-col justify-end h-full p-3 text-white">
                   <div className="space-y-1 transition-transform duration-300 group-hover:-translate-y-1">
                     <h3 className="text-base font-bold drop-shadow-lg">{course.title}</h3>
-                    <p className="text-xs opacity-80 line-clamp-2 drop-shadow-md">
-                      {course.description}
-                    </p>
                     
                     {/* Module Count */}
                     <div className="text-xs opacity-70 mt-1">
@@ -445,7 +441,7 @@ export default function TherapyLibraryFeed() {
                             ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600'
                             : selectedCourse.user_progress
                               ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600'
-                              : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+                              : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600'
                       }`}
                     >
                       {enrolling === selectedCourse.id ? (
