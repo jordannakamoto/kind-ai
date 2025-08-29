@@ -196,8 +196,8 @@ export default function ProgressView() {
 
       {/* Mood Selector */}
       <div className="mt-4">
-        <div className="mb-2 ml-2">
-          <span className="text-xs font-medium text-gray-600">mood</span>
+        <div className="mb-3 ml-2">
+          <h3 className="text-lg font-semibold text-gray-800">Today's Mood</h3>
         </div>
         <div className="flex items-center space-x-3">
           {moodOptions.map((option) => (

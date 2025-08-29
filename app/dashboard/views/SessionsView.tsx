@@ -283,8 +283,8 @@ export default function UserSessionHistory() {
       ) : (
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
           {showSpecialMostRecentView && mostRecentSessionActual && ( /* Most Recent Session View */
-            <section className="mb-10" aria-labelledby="most-recent-session-title">
-              <h2 id="most-recent-session-title" className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-1">Latest Session</h2>
+            <section className="mb-6" aria-labelledby="most-recent-session-title">
+              <h2 id="most-recent-session-title" className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">Latest Session</h2>
               <button onClick={() => !isMostRecentActualPlaceholder && handleSelectSession(mostRecentSessionActual.id)} disabled={isMostRecentActualPlaceholder}
                 aria-label={`View latest session: ${mostRecentSessionActual.title || 'Untitled Session'}`}
                 className={`w-full text-left bg-white p-5 sm:p-6 rounded-xl shadow-lg border border-slate-200 transition-all duration-200 ease-in-out group ${isMostRecentActualPlaceholder ? 'opacity-70 animate-pulse cursor-default' : 'hover:shadow-xl hover:border-indigo-300 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'}`}>
@@ -305,9 +305,9 @@ export default function UserSessionHistory() {
             if (periodGroup.title === 'Recent') {
               return (
                 periodGroup.sessions.length > 0 && (
-                  <section key={periodGroup.title} className="mb-10 last:mb-0" aria-labelledby={`section-title-recent`}>
-                    <h2 id="section-title-recent" className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-1">{periodGroup.title}</h2>
-                    <ul className="space-y-2.5">
+                  <section key={periodGroup.title} className="mb-6 last:mb-0" aria-labelledby={`section-title-recent`}>
+                    <h2 id="section-title-recent" className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">{periodGroup.title}</h2>
+                    <ul className="space-y-2">
                       {periodGroup.sessions.map((session) => {
                         const isListItemPlaceholder = session.title === 'Recent Session' && session.summary === 'Summarizing...';
                         return (
@@ -341,9 +341,9 @@ export default function UserSessionHistory() {
             const dailyGroups = groupSessionsWithinPeriodByDay(periodGroup.sessions);
             return (
               dailyGroups.length > 0 && (
-                <section key={periodGroup.title} className="mb-10 last:mb-0" aria-labelledby={`section-title-${periodGroup.title.replace(/\s+/g, '-').toLowerCase()}`}>
-                  <h2 id={`section-title-${periodGroup.title.replace(/\s+/g, '-').toLowerCase()}`} className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-1">{periodGroup.title}</h2>
-                  <ul className="space-y-2.5">
+                <section key={periodGroup.title} className="mb-6 last:mb-0" aria-labelledby={`section-title-${periodGroup.title.replace(/\s+/g, '-').toLowerCase()}`}>
+                  <h2 id={`section-title-${periodGroup.title.replace(/\s+/g, '-').toLowerCase()}`} className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">{periodGroup.title}</h2>
+                  <ul className="space-y-2">
                     {dailyGroups.map((dayGroup) => {
                       const { dayOfWeek, dayOfMonth, fullDate } = formatListDateParts(dayGroup.date);
                       const isDayPlaceholder = dayGroup.sessions.some(s => s.title === 'Recent Session' && s.summary === 'Summarizing...');
@@ -388,9 +388,6 @@ export default function UserSessionHistory() {
                                   <h3 className="text-sm sm:text-base font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">
                                     {dayGroup.sessions.length} {dayGroup.sessions.length === 1 ? 'session' : 'sessions'}
                                   </h3>
-                                  <p className="text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">
-                                    {isExpanded ? 'Hide sessions' : 'Show sessions for this day'}
-                                  </p>
                                 </div>
                                 <svg className={`w-5 h-5 text-slate-400 group-hover:text-indigo-600 ml-3 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
                               </>)}

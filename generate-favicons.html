@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Favicon Generator</title>
+</head>
+<body>
+    <h3>Favicon Generator</h3>
+    <canvas id="canvas16" width="16" height="16"></canvas>
+    <canvas id="canvas32" width="32" height="32"></canvas>
+    <canvas id="canvas180" width="180" height="180"></canvas>
+    
+    <div id="downloads"></div>
+
+    <script>
+        function drawFavicon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            const center = size / 2;
+            const radius = center * 0.9;
+            
+            // Simple blue circle matching theme
+            ctx.beginPath();
+            ctx.arc(center, center, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = '#6366f1'; // indigo-500 - softer blue/purple
+            ctx.fill();
+        }
+        
+        function downloadCanvas(canvas, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        // Generate favicons
+        drawFavicon(document.getElementById('canvas16'), 16);
+        drawFavicon(document.getElementById('canvas32'), 32);
+        drawFavicon(document.getElementById('canvas180'), 180);
+        
+        // Create download buttons
+        const downloads = document.getElementById('downloads');
+        
+        ['16', '32', '180'].forEach(size => {
+            const button = document.createElement('button');
+            const filename = size === '180' ? 'apple-touch-icon.png' : `favicon-${size}x${size}.png`;
+            button.textContent = `Download ${filename}`;
+            button.onclick = () => downloadCanvas(document.getElementById(`canvas${size}`), filename);
+            downloads.appendChild(button);
+            downloads.appendChild(document.createElement('br'));
+        });
+    </script>
+</body>
+</html>
