@@ -236,7 +236,7 @@ export default function TherapyLibraryFeed() {
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-10 pl-10">
+    <div className="w-full max-w-3xl mx-auto px-4 py-10 pl-10">
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-4">Therapy Library</h2>
 
@@ -394,11 +394,11 @@ export default function TherapyLibraryFeed() {
             />
             
             {/* Modal content */}
-            <div className="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden animate-slideUp">
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden animate-slideUp">
             {/* Split Layout with Full Height Image */}
             <div className="flex">
               {/* Left side - Course Image - Spans to modules */}
-              <div className="relative w-1/3 overflow-hidden rounded-tl-3xl">
+              <div className="relative w-1/3 overflow-hidden rounded-tl-xl">
                 <Image
                   src={selectedCourse.image_path || DEFAULT_COURSE_IMAGE}
                   alt={selectedCourse.title}
@@ -409,17 +409,17 @@ export default function TherapyLibraryFeed() {
               </div>
               
               {/* Right side - Course Info */}
-              <div className="flex-1 p-8 relative">
+              <div className="flex-1 p-6 relative">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="absolute top-4 right-4 w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-600 transition"
+                  className="absolute top-2 right-2 w-6 h-6 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-600 transition"
                 >
                   ✕
                 </button>
                 
-                <div className="pr-4">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">{selectedCourse.title}</h2>
-                  <p className="text-gray-600 text-sm mb-3 leading-relaxed">{selectedCourse.description}</p>
+                <div className="pr-2">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2 pr-6">{selectedCourse.title}</h2>
+                  <p className="text-gray-600 text-sm mb-3 leading-relaxed pr-6">{selectedCourse.description}</p>
                   
                   {/* Tags and Action Button Row */}
                   <div className="flex items-start justify-between">
@@ -438,7 +438,7 @@ export default function TherapyLibraryFeed() {
                     <button
                       onClick={handleStartCourse}
                       disabled={enrolling === selectedCourse.id}
-                      className={`px-6 py-3 mt-2 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 w-[130px] h-[44px] shadow-lg hover:shadow-xl transition-shadow duration-200 ${
+                      className={`px-6 py-3 mt-6 ml-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 w-[160px] h-[44px] shadow-lg hover:shadow-xl transition-shadow duration-200 ${
                         enrolling === selectedCourse.id
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           : selectedCourse.user_progress?.is_completed
@@ -468,8 +468,8 @@ export default function TherapyLibraryFeed() {
             
             {/* Modules Section */}
             {selectedCourse.modules && selectedCourse.modules.length > 0 && (
-              <div className="px-6 py-4 border-t border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">Modules</h3>
+              <div className="px-6 py-4 pb-10 border-t border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Sessions</h3>
                 <div className="space-y-2">
                   {selectedCourse.modules.map((module, index) => {
                     const isCompleted = selectedCourse.user_progress?.completed_modules?.includes(module.id);
