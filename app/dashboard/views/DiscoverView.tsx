@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/supabase/client';
 import { useRouter } from 'next/navigation';
+import LoadingDots from '@/components/LoadingDots';
 
 // 1. Define module type
 type ModuleSize = 'square' | 'tall' | 'wide';
@@ -48,11 +49,11 @@ interface UserCourseProgress {
 // Default fallback image
 const DEFAULT_COURSE_IMAGE = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
 
-// 3. Size styling
+// 3. Size styling - Made smaller
 const sizeClass: Record<ModuleSize, string> = {
-  square: 'row-span-1 h-[220px]',
-  tall: 'row-span-2 h-[460px]',
-  wide: 'col-span-2 row-span-1 h-[220px]',
+  square: 'row-span-1 h-[180px]',
+  tall: 'row-span-2 h-[380px]',
+  wide: 'col-span-2 row-span-1 h-[180px]',
 };
 
 // Helper function to determine course size based on index
@@ -70,6 +71,8 @@ export default function TherapyLibraryFeed() {
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const [enrolling, setEnrolling] = useState<string | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   // Fetch courses and user progress
   const fetchCoursesWithProgress = useCallback(async () => {
@@ -130,24 +133,44 @@ export default function TherapyLibraryFeed() {
     fetchCoursesWithProgress();
   }, [fetchCoursesWithProgress]);
 
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showModal) {
+        setShowModal(false);
+      }
+    };
+
+    if (showModal) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [showModal]);
+
   const allTags = ['All', ...new Set(courses.flatMap((course) => course.tags || []))];
 
   const filteredCourses = selectedTag && selectedTag !== 'All'
     ? courses.filter((course) => course.tags?.includes(selectedTag))
     : courses;
 
+  // Function to open modal with course preview
+  const handleCourseClick = (course: Course) => {
+    setSelectedCourse(course);
+    setShowModal(true);
+  };
+
   // Function to enroll in course and navigate to home
-  const handleCourseClick = async (course: Course) => {
-    if (!user) {
+  const handleStartCourse = async () => {
+    if (!user || !selectedCourse) {
       setError('Please log in to start a course');
       return;
     }
 
-    setEnrolling(course.id);
+    setEnrolling(selectedCourse.id);
 
     try {
       // Check if user is already enrolled
-      if (course.user_progress) {
+      if (selectedCourse.user_progress) {
         // User already has progress, just navigate to home
         router.push('/dashboard?tab=home');
         return;
@@ -158,7 +181,7 @@ export default function TherapyLibraryFeed() {
         .from('user_course_progress')
         .insert({
           user_id: user.id,
-          course_id: course.id,
+          course_id: selectedCourse.id,
           current_module_index: 0,
           completed_modules: [],
           is_completed: false,
@@ -170,7 +193,7 @@ export default function TherapyLibraryFeed() {
         throw enrollError;
       }
 
-      console.log('User enrolled in course:', course.title);
+      console.log('User enrolled in course:', selectedCourse.title);
       
       // Navigate to home view to start the course
       router.push('/dashboard?tab=home');
@@ -180,6 +203,7 @@ export default function TherapyLibraryFeed() {
       setError('Could not start course. Please try again.');
     } finally {
       setEnrolling(null);
+      setShowModal(false);
     }
   };
 
@@ -187,10 +211,7 @@ export default function TherapyLibraryFeed() {
     return (
       <div className="w-full max-w-4xl mx-auto px-4 py-10 pl-10">
         <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading courses...</p>
-          </div>
+          <LoadingDots className="text-lg" />
         </div>
       </div>
     );
@@ -295,20 +316,10 @@ export default function TherapyLibraryFeed() {
                   </div>
                 )}
 
-                {/* Enrollment Loading Indicator */}
-                {enrolling === course.id && (
-                  <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-                    <div className="bg-white rounded-lg p-4 flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                      <span className="text-sm font-medium text-gray-700">Starting course...</span>
-                    </div>
-                  </div>
-                )}
-
                 {/* Overlay Content */}
-                <div className="relative z-10 flex flex-col justify-end h-full p-4 text-white">
+                <div className="relative z-10 flex flex-col justify-end h-full p-3 text-white">
                   <div className="space-y-1 transition-transform duration-300 group-hover:-translate-y-1">
-                    <h3 className="text-lg font-bold drop-shadow-lg">{course.title}</h3>
+                    <h3 className="text-base font-bold drop-shadow-lg">{course.title}</h3>
                     <p className="text-xs opacity-80 line-clamp-2 drop-shadow-md">
                       {course.description}
                     </p>
@@ -319,23 +330,15 @@ export default function TherapyLibraryFeed() {
                     </div>
                     
                     {/* Tags */}
-                    <div className="flex gap-1 flex-wrap pt-1 mb-2">
-                      {course.tags?.map((tag) => (
+                    <div className="flex gap-1 flex-wrap pt-1">
+                      {course.tags?.slice(0, 3).map((tag) => (
                         <span
                           key={tag}
-                          className="text-[10px] bg-white/20 backdrop-blur-sm text-white rounded-full px-2 py-0.5 hover:bg-white/30 transition"
+                          className="text-[9px] bg-white/20 backdrop-blur-sm text-white rounded-full px-1.5 py-0.5"
                         >
                           {tag}
                         </span>
                       ))}
-                    </div>
-                    
-                    {/* Action Button */}
-                    <div className="text-center">
-                      <span className="inline-block bg-white/90 text-gray-800 text-xs px-3 py-1 rounded-full font-medium transition-all group-hover:bg-white group-hover:scale-105">
-                        {progress?.is_completed ? 'Review Course' : 
-                         progress ? 'Continue Course' : 'Start Course'}
-                      </span>
                     </div>
                   </div>
                 </div>
@@ -343,6 +346,162 @@ export default function TherapyLibraryFeed() {
             );
           })}
         </div>
+      )}
+      
+      {/* Course Preview Modal */}
+      {showModal && selectedCourse && (
+        <>
+          <style jsx global>{`
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes slideUp {
+              from { 
+                opacity: 0;
+                transform: translateY(20px) scale(0.95); 
+              }
+              to { 
+                opacity: 1;
+                transform: translateY(0) scale(1); 
+              }
+            }
+            @keyframes backdropFadeIn {
+              from { 
+                opacity: 0;
+                backdrop-filter: blur(0px);
+              }
+              to { 
+                opacity: 1;
+                backdrop-filter: blur(4px);
+              }
+            }
+            .animate-fadeIn {
+              animation: fadeIn 0.2s ease-out;
+            }
+            .animate-slideUp {
+              animation: slideUp 0.3s ease-out;
+            }
+            .animate-backdrop {
+              animation: backdropFadeIn 0.15s ease-out;
+            }
+          `}</style>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Glass backdrop */}
+            <div 
+              className="absolute inset-0 bg-white/80 backdrop-blur-sm animate-backdrop"
+              onClick={() => setShowModal(false)}
+            />
+            
+            {/* Modal content */}
+            <div className="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden animate-slideUp">
+            {/* Split Layout with Full Height Image */}
+            <div className="flex">
+              {/* Left side - Course Image - Spans to modules */}
+              <div className="relative w-1/3 overflow-hidden rounded-tl-3xl">
+                <Image
+                  src={selectedCourse.image_path || DEFAULT_COURSE_IMAGE}
+                  alt={selectedCourse.title}
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-transparent" />
+              </div>
+              
+              {/* Right side - Course Info */}
+              <div className="flex-1 p-8 relative">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="absolute top-4 right-4 w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-600 transition"
+                >
+                  ✕
+                </button>
+                
+                <div className="pr-4">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">{selectedCourse.title}</h2>
+                  <p className="text-gray-600 text-sm mb-3 leading-relaxed">{selectedCourse.description}</p>
+                  
+                  {/* Tags and Action Button Row */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex gap-2 flex-wrap">
+                      {selectedCourse.tags && selectedCourse.tags.length > 0 && selectedCourse.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="text-xs bg-blue-100 text-blue-700 rounded-full px-3 py-1 font-medium"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    
+                    {/* Action Button - Inline with Tags */}
+                    <button
+                      onClick={handleStartCourse}
+                      disabled={enrolling === selectedCourse.id}
+                      className={`px-6 py-3 mt-2 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 w-[130px] h-[44px] shadow-lg hover:shadow-xl transition-shadow duration-200 ${
+                        enrolling === selectedCourse.id
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : selectedCourse.user_progress?.is_completed
+                            ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600'
+                            : selectedCourse.user_progress
+                              ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600'
+                              : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+                      }`}
+                    >
+                      {enrolling === selectedCourse.id ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-400 border-t-transparent"></div>
+                          <span>Starting...</span>
+                        </>
+                      ) : selectedCourse.user_progress?.is_completed ? (
+                        'Review Course'
+                      ) : selectedCourse.user_progress ? (
+                        'Continue'
+                      ) : (
+                        'Start Course'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Modules Section */}
+            {selectedCourse.modules && selectedCourse.modules.length > 0 && (
+              <div className="px-6 py-4 border-t border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Modules</h3>
+                <div className="space-y-2">
+                  {selectedCourse.modules.map((module, index) => {
+                    const isCompleted = selectedCourse.user_progress?.completed_modules?.includes(module.id);
+                    const isCurrent = index === selectedCourse.user_progress?.current_module_index;
+                    
+                    return (
+                      <div
+                        key={module.id}
+                        className="flex items-center gap-3 py-2"
+                      >
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-medium ${
+                          isCompleted 
+                            ? 'bg-green-100 text-green-700' 
+                            : isCurrent
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {isCompleted ? '✓' : index + 1}
+                        </div>
+                        <span className="text-gray-900 font-medium">{module.name}</span>
+                        {isCurrent && (
+                          <span className="text-xs text-blue-600 font-medium ml-auto">← Current</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        </>
       )}
     </div>
   );

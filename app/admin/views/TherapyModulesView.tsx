@@ -3,6 +3,7 @@
 import { ChangeEvent, useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/supabase/client'; // Ensure this path is correct
+import LoadingDots from '@/components/LoadingDots';
 
 interface Course {
   id: string;
@@ -635,7 +636,7 @@ export default function ComprehensiveTherapyEditor() {
                     <div className="mb-2">
                         <input type="text" placeholder="Search modules..." value={searchModuleQuery} onChange={(e) => setSearchModuleQuery(e.target.value)} className="w-full p-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
                     </div>
-                    {loadingModules ? <p className="text-xs text-gray-500 italic">Loading modules...</p> : filteredModules.length === 0 ? <p className="text-xs text-gray-500 italic">No modules found for this context.</p> : (
+                    {loadingModules ? <LoadingDots text="Loading modules" className="text-xs text-gray-500 italic" /> : filteredModules.length === 0 ? <p className="text-xs text-gray-500 italic">No modules found for this context.</p> : (
                     <div className="space-y-1.5 max-h-[calc(100vh-450px)] overflow-y-auto pr-1">
                         {filteredModules.map(module => (
                         <div 

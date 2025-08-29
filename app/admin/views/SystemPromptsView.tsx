@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/supabase/client';
+import LoadingDots from '@/components/LoadingDots';
 
 interface SystemPrompt {
   id: string;
@@ -212,7 +213,7 @@ export default function SystemPromptsEditor() {
             <div className="mb-2">
               <input type="text" placeholder="Search prompts..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full p-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
-            {loading && prompts.length === 0 ? <p className="text-xs text-gray-500 italic">Loading prompts...</p> : filteredPrompts.length === 0 ? <p className="text-xs text-gray-500 italic">No prompts found</p> : (
+            {loading && prompts.length === 0 ? <LoadingDots text="Loading prompts" className="text-xs text-gray-500 italic" /> : filteredPrompts.length === 0 ? <p className="text-xs text-gray-500 italic">No prompts found</p> : (
               <div className="space-y-1.5 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
                 {filteredPrompts.map(prompt => (
                   <div key={prompt.id} onClick={() => selectPrompt(prompt.id)} className={`p-2 rounded-md cursor-pointer text-xs ${selectedPromptId === prompt.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50 border border-gray-100'}`}>

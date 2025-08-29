@@ -3,7 +3,6 @@
 import {
   AlertTriangle,
   ChevronRight,
-  Loader2,
   Plus,
   Circle
 } from 'lucide-react';
@@ -11,6 +10,7 @@ import { useEffect, useState } from 'react';
 
 import { supabase } from '@/supabase/client';
 import { useConversationStatus } from '@/app/contexts/ConversationContext';
+import LoadingDots from '@/components/LoadingDots';
 
 interface UserProfile {
   full_name: string;
@@ -87,8 +87,7 @@ export default function UserFacingProfile() {
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen bg-white text-slate-700 p-6">
-        <Loader2 size={48} className="animate-spin text-gray-400 mb-4" />
-        <p className="text-lg text-gray-500">Loading profile...</p>
+        <LoadingDots text="Loading profile" className="text-lg" />
       </div>
     );
   }

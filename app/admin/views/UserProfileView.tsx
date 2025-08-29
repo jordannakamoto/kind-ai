@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/supabase/client';
+import LoadingDots from '@/components/LoadingDots';
 
 interface UserProfile {
   id: string;
@@ -185,7 +186,7 @@ export default function UserProfileView({ userId, onBack }: UserProfileViewProps
     setSuccess(null);
   };
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) return <LoadingDots text="Loading user profile" />;
 
   return (
     <div className="pt-0">

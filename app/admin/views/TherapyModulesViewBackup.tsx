@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/supabase/client';
+import LoadingDots from '@/components/LoadingDots';
 
 interface TherapyModule {
   id: string;
@@ -222,7 +223,7 @@ export default function TherapyModulesEditor() {
             <div className="mb-2">
               <input type="text" placeholder="Search modules..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full p-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
-            {loading && modules.length === 0 ? <p className="text-xs text-gray-500 italic">Loading modules...</p> : filteredModules.length === 0 ? <p className="text-xs text-gray-500 italic">No modules found</p> : (
+            {loading && modules.length === 0 ? <LoadingDots text="Loading modules" className="text-xs text-gray-500 italic" /> : filteredModules.length === 0 ? <p className="text-xs text-gray-500 italic">No modules found</p> : (
               <div className="space-y-1.5 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
                 {filteredModules.map(module => (
                   <div key={module.id} onClick={() => selectModule(module.id)} className={`p-2 rounded-md cursor-pointer text-xs ${selectedModuleId === module.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50 border border-gray-100'}`}>

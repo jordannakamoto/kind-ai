@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 
 import { ArrowLeft } from 'lucide-react';
 import { supabase } from '@/supabase/client';
+import LoadingDots from '@/components/LoadingDots';
 
 interface Session {
   id: string;
@@ -75,7 +76,11 @@ export default function SessionDetailView({
   };
 
   if (loading || !session) {
-    return <div className="max-w-3xl mx-auto px-4 py-10 text-sm text-gray-500 italic">Loading...</div>;
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-10">
+        <LoadingDots text="Loading session" />
+      </div>
+    );
   }
 
   const { title, summary, transcript, notes, duration_minutes, created_at } = session;

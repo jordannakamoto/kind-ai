@@ -1,10 +1,11 @@
 "use client";
 
-import { Mic, MicOff, PlayCircle, BookOpen, Sparkles } from "lucide-react";
+import { Mic, MicOff, PlayCircle, BookOpen, Sparkles, Heart } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import MysticalOrb from "@/app/dashboard/aiorb"; // Assuming this component exists
 import { supabase } from "@/supabase/client";
+import LoadingDots from '@/components/LoadingDots';
 import { useConversation } from "@11labs/react"; // Hook uses micMuted prop
 import { useConversationStatus } from "@/app/contexts/ConversationContext"; // Assuming this context exists
 import { useActiveSession } from "@/app/contexts/ActiveSessionContext";
@@ -463,113 +464,169 @@ export default function UserCheckInConversation() {
 
   const orbSize = 160;
 
-  const formatTime = (seconds: number): string =>
-    `${Math.floor(seconds / 60)
-      .toString()
-      .padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
+  const formatTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
+    const secs = (seconds % 60).toString().padStart(2, "0");
+    return `${minutes}:${secs}`;
+  };
 
   return (
-    <div className="w-full max-w-2xl h-screen mx-auto flex flex-col items-center justify-center px-4 transition-all duration-300">
-      <div className="mb-6 text-center">
-        <p className="text-lg font-semibold">Mira</p>
-        <p className="text-sm">{formatTime(duration)}</p>
-        <p className="text-sm text-gray-400">
-          {loadingVars && !started ? "Loading session..." :
-           !started && sessionStatus === "welcome_ready" ? "Welcome session ready." :
-           !started && sessionStatus === "pending_regular" && module?.name !== "Welcome" ? "Preparing your check-in..." :
-           !started && sessionStatus === "ready" && module?.name !== "Welcome" ? "Check-in ready." :
-           conversation.status !== "connected" && !started ? "Idle" :
-           conversation.isSpeaking
-           ? isMuted
-             ? "Speaking... (Muted)"
-             : "Speaking..."
-           : isMuted
-             ? "Listening... (Muted)"
-             : "Listening..."
-          }
-        </p>
-      </div>
+    <div className="w-full max-w-4xl h-screen mx-auto flex flex-col px-4 transition-all duration-300">
+      {/* Main AI Therapist Section - Moved Up */}
+      <div className="flex flex-col items-center pt-28 pb-8">
+        <div className="mb-6 text-center">
+          <p className="text-lg font-semibold">Mira</p>
+          <p className="text-sm">{formatTime(duration)}</p>
+          <p className="text-sm text-gray-400">
+            {loadingVars && !started ? <LoadingDots className="text-sm" /> :
+             !started && sessionStatus === "welcome_ready" ? "Welcome session ready." :
+             !started && sessionStatus === "pending_regular" && module?.name !== "Welcome" ? "Preparing your check-in..." :
+             !started && sessionStatus === "ready" && module?.name !== "Welcome" ? "Check-in ready." :
+             conversation.status !== "connected" && !started ? "Idle" :
+             conversation.isSpeaking
+             ? isMuted
+               ? "Speaking... (Muted)"
+               : "Speaking..."
+             : isMuted
+               ? "Listening... (Muted)"
+               : "Listening..."
+            }
+          </p>
+        </div>
 
-      <div
-        className="relative flex items-center justify-center mb-6 transition-opacity duration-300"
-        style={{ width: "200px", height: "200px" }}
-      >
         <div
-          className="absolute rounded-full transition-transform duration-100 ease-in-out"
-          style={{
-            width: `${orbSize}px`,
-            height: `${orbSize}px`,
-            transform: `scale(${1 + amplitude * 0.35})`,
-            transformOrigin: 'center center',
-            left: '50%',
-            top: '50%',
-            marginLeft: `-${orbSize/2}px`,
-            marginTop: `-${orbSize/2}px`,
-          }}
+          className="relative flex items-center justify-center mb-6 transition-opacity duration-300"
+          style={{ width: "200px", height: "200px" }}
         >
-          <MysticalOrb />
+          <div
+            className="absolute rounded-full transition-transform duration-100 ease-in-out"
+            style={{
+              width: `${orbSize}px`,
+              height: `${orbSize}px`,
+              transform: `scale(${1 + amplitude * 0.35})`,
+              transformOrigin: 'center center',
+              left: '50%',
+              top: '50%',
+              marginLeft: `-${orbSize/2}px`,
+              marginTop: `-${orbSize/2}px`,
+            }}
+          >
+            <MysticalOrb />
+          </div>
+        </div>
+
+        {started && agentMessage && (
+          <p className="text-sm max-w-[320px] text-center text-gray-700 leading-snug mb-4 p-3 bg-gray-100 rounded-lg shadow">
+            {agentMessage}
+          </p>
+        )}
+
+        <div className="flex items-center justify-center gap-3 text-gray-600">
+          {started && (
+            <button
+              onClick={toggleMute}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-full text-gray-700 bg-white hover:bg-gray-100 border border-gray-100 transition-colors shadow hover:shadow-md text-sm font-medium"
+              aria-label={isMuted ? "Unmute" : "Mute"}
+            >
+              {isMuted ? (
+    <>
+      <MicOff className="w-5 h-5" />
+    </>
+  ) : (
+    <>
+      <Mic className="w-5 h-5" />
+    </>
+  )}
+            </button>
+          )}
+          {started ? (
+            <button
+              onClick={stopConversation}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-gray-700 bg-white hover:bg-gray-100 border border-gray-100 transition-colors shadow hover:shadow-md"
+            >
+              <svg className="w-4 h-4 fill-current text-gray-600" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path fillRule="evenodd" d="M5 5h10v10H5V5z" clipRule="evenodd"></path>
+              </svg>
+              <span className="text-sm font-medium">End Session</span>
+            </button>
+          ) : (
+            <button
+              disabled={!canManuallyStart && !autoStartWelcome}
+              onClick={startConversation}
+              className="px-6 py-3 border border-gray-300 rounded-full hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow hover:shadow-md"
+            >
+              {loadingVars ? <LoadingDots className="text-sm" /> :
+               sessionStatus === "welcome_ready" ? "Start Welcome Session" :
+               sessionStatus === "pending_regular" ? "Processing previous session..." :
+               "Start Check-In"}
+            </button>
+          )}
         </div>
       </div>
 
-      {started && agentMessage && (
-        <p className="text-sm max-w-[320px] text-center text-gray-700 leading-snug mb-4 p-3 bg-gray-100 rounded-lg shadow">
-          {agentMessage}
-        </p>
-      )}
-
-      <div className="flex items-center justify-center gap-3 text-gray-600">
-        {started && (
-          <button
-            onClick={toggleMute}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-full text-gray-700 bg-white hover:bg-gray-100 border border-gray-100 transition-colors shadow hover:shadow-md text-sm font-medium"
-            aria-label={isMuted ? "Unmute" : "Mute"}
-          >
-            {isMuted ? (
-  <>
-    <MicOff className="w-5 h-5" />
-  </>
-) : (
-  <>
-    <Mic className="w-5 h-5" />
-  </>
-)}
-          </button>
-        )}
-        {started ? (
-          <button
-            onClick={stopConversation}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full text-gray-700 bg-white hover:bg-gray-100 border border-gray-100 transition-colors shadow hover:shadow-md"
-          >
-            <svg className="w-4 h-4 fill-current text-gray-600" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-              <path fillRule="evenodd" d="M5 5h10v10H5V5z" clipRule="evenodd"></path>
-            </svg>
-            <span className="text-sm font-medium">End Session</span>
-          </button>
-        ) : (
-          <button
-            disabled={!canManuallyStart && !autoStartWelcome}
-            onClick={startConversation}
-            className="px-6 py-3 border mb-6 border-gray-300 rounded-full hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow hover:shadow-md"
-          >
-            {loadingVars ? "Loading..." :
-             sessionStatus === "welcome_ready" ? "Start Welcome Session" :
-             sessionStatus === "pending_regular" ? "Processing previous session..." :
-             "Start Check-In"}
-          </button>
-        )}
-      </div>
-      
-      {/* Activity suggestions - positioned as a subtle footer */}
+      {/* Microsoft Copilot-Style Activity Cards */}
       {!started && (
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-md">
-          <div className="flex justify-center gap-6 text-xs text-gray-400">
-            <button className="hover:text-gray-600 transition-colors" onClick={() => console.log('Continue course')}>
-              Continue: Anxiety Management
-            </button>
-            <span className="text-gray-300">•</span>
-            <button className="hover:text-gray-600 transition-colors" onClick={() => console.log('Browse courses')}>
-              Browse courses
-            </button>
+        <div className="flex-1 flex flex-col items-center justify-start max-w-4xl mx-auto mt-10">
+          <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Continue Course Card */}
+            {inProgressCourses.length > 0 && (
+              <div className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <PlayCircle className="w-4 h-4 text-gray-500" />
+                  </div>
+                  <div className="flex-1 pr-6">
+                    <p className="text-sm font-medium text-gray-700">Continue {inProgressCourses[0].courses?.title || 'Course'}</p>
+                    <p className="text-xs text-gray-400">Pick up where you left off</p>
+                  </div>
+                </div>
+                <div className="absolute right-5 top-1/2 transform -translate-y-1/2 text-xs text-gray-300 group-hover:text-gray-400 transition-colors duration-300">→</div>
+              </div>
+            )}
+
+            {/* Browse Courses Card */}
+            <div className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <BookOpen className="w-4 h-4 text-gray-500" />
+                </div>
+                <div className="flex-1 pr-6">
+                  <p className="text-sm font-medium text-gray-700">Browse courses</p>
+                  <p className="text-xs text-gray-400">Explore therapy modules</p>
+                </div>
+              </div>
+              <div className="absolute right-5 top-1/2 transform -translate-y-1/2 text-xs text-gray-300 group-hover:text-gray-400 transition-colors duration-300">→</div>
+            </div>
+
+            {/* Recommended Sessions */}
+            {recommendedSessions.length > 0 && (
+              <div className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-gray-500" />
+                  </div>
+                  <div className="flex-1 pr-6">
+                    <p className="text-sm font-medium text-gray-700">Try {recommendedSessions[0].name}</p>
+                    <p className="text-xs text-gray-400">Recommended for you</p>
+                  </div>
+                </div>
+                <div className="absolute right-5 top-1/2 transform -translate-y-1/2 text-xs text-gray-300 group-hover:text-gray-400 transition-colors duration-300">→</div>
+              </div>
+            )}
+
+            {/* Mindful Moments Card */}
+            <div className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <Heart className="w-4 h-4 text-gray-500" />
+                </div>
+                <div className="flex-1 pr-6">
+                  <p className="text-sm font-medium text-gray-700">Mindful moments</p>
+                  <p className="text-xs text-gray-400">Quick wellness check-ins</p>
+                </div>
+              </div>
+              <div className="absolute right-5 top-1/2 transform -translate-y-1/2 text-xs text-gray-300 group-hover:text-gray-400 transition-colors duration-300">→</div>
+            </div>
           </div>
         </div>
       )}
