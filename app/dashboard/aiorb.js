@@ -10,7 +10,7 @@ export default function MysticalOrb() {
     if (!canvas) return;
     const gl = canvas.getContext('webgl', {
       alpha: true,
-      premultipliedAlpha: false, // Tells browser output is NOT premultiplied
+      premultipliedAlpha: true, // Use premultiplied alpha to fix Chrome blending
       antialias: true,
       depth: false,
       stencil: false,
@@ -53,10 +53,9 @@ const fragmentShaderSource = String.raw`
         
         float shell_dist = length(centered_uv);
         
-        // Hard cutoff with no feathering to prevent transition artifacts
+        // Hard cutoff but with better alpha handling
         if (shell_dist > shell_radius) {
-            gl_FragColor = vec4(0.0);
-            return;
+            discard; // Use discard instead of returning vec4(0.0)
         }
         
         // Create smooth edge effect within the boundary
@@ -179,7 +178,9 @@ final_color += specular_color * specular * shell_edge_alpha;
         
 
         final_color = clamp(final_color, 0.0, 1.0);
-        gl_FragColor = vec4(final_color, shell_edge_alpha);
+        
+        // Fix alpha blending for Chrome - premultiply alpha to avoid grey edges
+        gl_FragColor = vec4(final_color * shell_edge_alpha, shell_edge_alpha);
     }
 `;
 
@@ -252,7 +253,11 @@ gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         backgroundColor: 'transparent',
         pointerEvents: 'none',
         position: 'relative',
-        zIndex: 1
+        zIndex: 1,
+        border: 'none',
+        outline: 'none',
+        margin: 0,
+        padding: 0
       }}
     />
   );

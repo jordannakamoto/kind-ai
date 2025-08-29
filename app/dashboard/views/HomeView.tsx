@@ -17,6 +17,7 @@ interface TherapyModule {
   instructions: string;
   agenda: string;
   name?: string; // Add name to identify the module
+  description?: string; // Add description to show in course indicator
 }
 
 interface NextSessionModule extends TherapyModule {
@@ -57,6 +58,7 @@ export default function UserCheckInConversation() {
   const [recommendedSessions, setRecommendedSessions] = useState<any[]>([]);
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [enrolling, setEnrolling] = useState<string | null>(null);
+  const [activeCourse, setActiveCourse] = useState<Course | null>(null);
   
   const { setSessionActive, updateSessionData, endSession: endActiveSession, setToggleMute } = useActiveSession();
 
@@ -452,6 +454,7 @@ export default function UserCheckInConversation() {
     varsRef.current = { userProfile: "", therapyModule: "", greeting: "", systemPrompt: "" };
     setLoadingVars(true);
     setModule(null);
+    setActiveCourse(null);
 
     if (wasWelcomeSession && user?.id) {
       console.log("Welcome session ended. Updating app_stage to dashboard for user:", user.id);
@@ -501,7 +504,7 @@ export default function UserCheckInConversation() {
       // Get the first module of the course
       const { data: firstModule, error: moduleError } = await supabase
         .from('therapy_modules')
-        .select('greeting, instructions, agenda, name')
+        .select('greeting, instructions, agenda, name, description')
         .eq('course_id', course.id)
         .order('created_at', { ascending: true })
         .limit(1)
@@ -512,6 +515,9 @@ export default function UserCheckInConversation() {
         throw new Error('Could not load course module');
       }
 
+      // Set the active course
+      setActiveCourse(course);
+      
       // Load the module into varsRef and start session
       await initializeSessionWithModule(firstModule);
       
@@ -534,7 +540,7 @@ export default function UserCheckInConversation() {
       const currentModuleIndex = courseProgress.current_module_index;
       const { data: currentModule, error: moduleError } = await supabase
         .from('therapy_modules')
-        .select('greeting, instructions, agenda, name')
+        .select('greeting, instructions, agenda, name, description')
         .eq('course_id', courseProgress.course_id)
         .order('created_at', { ascending: true })
         .limit(1)
@@ -546,6 +552,11 @@ export default function UserCheckInConversation() {
         return;
       }
 
+      // Set the active course
+      if (courseProgress.courses) {
+        setActiveCourse(courseProgress.courses);
+      }
+      
       // Load the module and start session
       await initializeSessionWithModule(currentModule);
       console.log('Continuing course:', courseProgress.courses?.title);
@@ -718,6 +729,31 @@ export default function UserCheckInConversation() {
             </button>
           )}
         </div>
+
+        {/* Course Indicator - Show when session is active and course is selected */}
+        {started && activeCourse && (
+          <div className="mt-8 flex items-center justify-center">
+            <div className="flex items-center gap-3 px-4 py-2 bg-gray-50/50 border border-gray-100 rounded-lg">
+              <div className="w-8 h-8 rounded-md overflow-hidden bg-gray-200">
+                {activeCourse.image_path ? (
+                  <img 
+                    src={activeCourse.image_path} 
+                    alt={activeCourse.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                    <BookOpen className="w-4 h-4 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              <div className="text-left">
+                <p className="text-xs font-medium text-gray-700">{activeCourse.title}</p>
+                <p className="text-xs text-gray-400">{module?.name || "Therapy session in progress"}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Microsoft Copilot-Style Activity Cards */}
