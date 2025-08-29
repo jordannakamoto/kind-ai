@@ -101,21 +101,21 @@ export default function UserCheckInConversation() {
       ) {
         const message = (msg as any).message;
         setAgentMessage(message);
-        updateSessionData({ agentMessage: message });
+        setTimeout(() => updateSessionData({ agentMessage: message }), 0);
       }
     },
     onConnect: () => {
       intervalRef.current = setInterval(() => {
         setDuration((d) => {
           const newDuration = d + 1;
-          updateSessionData({ duration: newDuration });
+          setTimeout(() => updateSessionData({ duration: newDuration }), 0);
           return newDuration;
         });
       }, 1000);
       startSound.current?.play();
       setIsMuted(false); // Ensure conversation starts unmuted
       setSessionActive(true);
-      updateSessionData({ status: 'connected', isMuted: false });
+      setTimeout(() => updateSessionData({ status: 'connected', isMuted: false }), 0);
     },
     onDisconnect: () => {
       endSound.current?.play();
@@ -369,8 +369,8 @@ export default function UserCheckInConversation() {
         : isMuted ? 0 : conversation.getInputVolume();
       setAmplitude((prev) => prev * 0.6 + vol * 0.4);
       
-      // Update the active session context with speaking state
-      updateSessionData({ isSpeaking: conversation.isSpeaking });
+      // Update the active session context with speaking state - defer to avoid render-time updates
+      setTimeout(() => updateSessionData({ isSpeaking: conversation.isSpeaking }), 0);
       
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -555,7 +555,7 @@ export default function UserCheckInConversation() {
   const toggleMute = useCallback(() => {
     setIsMuted(prevMutedState => {
       const newMutedState = !prevMutedState;
-      updateSessionData({ isMuted: newMutedState });
+      setTimeout(() => updateSessionData({ isMuted: newMutedState }), 0);
       return newMutedState;
     });
   }, [updateSessionData]);
