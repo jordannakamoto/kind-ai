@@ -159,9 +159,9 @@ export default function UserFacingProfile() {
               <h2 className="text-2xl font-semibold text-gray-900">Goals</h2>
             </div>
             {goalList.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {goalList.map((goal, i) => (
-                  <div key={i} className="flex items-start gap-3 group cursor-pointer py-1">
+                  <div key={i} className="flex items-start gap-3 group cursor-pointer">
                     <div className="mt-1">
                       <Circle className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
                     </div>
@@ -170,7 +170,7 @@ export default function UserFacingProfile() {
                     </span>
                   </div>
                 ))}
-                <button className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors mt-4">
+                <button className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors mt-2">
                   <Plus className="w-4 h-4" />
                   <span className="text-sm">Add a goal</span>
                 </button>
@@ -191,9 +191,9 @@ export default function UserFacingProfile() {
               <h2 className="text-2xl font-semibold text-gray-900">Emerging Themes</h2>
             </div>
             {themeTags.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {themeTags.map((theme, i) => (
-                  <div key={i} className="flex items-center gap-3 group py-1">
+                  <div key={i} className="flex items-center gap-3 group">
                     <ChevronRight className="w-4 h-4 text-gray-400" />
                     <span className="text-gray-700 text-base group-hover:text-gray-900 transition-colors">
                       {theme}

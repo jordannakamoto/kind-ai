@@ -363,37 +363,58 @@ export default function UserCheckInConversation() {
         console.warn("Cannot start conversation: User not loaded, vars loading, or greeting missing.");
         return;
     }
-    setConversationEnded(false);
-    setIsMuted(false); // Ensure mic is unmuted (by prop) when starting
+    
+    try {
+      // Request microphone permission first
+      await navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          // Stop the stream immediately, we just needed permission
+          stream.getTracks().forEach(track => track.stop());
+        })
+        .catch(err => {
+          console.error("Microphone permission denied:", err);
+          alert("Microphone access is required for this session. Please allow microphone access and try again.");
+          throw err;
+        });
 
-    const res = await fetch(
-      `/api/elevenlabs-connection?user_email=${user.email}`
-    );
-    if (!res.ok) {
-        console.error("Failed to get signed URL for ElevenLabs connection", await res.text());
-        return;
+      setConversationEnded(false);
+      setIsMuted(false); // Ensure mic is unmuted (by prop) when starting
+
+      const res = await fetch(
+        `/api/elevenlabs-connection?user_email=${user.email}`
+      );
+      if (!res.ok) {
+          console.error("Failed to get signed URL for ElevenLabs connection", await res.text());
+          return;
+      }
+      const { signedUrl } = await res.json();
+
+      if (!signedUrl) {
+          console.error("Signed URL is missing from API response");
+          return;
+      }
+
+      const id = await conversation.startSession({
+        signedUrl,
+        dynamicVariables: varsRef.current,
+      });
+
+      await fetch("/api/ai-therapist/cache-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: id, userId: user.id }),
+      });
+
+      setStarted(true);
+      setDuration(0);
+      setAutoStartWelcome(false);
+    } catch (error: any) {
+      console.error("Failed to start conversation:", error);
+      // Don't show another alert if we already showed the microphone permission alert
+      if (error?.name !== 'NotAllowedError' && error?.name !== 'NotFoundError') {
+        alert("Failed to start session. Please check your connection and try again.");
+      }
     }
-    const { signedUrl } = await res.json();
-
-    if (!signedUrl) {
-        console.error("Signed URL is missing from API response");
-        return;
-    }
-
-    const id = await conversation.startSession({
-      signedUrl,
-      dynamicVariables: varsRef.current,
-    });
-
-    await fetch("/api/ai-therapist/cache-session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversationId: id, userId: user.id }),
-    });
-
-    setStarted(true);
-    setDuration(0);
-    setAutoStartWelcome(false);
   };
 
   const stopConversation = async () => {
@@ -440,7 +461,7 @@ export default function UserCheckInConversation() {
     setToggleMute(toggleMute);
   }, [setToggleMute, toggleMute]);
 
-  const orbSize = 160 + amplitude * 50;
+  const orbSize = 160;
 
   const formatTime = (seconds: number): string =>
     `${Math.floor(seconds / 60)
@@ -471,14 +492,19 @@ export default function UserCheckInConversation() {
 
       <div
         className="relative flex items-center justify-center mb-6 transition-opacity duration-300"
-        style={{ width: "180px", height: "180px" }}
+        style={{ width: "200px", height: "200px" }}
       >
         <div
           className="absolute rounded-full transition-transform duration-100 ease-in-out"
           style={{
             width: `${orbSize}px`,
             height: `${orbSize}px`,
-            transform: `scale(${1 + amplitude * 0.15})`,
+            transform: `scale(${1 + amplitude * 0.35})`,
+            transformOrigin: 'center center',
+            left: '50%',
+            top: '50%',
+            marginLeft: `-${orbSize/2}px`,
+            marginTop: `-${orbSize/2}px`,
           }}
         >
           <MysticalOrb />
