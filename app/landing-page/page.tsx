@@ -91,23 +91,23 @@ const mentalHealthTiles = [
   }
 ];
 
-// --- Data for FAQ (remains the same) ---
+// --- Data for FAQ explaining how the AI works ---
 const faqDataAlpha = [
   {
-    question: "What does 'Early Alpha' mean for me?",
-    answer: "Joining our Early Alpha means you get exclusive first access to Kind AI's core functionalities. You'll experience the foundational technology and have the unique opportunity to provide feedback that directly shapes its future. Some features may be in development, and your insights are invaluable to us during this formative stage."
+    question: "How does Kind understand what I'm saying?",
+    answer: "Kind uses advanced language models (like having a smart conversation partner) that have learned from millions of conversations. When you speak, the AI processes your words in context of your conversation and generates a thoughtful response that's spoken back to you. These large language models (LLMs) can solve problems, recognize ideas, and understand patterns in language. The AI remembers what you've been talking about throughout your session."
   },
   {
-    question: "What kind of support can I expect during the Alpha?",
-    answer: "While Kind AI is designed for self-guided support, our team will be actively monitoring feedback and providing updates. You'll be part of a community of early adopters, and we'll have channels for you to share your experiences and suggestions. The core AI conversational experience is the primary focus."
+    question: "Why does it feel like I'm talking to a real person?",
+    answer: "We use natural voice technology that adds human-like pauses, emotions, and inflections. The AI understands context and responds with appropriate tone and empathy. It's trained to listen actively, ask clarifying questions, and remember important details from your conversation."
   },
   {
-    question: "Is my data secure during the Alpha phase?",
-    answer: "Absolutely. Data security and privacy are paramount, even in Alpha. We employ robust encryption and adhere to strict privacy protocols to protect your information. Your trust is essential to us."
+    question: "What happens to my conversations?",
+    answer: "Your conversations are encrypted and stored securely on your account. It's like a private journal that only you can access. The AI uses your conversation history to provide continuity (like remembering you mentioned feeling stressed last week), but this information is never shared with others or used to train our models. You can delete your data anytime."
   },
   {
-    question: "How do I provide feedback?",
-    answer: "We will provide clear channels for feedback, which may include in-app prompts, a dedicated Discord server, or email. We're eager to hear about your experience – what works, what could be better, and what you'd love to see."
+    question: "How does Kind know what advice to give?",
+    answer: "Kind doesn't give medical advice – instead, it uses evidence-based therapeutic techniques like CBT and active listening. It suggests coping techniques, helps you process emotions, and guides self-reflection, but always encourages professional help when needed."
   }
 ];
 
@@ -116,10 +116,20 @@ const faqDataAlpha = [
 export default function AlphaLandingPageClone() {
   const [activeFAQ, setActiveFAQ] = useState<number | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [reachedWhySection, setReachedWhySection] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 10);
+      const scrollY = window.scrollY;
+      setScrolled(scrollY > 10);
+      
+      // Check if user has scrolled to the "Why we built kind" section
+      const whySection = document.querySelector('#why-section');
+      if (whySection) {
+        const rect = whySection.getBoundingClientRect();
+        setReachedWhySection(rect.top <= 0);
+      }
     };
     window.addEventListener('scroll', handleScroll);
     return () => {
@@ -161,9 +171,19 @@ export default function AlphaLandingPageClone() {
               Early Access
             </span>
           </Link>
-          <Link href="#faq" className={`text-sm font-medium transition-colors duration-300
-                                        ${scrolled ? 'text-gray-600 hover:text-indigo-600' : 'text-gray-700 hover:text-indigo-500'}`}>
-              How Does This AI Work?
+          <Link 
+            href={reachedWhySection ? "/onboarding" : "#faq"}
+            className={`text-sm font-medium transition-all duration-500 px-4 py-2 rounded-lg
+                        ${reachedWhySection 
+                          ? 'bg-black text-white hover:bg-gray-800' 
+                          : scrolled 
+                            ? 'text-gray-600 hover:text-indigo-600' 
+                            : 'text-gray-700 hover:text-indigo-500'
+                        }`}
+          >
+            <span className="transition-opacity duration-300">
+              {reachedWhySection ? 'Get Started' : 'How Does This AI Work?'}
+            </span>
           </Link>
         </div>
       </nav>
@@ -178,7 +198,7 @@ export default function AlphaLandingPageClone() {
             Talk Therapy
           </h1>
           <p className="text-lg md:text-xl text-gray-700 mb-10 md:mb-12 max-w-2xl mx-auto leading-relaxed">
-            The best AI for mental health. Have a conversation — and get started on feeling your best.
+            An AI app for mental health. Have a conversation — and get started on feeling better.
           </p>
 
           {/* Primary CTA Section */}
@@ -196,59 +216,9 @@ export default function AlphaLandingPageClone() {
         </div>
       </header>
 
-      {/* --- Enhanced Problem/Solution Section --- */}
-      <section className="py-16 md:py-20 bg-white overflow-hidden">
-        <div className="container mx-auto px-6">
-          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16 xl:gap-20">
-            <div className="lg:w-5/12 xl:w-4/12 text-center mb-20 lg:text-left">
-              <div className="inline-block p-3 mb-5 bg-indigo-100/80 rounded-full shadow">
-                  <Zap className="w-9 h-9 text-indigo-600" strokeWidth={1.5} />
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 tracking-tight leading-tight">
-                Why we built kind
-              </h2>
-              
-              <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-                Traditional therapy is expensive and appointments can be difficult and time-consuming.
-              </p>
 
-              <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-                Create your own space to get better.
-              </p>
-
-             
-            </div>
-
-            <div className="lg:w-4/12 xl:w-6/12 w-full opacity-90">
-              <div className="grid grid-cols-2 gap-4 md:gap-5 lg:grid-cols-3 auto-rows-fr">
-                {mentalHealthTiles.map((tile) => (
-                  <div
-                    key={tile.id}
-                    className={`group relative rounded-xl md:rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300
-                                ${tile.gridSpanDesktop || 'lg:col-span-1 lg:row-span-1'} ${tile.aspectRatio || 'aspect-square'}`}
-                    style={{ minHeight: '150px' }}
-                  >
-                    <img
-                      src={tile.imageSrc} // Ensure these paths are correct (e.g., /images/tiles/tile-anxiety.jpg)
-                      alt={tile.title}
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-75 group-hover:opacity-90 transition-opacity duration-300"></div>
-                    <div className={`absolute inset-0 p-4 md:p-5 flex ${getTextPositionClasses(tile.textPosition)}`}> {/* Removed || 'bottom-left' as default is handled in function */}
-                      <h3 className="text-white text-lg md:text-xl font-semibold tracking-tight drop-shadow-md">
-                        {tile.title}
-                      </h3>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-           {/* --- 2-Part Split Section --- */}
-           <section className="py-20 md:py-28 bg-white">
+           {/* --- Hidden Section --- */}
+           {false && <section className="py-20 md:py-28 bg-white">
         <div className="container mx-auto px-6">
           <div className="max-w-5xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-12 tracking-tight leading-tight text-center">
@@ -278,7 +248,7 @@ export default function AlphaLandingPageClone() {
                   Courses for everything
                 </h3>
                 <p className="text-lg text-gray-600 leading-relaxed mb-6">
-                  Access personalized mental wellness programs designed to help you build resilience and develop healthy habits.
+                  Access personalized mental wellness programs to hit what you've been struggling with. Build resilience and develop healthy habits.
                 </p>
               </div>
             </div>
@@ -293,28 +263,151 @@ export default function AlphaLandingPageClone() {
             </div>
           </div>
         </div>
-      </section>
+      </section>}
 
-      {/* --- Screenshot Section --- */}
+      {/* --- Features & Video Section --- */}
       <section className="py-16 md:py-20 bg-gray-50">
         <div className="container mx-auto px-6">
-          <div className="max-w-4xl mx-auto text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight">
-              See Kind AI in Action
-            </h2>
-            <p className="text-lg text-gray-600 leading-relaxed">
-              Experience natural, empathetic conversations designed to help you process thoughts and emotions.
-            </p>
-          </div>
-          
-          <div className="max-w-4xl mx-auto px-4">
+          {/* YouTube Video with Custom Thumbnail */}
+          <div className="max-w-3xl mx-auto px-4 mb-16">
             <div className="bg-white rounded-xl shadow-2xl p-3 md:p-4 transform transition-all hover:scale-[1.01] duration-500">
-              <div className="overflow-hidden rounded-lg">
-                <img
-                  src="screenshot.png"
-                  alt="Kind AI Desktop Application Screenshot"
-                  className="w-full object-cover"
-                />
+              <div className="relative overflow-hidden rounded-lg aspect-video cursor-pointer group" onClick={() => setVideoLoaded(true)}>
+                {!videoLoaded ? (
+                  <>
+                    <img
+                      src="https://img.youtube.com/vi/QF2wIywvDhk/maxresdefault.jpg"
+                      alt="Kind AI Demo Video Thumbnail"
+                      className="w-full h-full object-cover"
+                    />
+                    {/* Play Button Overlay */}
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center group hover:bg-black/30 transition-colors">
+                      <div className="w-16 h-16 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                        <svg className="w-6 h-6 ml-1 text-gray-800" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <iframe
+                    src="https://www.youtube.com/embed/QF2wIywvDhk?autoplay=1"
+                    title="Kind AI Demo Video"
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-12 tracking-tight">
+              Find Time To Work On You
+            </h2>
+            
+            {/* Social Proof Section */}
+            <div className="grid md:grid-cols-3 gap-3 mb-12 max-w-3xl mx-auto">
+              {/* Testimonial 1 */}
+              <div className="bg-white rounded-2xl px-4 py-3 shadow-sm text-left">
+                <div className="flex items-start">
+                  <img 
+                    src="https://i.pravatar.cc/24?img=44"
+                    alt="moonchild profile"
+                    className="w-6 h-6 min-w-[24px] rounded-full object-cover flex-shrink-0"
+                  />
+                  <div className="ml-2 text-left">
+                    <div className="font-medium text-gray-900 text-xs mb-1 text-left">moonchild</div>
+                    <p className="text-gray-600 text-xs leading-tight text-left">
+                      "ngl this AI actually gets it... been using for 2 weeks"
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Testimonial 2 */}
+              <div className="bg-white rounded-2xl px-4 py-3 shadow-sm text-left">
+                <div className="flex items-start">
+                  <img 
+                    src="https://i.pravatar.cc/24?img=12"
+                    alt="dev_marcus profile"
+                    className="w-6 h-6 min-w-[24px] rounded-full object-cover flex-shrink-0"
+                  />
+                  <div className="ml-2 text-left">
+                    <div className="font-medium text-gray-900 text-xs mb-1 text-left">dev_marcus</div>
+                    <p className="text-gray-600 text-xs leading-tight text-left">
+                      "was skeptical af but it's lowkey helpful for work stress"
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Testimonial 3 */}
+              <div className="bg-white rounded-2xl px-4 py-3 shadow-sm text-left">
+                <div className="flex items-start">
+                  <img 
+                    src="https://i.pravatar.cc/24?img=68"
+                    alt="pixelwanderer profile"
+                    className="w-6 h-6 min-w-[24px] rounded-full object-cover flex-shrink-0"
+                  />
+                  <div className="ml-2 text-left">
+                    <div className="font-medium text-gray-900 text-xs mb-1 text-left">pixelwanderer</div>
+                    <p className="text-gray-600 text-xs leading-tight text-left">
+                      "better than paying $200/hr tbh... voice feels real too"
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- Enhanced Problem/Solution Section --- */}
+      <section id="why-section" className="py-16 md:py-20 bg-gray-100 overflow-hidden">
+        <div className="container mx-auto px-6">
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16 xl:gap-20">
+            <div className="lg:w-5/12 xl:w-4/12 text-center mb-20 lg:text-left">
+              <div className="bg-white rounded-xl p-6 md:p-8 shadow-lg">
+                <div className="inline-block p-3 mb-5 bg-indigo-100/80 rounded-full shadow">
+                    <Zap className="w-9 h-9 text-indigo-600" strokeWidth={1.5} />
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 tracking-tight leading-tight">
+                  Why we built kind
+                </h2>
+                
+                <p className="text-lg text-gray-700 mb-6 leading-relaxed">
+                Therapy is costly. Chat feels limited. Kind delivers a new type of support for the first steps in mental health.
+                </p>
+
+                <p className="text-lg text-gray-700 mb-6 leading-relaxed">
+                Powered by Claude, it's the same AI you use everyday - just tuned to help your days get a bit better.
+                </p>
+              </div>
+            </div>
+
+            <div className="lg:w-4/12 xl:w-6/12 w-full opacity-90">
+              <div className="grid grid-cols-2 gap-4 md:gap-5 lg:grid-cols-3 auto-rows-fr">
+                {mentalHealthTiles.map((tile) => (
+                  <div
+                    key={tile.id}
+                    className={`group relative rounded-xl md:rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300
+                                ${tile.gridSpanDesktop || 'lg:col-span-1 lg:row-span-1'} ${tile.aspectRatio || 'aspect-square'}`}
+                    style={{ minHeight: '150px' }}
+                  >
+                    <img
+                      src={tile.imageSrc}
+                      alt={tile.title}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-75 group-hover:opacity-90 transition-opacity duration-300"></div>
+                    <div className={`absolute inset-0 p-4 md:p-5 flex ${getTextPositionClasses(tile.textPosition)}`}>
+                      <h3 className="text-white text-lg md:text-xl font-semibold tracking-tight drop-shadow-md">
+                        {tile.title}
+                      </h3>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -329,7 +422,7 @@ export default function AlphaLandingPageClone() {
       {/* --- FAQ Section --- */}
       <section id="faq" className="py-16 md:py-24 bg-gray-50">
         <div className="container mx-auto px-6 max-w-3xl">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-gray-900 tracking-tight">Alpha Program FAQ</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-gray-900 tracking-tight">How Does This AI Work?</h2>
           <div className="space-y-4">
             {faqDataAlpha.map((faq, index) => (
               <FAQItem
@@ -354,10 +447,10 @@ export default function AlphaLandingPageClone() {
               {/* Replace with your actual logo images using Next/Image */}
               <div className="relative h-7 sm:h-8 md:h-9 w-auto"> {/* Adjust height as needed */}
                 <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Google_Gemini_logo.svg/688px-Google_Gemini_logo.svg.png" // Use a version suitable for light backgrounds
-                  alt="Google Gemini Logo"
-                  width={60} // Example width, adjust based on your logo's aspect ratio
-                  height={16} // Corresponds to h-9
+                  src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Claude_AI_logo.svg/1280px-Claude_AI_logo.svg.png"
+                  alt="Claude AI Logo"
+                  width={80}
+                  height={16}
                   // objectFit="contain"
                 />
               </div>

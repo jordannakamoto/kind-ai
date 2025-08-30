@@ -440,7 +440,7 @@ export default function OnboardingForm() {
               <ul className="space-y-2 text-sm text-gray-600">
                 {[
                   "Your data stays yours — secure, private, and never shared.",
-                  "Our approaches are designed to support real mental health journeys.",
+                  "Mindful app design to support real mental health journeys.",
                   "Continuous improvement of our product and services based on your feedback."
                 ].map(item => (
                   <li key={item} className="flex items-start gap-2.5">
@@ -510,22 +510,22 @@ export default function OnboardingForm() {
   // Audio Setup Screen: Purple Mic/Animation/Button, Pastel Green Steps
   if (showAudioSetup) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-12 sm:px-6 font-sans">
+      <div className="min-h-screen bg-white flex items-start justify-center px-4 pt-16 sm:pt-20 sm:px-6 font-sans">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
           className="bg-white rounded-xl shadow-m w-full max-w-lg overflow-hidden"
         >
-          <div className="p-8 md:p-10 text-center">
-            <div className="mb-6 flex justify-center">
+          <div className="p-6 md:p-8 text-center">
+            <div className="mb-4 flex justify-center">
                 <div className={`relative w-24 h-24 flex items-center justify-center rounded-full transition-colors duration-300 ${showMicTestAnimation ? 'bg-indigo-100' : 'bg-gray-100'}`}> {/* Purple when testing */}
                     <MicIcon className={`w-12 h-12 transition-colors duration-300 ${readiness.micTested ? 'text-indigo-500' : 'text-gray-400'}`} color={readiness.micTested ? 'rgb(99 102 241)' : 'rgb(156 163 175)'} /> {/* Purple when tested */}
                 </div>
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-3">Ready Your Space</h1>
-            <p className="text-gray-600 text-sm mb-8">
+            <h1 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-2">Ready Your Space</h1>
+            <p className="text-gray-600 text-sm mb-4">
               A few quick steps to ensure the best experience for your voice session.
             </p>
           </div>
@@ -612,7 +612,7 @@ export default function OnboardingForm() {
             </button>
           </div>
 
-          <div className="px-6 md:px-10 pb-8 md:pb-10 pt-4 border-t border-gray-200">
+          <div className="px-6 md:px-10 pb-8 md:pb-10 pt-4">
             <div className="flex flex-col sm:flex-row-reverse gap-3">
               {/* Final Button (Purple) */}
               <button
@@ -647,7 +647,7 @@ export default function OnboardingForm() {
 
   // Main Onboarding Form
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50/30 via-white to-purple-50/20 flex items-center justify-center px-4 py-12 sm:px-6">
+    <div className="min-h-screen bg-white flex items-center justify-center px-4 py-12 sm:px-6">
       <motion.div 
         initial={{ opacity: 0, y: 60 }} 
         animate={{ opacity: 1, y: 0 }} 
@@ -656,7 +656,7 @@ export default function OnboardingForm() {
       >
         <div className="flex justify-between items-center mb-6 px-6 sm:px-8 pt-8 ">
           <motion.h1 className="text-xl sm:text-2xl font-semibold text-gray-800" key={`title-${currentStep}`} initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }}>
-            {currentStep === 1 && 'Welcome to Kind'}
+            {currentStep === 1 && 'Welcome'}
             {currentStep === 2 && 'Your Therapy Journey'}
             {currentStep === 3 && 'What Matters to You'}
             {currentStep === 4 && 'A Note From Us'}
@@ -681,9 +681,9 @@ export default function OnboardingForm() {
             exit="hidden"
           >
             <p className="text-gray-700 text-sm leading-relaxed">
-              {currentStep === 1 && "We're creating your personalized therapy experience. It takes less than 3 minutes to get started."}
-              {currentStep === 2 && "Understanding your background helps us tailor content to your experience level."}
-              {currentStep === 3 && "Select a few topics that resonate with your therapy journey. This helps us personalize your experience."}
+              {currentStep === 1 && "Your own therapy space, no stress. Up and running in under 3 minutes."}
+              {currentStep === 2 && "Tell us where you’re at so we can tailor things to your experience."}
+              {currentStep === 3 && "Select a few topics that resonate with your therapy journey. This is your starting point."}
             </p>
           </motion.div>
         )}
