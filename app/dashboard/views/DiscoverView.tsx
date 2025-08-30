@@ -171,8 +171,8 @@ export default function TherapyLibraryFeed() {
     try {
       // Check if user is already enrolled
       if (selectedCourse.user_progress) {
-        // User already has progress, just navigate to home
-        router.push('/dashboard?tab=home');
+        // User already has progress, navigate to home and continue course
+        router.push(`/dashboard?tab=home&continueCourse=${selectedCourse.id}`);
         return;
       }
 
@@ -196,7 +196,7 @@ export default function TherapyLibraryFeed() {
       console.log('User enrolled in course:', selectedCourse.title);
       
       // Navigate to home view to start the course
-      router.push('/dashboard?tab=home');
+      router.push(`/dashboard?tab=home&startCourse=${selectedCourse.id}`);
       
     } catch (err: any) {
       console.error('Error enrolling in course:', err.message);

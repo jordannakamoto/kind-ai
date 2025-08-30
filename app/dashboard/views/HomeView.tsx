@@ -9,7 +9,7 @@ import LoadingDots from '@/components/LoadingDots';
 import { useConversation } from "@11labs/react"; // Hook uses micMuted prop
 import { useConversationStatus } from "@/app/contexts/ConversationContext"; // Assuming this context exists
 import { useActiveSession } from "@/app/contexts/ActiveSessionContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // Define types for modules for better clarity
 interface TherapyModule {
@@ -44,6 +44,7 @@ interface UserCourseProgress {
 
 export default function UserCheckInConversation() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<{ id: string; email: string, app_stage?: string } | null>(null);
   const [agentMessage, setAgentMessage] = useState("");
   const [amplitude, setAmplitude] = useState(0);
@@ -398,6 +399,7 @@ export default function UserCheckInConversation() {
     };
   }, [started, conversation.isSpeaking, conversation, isMuted, updateSessionData]); // Added conversation to dependency array
 
+
   const checkMicrophonePermission = async (): Promise<boolean> => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -730,6 +732,32 @@ export default function UserCheckInConversation() {
       setLoadingVars(false);
     }
   };
+
+  // Handle URL parameters to auto-start courses
+  useEffect(() => {
+    const startCourseId = searchParams.get('startCourse');
+    const continueCourseId = searchParams.get('continueCourse');
+
+    if (startCourseId && user && !loadingVars && !started) {
+      // Find the newly enrolled course and start it
+      const courseToStart = inProgressCourses.find(progress => progress.course_id === startCourseId);
+      if (courseToStart) {
+        console.log('Auto-starting newly enrolled course:', courseToStart.courses?.title);
+        handleContinueCourse(courseToStart);
+        // Clear the URL parameter
+        router.replace('/dashboard?tab=home');
+      }
+    } else if (continueCourseId && user && !loadingVars && !started) {
+      // Find the course to continue and start it
+      const courseToContinue = inProgressCourses.find(progress => progress.course_id === continueCourseId);
+      if (courseToContinue) {
+        console.log('Auto-continuing course:', courseToContinue.courses?.title);
+        handleContinueCourse(courseToContinue);
+        // Clear the URL parameter
+        router.replace('/dashboard?tab=home');
+      }
+    }
+  }, [searchParams, user, loadingVars, started, inProgressCourses, router]);
 
   // Handle browsing courses
   const handleBrowseCourses = () => {
