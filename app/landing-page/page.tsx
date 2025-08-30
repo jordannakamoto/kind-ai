@@ -47,7 +47,7 @@ const mentalHealthTiles = [
     imageSrc: "https://images.unsplash.com/photo-1594751439417-df8aab2a0c11?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     gridSpanDesktop: "lg:col-span-2 lg:row-span-1",
     aspectRatio: "aspect-[2/1]",
-    textPosition: "bottom-left",
+    textPosition: "bottom-right",
   },
   {
     id: 2,
@@ -154,7 +154,7 @@ export default function AlphaLandingPageClone() {
       >
         <div className="container mx-auto px-6 flex justify-between items-center">
           <Link href="/" className="text-2xl md:text-3xl font-bold text-gray-800 hover:text-indigo-600 transition-colors tracking-tight">
-            Kind
+            kind
             <span className={`ml-2 text-xs font-normal uppercase px-2 py-1 rounded-full tracking-wider align-middle transition-colors duration-300
                               ${scrolled ? 'bg-indigo-100 text-indigo-700' : 'bg-white/30 text-gray-700 backdrop-blur-sm'}`}
             >
@@ -163,7 +163,7 @@ export default function AlphaLandingPageClone() {
           </Link>
           <Link href="#faq" className={`text-sm font-medium transition-colors duration-300
                                         ${scrolled ? 'text-gray-600 hover:text-indigo-600' : 'text-gray-700 hover:text-indigo-500'}`}>
-            Alpha FAQ
+              How Does This AI Work?
           </Link>
         </div>
       </nav>
@@ -205,20 +205,17 @@ export default function AlphaLandingPageClone() {
                   <Zap className="w-9 h-9 text-indigo-600" strokeWidth={1.5} />
               </div>
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 tracking-tight leading-tight">
-                A new mental health resource
+                Why we built kind
               </h2>
               
               <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-                Traditional therapy costs $100-300 per session with waitlists and scheduling difficulty.
+                Traditional therapy is expensive and appointments can be difficult and time-consuming.
               </p>
 
               <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-                Kind is easy to try and helps you create the space to get better.
+                Create your own space to get better.
               </p>
 
-              <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-                Explore a library of sessions and worksheets to work through what matters most to you.
-              </p>
              
             </div>
 
@@ -250,35 +247,49 @@ export default function AlphaLandingPageClone() {
         </div>
       </section>
 
-           {/* --- Centered Value Proposition / Pain Point Section (Refined) --- */}
-           <section className="py-20 md:py-28 bg-white"> {/* Keep clean white background */}
+           {/* --- 2-Part Split Section --- */}
+           <section className="py-20 md:py-28 bg-white">
         <div className="container mx-auto px-6">
-          <div className="max-w-2xl mx-auto text-center"> {/* Slightly narrower max-width for more focus */}
-
-            {/* Optional: A very subtle, elegant divider or small icon if desired, otherwise remove */}
-            {/* Example: <div className="w-16 h-1 bg-indigo-200 mx-auto mb-8 rounded-full"></div> */}
-            {/* Or a single, small, desaturated icon:
-            <div className="mb-8 text-center">
-                <Zap className="w-10 h-10 text-indigo-300 inline-block" strokeWidth={1} />
-            </div>
-            */}
-
-
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6 tracking-tight leading-tight">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-12 tracking-tight leading-tight text-center">
               Find Time To Work On You.
             </h2>
-            <p className="text-lg md:text-xl text-gray-600 leading-relaxed font-light"> {/* Slightly lighter font weight for modesty, softer gray */}
-              Get started on your mental wellness without the hurdles of appointments, scheduling, or expensive visits.
-            </p>
-            {/* The copy clearly states "We're building", which is honest for an alpha. */}
+            
+            <div className="grid md:grid-cols-2 gap-8 md:gap-12">
+              {/* Left side - Track your goals */}
+              <div className="text-center md:text-left">
+                <div className="inline-block p-3 mb-5 bg-indigo-100/80 rounded-full shadow">
+                  <BarChart3 className="w-8 h-8 text-indigo-600" strokeWidth={1.5} />
+                </div>
+                <h3 className="text-2xl font-semibold text-gray-900 mb-4">
+                  Track your goals
+                </h3>
+                <p className="text-lg text-gray-600 leading-relaxed mb-6">
+                  Set personal milestones and monitor your progress with guided insights tailored to your journey.
+                </p>
+              </div>
+              
+              {/* Right side - Courses for everything */}
+              <div className="text-center md:text-left">
+                <div className="inline-block p-3 mb-5 bg-indigo-100/80 rounded-full shadow">
+                  <Sparkles className="w-8 h-8 text-indigo-600" strokeWidth={1.5} />
+                </div>
+                <h3 className="text-2xl font-semibold text-gray-900 mb-4">
+                  Courses for everything
+                </h3>
+                <p className="text-lg text-gray-600 leading-relaxed mb-6">
+                  Access personalized mental wellness programs designed to help you build resilience and develop healthy habits.
+                </p>
+              </div>
+            </div>
 
-             <div className="mt-10">
-                <Link
-                    href="/onboarding"
-                    className="inline-block px-8 py-3 border border-indigo-600 text-base font-medium rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors duration-300 ease-in-out shadow-sm hover:shadow-md"
-                >
-                    Get Started
-                </Link>
+            <div className="mt-12 text-center">
+              <Link
+                href="/onboarding"
+                className="inline-block px-8 py-3 border border-indigo-600 text-base font-medium rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors duration-300 ease-in-out shadow-sm hover:shadow-md"
+              >
+                Get Started
+              </Link>
             </div>
           </div>
         </div>

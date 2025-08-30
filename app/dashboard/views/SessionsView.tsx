@@ -169,6 +169,10 @@ export default function UserSessionHistory() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedDays, setExpandedDays] = useState<{ [key: string]: boolean }>({}); // For expanding day groups
   const [autoExpanded, setAutoExpanded] = useState<boolean>(false); // Track if auto-expansion has been done
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [confirmDeleteSessionId, setConfirmDeleteSessionId] = useState<string | null>(null);
+  const [isSelectMode, setIsSelectMode] = useState<boolean>(false);
+  const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
 
   const { conversationEnded, pollingStatus, setPollingStatus } = useConversationStatus();
   const router = useRouter();
@@ -181,6 +185,41 @@ export default function UserSessionHistory() {
 
   const toggleExpandedDay = (dayDateISO: string) => {
     setExpandedDays(prev => ({ ...prev, [dayDateISO]: !prev[dayDateISO] }));
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    setDeletingSessionId(sessionId);
+    
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete session');
+      }
+
+      // Remove session from cache and state
+      const updatedSessions = allUserSessionsData.filter(session => session.id !== sessionId);
+      setSessionCache(updatedSessions);
+      setAllUserSessionsData(updatedSessions);
+      
+    } catch (error: any) {
+      console.error('Error deleting session:', error.message);
+      alert('Failed to delete session. Please try again.');
+    } finally {
+      setDeletingSessionId(null);
+      setConfirmDeleteSessionId(null);
+    }
+  };
+
+  const confirmDelete = (sessionId: string) => {
+    setConfirmDeleteSessionId(sessionId);
+  };
+
+  const cancelDelete = () => {
+    setConfirmDeleteSessionId(null);
   };
 
   // useEffects for getUser, fetchAndUpdateSessions, polling (same as previous)
@@ -257,8 +296,61 @@ export default function UserSessionHistory() {
   const showEmptyMessage = !loading && allUserSessionsData.length === 0;
   const showInitialLoading = loading && allUserSessionsData.length === 0;
 
+  const toggleSelectMode = () => {
+    setIsSelectMode(!isSelectMode);
+    setSelectedSessions(new Set());
+  };
+
+  const toggleSessionSelection = (sessionId: string) => {
+    const newSelected = new Set(selectedSessions);
+    if (newSelected.has(sessionId)) {
+      newSelected.delete(sessionId);
+    } else {
+      newSelected.add(sessionId);
+    }
+    setSelectedSessions(newSelected);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedSessions.size === 0) return;
+    
+    setDeletingSessionId('bulk');
+    
+    try {
+      const deletePromises = Array.from(selectedSessions).map(sessionId =>
+        fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' })
+      );
+      
+      const responses = await Promise.all(deletePromises);
+      const failedDeletes = responses.filter(response => !response.ok);
+      
+      if (failedDeletes.length > 0) {
+        throw new Error(`Failed to delete ${failedDeletes.length} sessions`);
+      }
+
+      // Remove deleted sessions from cache and state
+      const updatedSessions = allUserSessionsData.filter(
+        session => !selectedSessions.has(session.id)
+      );
+      setSessionCache(updatedSessions);
+      setAllUserSessionsData(updatedSessions);
+      
+      // Reset selection state
+      setSelectedSessions(new Set());
+      setIsSelectMode(false);
+      
+    } catch (error: any) {
+      console.error('Error bulk deleting sessions:', error.message);
+      alert('Failed to delete some sessions. Please try again.');
+    } finally {
+      setDeletingSessionId(null);
+      setConfirmDeleteSessionId(null);
+    }
+  };
+
   return (
     <div className="bg-white min-h-screen py-8 sm:py-12 w-full">
+      
       <div className="hidden max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 mb-10"> {/* Search Bar */}
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
@@ -284,10 +376,67 @@ export default function UserSessionHistory() {
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
           {showSpecialMostRecentView && mostRecentSessionActual && ( /* Most Recent Session View */
             <section className="mb-6" aria-labelledby="most-recent-session-title">
-              <h2 id="most-recent-session-title" className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">Latest Session</h2>
-              <button onClick={() => !isMostRecentActualPlaceholder && handleSelectSession(mostRecentSessionActual.id)} disabled={isMostRecentActualPlaceholder}
-                aria-label={`View latest session: ${mostRecentSessionActual.title || 'Untitled Session'}`}
-                className={`w-full text-left bg-white p-5 sm:p-6 rounded-xl shadow-lg border border-slate-200 transition-all duration-200 ease-in-out group ${isMostRecentActualPlaceholder ? 'opacity-70 animate-pulse cursor-default' : 'hover:shadow-xl hover:border-indigo-300 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'}`}>
+              <div className="flex items-center justify-between mb-2 px-1">
+                <h2 id="most-recent-session-title" className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Latest Session</h2>
+                {!showInitialLoading && !showEmptyMessage && (
+                  <div className="flex items-center gap-2">
+                    {isSelectMode && selectedSessions.size > 0 && (
+                      <button
+                        onClick={() => setConfirmDeleteSessionId('bulk')}
+                        disabled={deletingSessionId === 'bulk'}
+                        className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {deletingSessionId === 'bulk' ? 'Deleting...' : `Delete ${selectedSessions.size}`}
+                      </button>
+                    )}
+                    {isSelectMode && (
+                      <div className="text-xs text-slate-500">
+                        {selectedSessions.size} selected
+                      </div>
+                    )}
+                    <button
+                      onClick={toggleSelectMode}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                        isSelectMode 
+                          ? 'text-slate-600 hover:text-slate-700 hover:bg-slate-100' 
+                          : 'text-slate-500 hover:text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {isSelectMode ? 'Cancel' : 'Delete sessions'}
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="relative group">
+                {isSelectMode && !isMostRecentActualPlaceholder && (
+                  <div className="absolute top-4 left-4 z-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedSessions.has(mostRecentSessionActual.id)}
+                      onChange={() => toggleSessionSelection(mostRecentSessionActual.id)}
+                      className="w-5 h-5 text-red-600 bg-white border-slate-300 rounded focus:ring-red-500 focus:ring-2"
+                    />
+                  </div>
+                )}
+                <button 
+                  onClick={() => {
+                    if (isSelectMode && !isMostRecentActualPlaceholder) {
+                      toggleSessionSelection(mostRecentSessionActual.id);
+                    } else if (!isMostRecentActualPlaceholder) {
+                      handleSelectSession(mostRecentSessionActual.id);
+                    }
+                  }}
+                  disabled={isMostRecentActualPlaceholder}
+                  aria-label={`${isSelectMode ? 'Select' : 'View'} latest session: ${mostRecentSessionActual.title || 'Untitled Session'}`}
+                  className={`w-full text-left bg-white p-5 sm:p-6 rounded-xl shadow-lg border border-slate-200 transition-all duration-200 ease-in-out ${
+                    isMostRecentActualPlaceholder 
+                      ? 'opacity-70 animate-pulse cursor-default' 
+                      : isSelectMode
+                        ? selectedSessions.has(mostRecentSessionActual.id)
+                          ? 'ring-2 ring-red-500 bg-red-50 border-red-300'
+                          : 'hover:ring-2 hover:ring-red-300 hover:bg-red-50'
+                        : 'hover:shadow-xl hover:border-indigo-300 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'
+                  }`}>
                 {isMostRecentActualPlaceholder ? (<> {/* Placeholder for most recent */}
                   <div className="h-5 bg-slate-300 rounded w-3/5 mb-3"></div> <div className="space-y-2"><div className="h-3 bg-slate-300/80 rounded w-full"></div><div className="h-3 bg-slate-300/80 rounded w-full"></div><div className="h-3 bg-slate-300/80 rounded w-3/4"></div></div> <div className="h-4 bg-slate-300 rounded w-1/3 mt-4"></div>
                 </>) : (<>
@@ -296,7 +445,8 @@ export default function UserSessionHistory() {
                   {mostRecentSessionActual.summary && (<p className="text-sm text-slate-600 leading-relaxed line-clamp-3 group-hover:text-slate-700">{truncateSummary(mostRecentSessionActual.summary, 3)}</p>)}
                   <div className="mt-4 flex justify-end"><span className="text-xs font-medium text-indigo-600 group-hover:text-indigo-700">View Details →</span></div>
                 </>)}
-              </button>
+                </button>
+              </div>
             </section>
           )}
 
@@ -312,9 +462,36 @@ export default function UserSessionHistory() {
                         const isListItemPlaceholder = session.title === 'Recent Session' && session.summary === 'Summarizing...';
                         return (
                           <li key={session.id}>
-                            <button onClick={() => !isListItemPlaceholder && handleSelectSession(session.id)} disabled={isListItemPlaceholder}
-                              aria-label={`View session: ${session.title || 'Untitled Session'}`}
-                              className={`w-full flex items-center bg-white p-3.5 sm:p-4 rounded-xl shadow  transition-all duration-200 ease-in-out group ${isListItemPlaceholder ? 'opacity-60 animate-pulse cursor-default' : 'hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'}`}>
+                            <div className="relative group">
+                              {isSelectMode && !isListItemPlaceholder && (
+                                <div className="absolute top-3 left-3 z-10">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedSessions.has(session.id)}
+                                    onChange={() => toggleSessionSelection(session.id)}
+                                    className="w-4 h-4 text-red-600 bg-white border-slate-300 rounded focus:ring-red-500 focus:ring-2"
+                                  />
+                                </div>
+                              )}
+                              <button 
+                                onClick={() => {
+                                  if (isSelectMode && !isListItemPlaceholder) {
+                                    toggleSessionSelection(session.id);
+                                  } else if (!isListItemPlaceholder) {
+                                    handleSelectSession(session.id);
+                                  }
+                                }}
+                                disabled={isListItemPlaceholder}
+                                aria-label={`${isSelectMode ? 'Select' : 'View'} session: ${session.title || 'Untitled Session'}`}
+                                className={`w-full flex items-center bg-white p-3.5 sm:p-4 rounded-xl shadow transition-all duration-200 ease-in-out ${
+                                  isListItemPlaceholder 
+                                    ? 'opacity-60 animate-pulse cursor-default' 
+                                    : isSelectMode
+                                      ? selectedSessions.has(session.id)
+                                        ? 'ring-2 ring-red-500 bg-red-50 border-red-300'
+                                        : 'hover:ring-2 hover:ring-red-300 hover:bg-red-50'
+                                      : 'hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'
+                                }`}>
                               {isListItemPlaceholder ? (<> {/* Placeholder for recent list item */}
                                 <div className="mr-4 text-center w-16 h-6 bg-slate-300/70 rounded-md flex-shrink-0"></div> <div className="flex-grow min-w-0"><div className="h-4 bg-slate-300 rounded w-3/4 mb-1.5"></div><div className="h-3 bg-slate-300 rounded w-1/2"></div></div> <div className="h-4 bg-slate-300 rounded w-10 ml-3"></div>
                               </>) : (<>
@@ -328,6 +505,7 @@ export default function UserSessionHistory() {
                                 <svg className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 ml-3 flex-shrink-0 transition-colors" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
                               </>)}
                             </button>
+                            </div>
                           </li>
                         );
                       })}
@@ -354,9 +532,33 @@ export default function UserSessionHistory() {
                         const session = dayGroup.sessions[0];
                         return (
                           <li key={session.id}>
-                            <button onClick={() => handleSelectSession(session.id)}
-                              aria-label={`View session: ${session.title || 'Untitled Session'} from ${fullDate}`}
-                              className={`w-full flex items-center bg-white p-3.5 sm:p-4 rounded-xl shadow transition-all duration-200 ease-in-out group hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none`}>
+                            <div className="relative group">
+                              {isSelectMode && (
+                                <div className="absolute top-3 left-3 z-10">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedSessions.has(session.id)}
+                                    onChange={() => toggleSessionSelection(session.id)}
+                                    className="w-4 h-4 text-red-600 bg-white border-slate-300 rounded focus:ring-red-500 focus:ring-2"
+                                  />
+                                </div>
+                              )}
+                              <button 
+                                onClick={() => {
+                                  if (isSelectMode) {
+                                    toggleSessionSelection(session.id);
+                                  } else {
+                                    handleSelectSession(session.id);
+                                  }
+                                }}
+                                aria-label={`${isSelectMode ? 'Select' : 'View'} session: ${session.title || 'Untitled Session'} from ${fullDate}`}
+                                className={`w-full flex items-center bg-white p-3.5 sm:p-4 rounded-xl shadow transition-all duration-200 ease-in-out group ${
+                                  isSelectMode
+                                    ? selectedSessions.has(session.id)
+                                      ? 'ring-2 ring-red-500 bg-red-50 border-red-300'
+                                      : 'hover:ring-2 hover:ring-red-300 hover:bg-red-50'
+                                    : 'hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'
+                                }`}>
                                 <div className="mr-3 sm:mr-4 text-center w-12 flex-shrink-0" aria-hidden="true">
                                   <div className="text-xs text-gray-400 tracking-wide">{dayOfWeek}</div>
                                   <div className="text-s font-bold text-slate-700 group-hover:text-slate-800">{dayOfMonth}</div>
@@ -366,7 +568,8 @@ export default function UserSessionHistory() {
                                   <p className="text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">{formatDuration(session.duration)}</p>
                                 </div>
                                 <svg className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 ml-3 flex-shrink-0 transition-colors" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
-                            </button>
+                              </button>
+                            </div>
                           </li>
                         );
                       } else {
@@ -397,8 +600,32 @@ export default function UserSessionHistory() {
                                 <ul className="pl-4 pr-1 py-1 space-y-1.5 bg-slate-50/50 border-l-2 border-indigo-200 ml-[calc(0.75rem+3rem+0.25rem)] rounded-r-md"> {/* Adjust ml based on date block width */}
                                     {dayGroup.sessions.map(session => (
                                     <li key={session.id}>
-                                        <button onClick={() => handleSelectSession(session.id)}
-                                            className="w-full flex items-center text-left p-2 rounded-md hover:bg-slate-200/60 transition-colors group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400">
+                                        <div className="relative group flex items-center">
+                                        {isSelectMode && (
+                                          <div className="flex-shrink-0 mr-2">
+                                            <input
+                                              type="checkbox"
+                                              checked={selectedSessions.has(session.id)}
+                                              onChange={() => toggleSessionSelection(session.id)}
+                                              className="w-3.5 h-3.5 text-red-600 bg-white border-slate-300 rounded focus:ring-red-500 focus:ring-1"
+                                            />
+                                          </div>
+                                        )}
+                                        <button 
+                                          onClick={() => {
+                                            if (isSelectMode) {
+                                              toggleSessionSelection(session.id);
+                                            } else {
+                                              handleSelectSession(session.id);
+                                            }
+                                          }}
+                                          className={`flex-1 flex items-center text-left p-2 rounded-md transition-colors group focus-visible:outline-none focus-visible:ring-1 ${
+                                            isSelectMode
+                                              ? selectedSessions.has(session.id)
+                                                ? 'bg-red-100 hover:bg-red-200 focus-visible:ring-red-400'
+                                                : 'hover:bg-red-50 focus-visible:ring-red-400'
+                                              : 'hover:bg-slate-200/60 focus-visible:ring-indigo-400'
+                                          }`}>
                                         <div className="flex-shrink-0 mr-2 w-16">
                                             <p className="text-xs text-slate-500 group-hover:text-indigo-600">
                                             {new Date(session.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
@@ -410,6 +637,7 @@ export default function UserSessionHistory() {
                                         </div>
                                         <svg className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 ml-2 flex-shrink-0 opacity-70 group-hover:opacity-100" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
                                         </button>
+                                        </div>
                                     </li>
                                     ))}
                                 </ul>
@@ -424,6 +652,57 @@ export default function UserSessionHistory() {
               )
             );
           })}
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {confirmDeleteSessionId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full border border-slate-200">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    {confirmDeleteSessionId === 'bulk' ? 'Delete Sessions' : 'Delete Session'}
+                  </h3>
+                  <p className="text-sm text-slate-500 mt-1">This action cannot be undone.</p>
+                </div>
+              </div>
+              
+              <p className="text-slate-600 mb-6">
+                {confirmDeleteSessionId === 'bulk' 
+                  ? `Are you sure you want to delete ${selectedSessions.size} session${selectedSessions.size > 1 ? 's' : ''}? All session data including transcripts, summaries, and notes will be permanently removed.`
+                  : 'Are you sure you want to delete this session? All session data including the transcript, summary, and notes will be permanently removed.'
+                }
+              </p>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={cancelDelete}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => confirmDeleteSessionId === 'bulk' ? handleBulkDelete() : handleDeleteSession(confirmDeleteSessionId)}
+                  disabled={deletingSessionId === confirmDeleteSessionId || (confirmDeleteSessionId === 'bulk' && deletingSessionId === 'bulk')}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  {(deletingSessionId === confirmDeleteSessionId || (confirmDeleteSessionId === 'bulk' && deletingSessionId === 'bulk'))
+                    ? 'Deleting...' 
+                    : confirmDeleteSessionId === 'bulk' 
+                      ? `Delete ${selectedSessions.size} Session${selectedSessions.size > 1 ? 's' : ''}`
+                      : 'Delete Session'
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

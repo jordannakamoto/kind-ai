@@ -297,14 +297,6 @@ export default function TherapyLibraryFeed() {
                 )}
 
 
-                {/* Course Status Badge */}
-                {progress?.is_completed && (
-                  <div className="absolute top-3 left-3 z-20">
-                    <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full font-medium">
-                      ✓ Completed
-                    </div>
-                  </div>
-                )}
 
                 {/* Overlay Content */}
                 <div className="relative z-10 flex flex-col justify-end h-full p-3 text-white">
@@ -314,6 +306,11 @@ export default function TherapyLibraryFeed() {
                     {/* Session Count */}
                     <div className="text-xs opacity-70 mt-1">
                       {totalModules} {totalModules === 1 ? 'session' : 'sessions'}
+                      {progress?.is_completed && (
+                        <span className="ml-2 text-white font-medium">
+                          - ✓ Completed
+                        </span>
+                      )}
                     </div>
                     
                     {/* Progress Bar - Below module count */}

@@ -85,19 +85,108 @@ export default function OnboardingForm() {
     micTested: false
   });
   const [showMicTestAnimation, setShowMicTestAnimation] = useState(false);
+  const [audioLevels, setAudioLevels] = useState<number[]>([0, 0, 0]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   const allReadyForAudio = Object.values(readiness).every(value => value === true);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (showMicTestAnimation) {
-      timer = setTimeout(() => {
-        setShowMicTestAnimation(false);
-        setReadiness(prev => ({...prev, micTested: true}));
-      }, 3000);
+  const startAudioAnalysis = (stream: MediaStream) => {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const analyser = audioContext.createAnalyser();
+    const microphone = audioContext.createMediaStreamSource(stream);
+    
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.3;
+    microphone.connect(analyser);
+    
+    audioContextRef.current = audioContext;
+    analyserRef.current = analyser;
+    micStreamRef.current = stream;
+    
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    let detectedSound = false;
+    let soundTimeout: NodeJS.Timeout;
+    let waveTime = 0;
+    
+    const updateLevels = () => {
+      if (!analyserRef.current) return;
+      
+      waveTime += 0.1; // Increment wave time for smooth animation
+      
+      analyserRef.current.getByteTimeDomainData(dataArray);
+      
+      // Calculate average amplitude
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += Math.abs(dataArray[i] - 128);
+      }
+      const average = sum / dataArray.length;
+      
+      // Much more sensitive normalization
+      const normalizedVolume = Math.min(average / 8, 1);
+      
+      // Create wave pattern with audio responsiveness
+      const baseHeight = Math.max(0.3, normalizedVolume * 4);
+      
+      // Wave pattern with different phases for each bar
+      const wave1 = Math.sin(waveTime) * 0.2 + 0.8;
+      const wave2 = Math.sin(waveTime + Math.PI / 3) * 0.3 + 1.0;
+      const wave3 = Math.sin(waveTime + (2 * Math.PI) / 3) * 0.25 + 0.9;
+      
+      const newLevels = [
+        Math.max(0.3, Math.min(1, baseHeight * wave1 * 0.8)),
+        Math.max(0.3, Math.min(1, baseHeight * wave2 * 1.2)),
+        Math.max(0.3, Math.min(1, baseHeight * wave3 * 0.9))
+      ];
+      
+      setAudioLevels(newLevels);
+      
+      // Check if we've detected sound (lower threshold, easier to pass)
+      if (average > 2 && !detectedSound) {
+        detectedSound = true;
+        clearTimeout(soundTimeout);
+        soundTimeout = setTimeout(() => {
+          stopAudioAnalysis();
+          setShowMicTestAnimation(false);
+          setReadiness(prev => ({...prev, micTested: true}));
+        }, 1000); // Reduce time to 1 second
+      }
+      
+      animationFrameRef.current = requestAnimationFrame(updateLevels);
+    };
+    
+    updateLevels();
+  };
+
+  const stopAudioAnalysis = () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
-    return () => clearTimeout(timer);
-  }, [showMicTestAnimation]);
+    
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach(track => track.stop());
+      micStreamRef.current = null;
+    }
+    
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    
+    analyserRef.current = null;
+    setAudioLevels([0, 0, 0]);
+  };
+
+  useEffect(() => {
+    return () => {
+      // Cleanup on unmount
+      stopAudioAnalysis();
+    };
+  }, []);
 
 
   useEffect(() => {
@@ -138,11 +227,20 @@ export default function OnboardingForm() {
     }
   };
 
+  const [onboardingDataSaved, setOnboardingDataSaved] = useState(false);
+
   const handleSubmit = async () => {
     if (currentStep !== totalSteps || !isStepComplete()) { 
         console.warn("handleSubmit called prematurely or final step not complete.");
         return;
     }
+    
+    // If we've already saved the data, just show the audio setup again
+    if (onboardingDataSaved) {
+      setShowAudioSetup(true);
+      return;
+    }
+    
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       console.error('Auth error:', authError?.message || 'No user found.');
@@ -171,6 +269,7 @@ export default function OnboardingForm() {
       return;
     }
     console.log('Onboarding data saved, proceeding to audio setup.');
+    setOnboardingDataSaved(true);
     setShowAudioSetup(true);
   };
 
@@ -262,7 +361,7 @@ export default function OnboardingForm() {
               </div>
             </div>
             <div className="mt-6 text-center px-9">
-              <p className="text-sm text-gray-500">Join 10,000+ people finding clarity through Kind</p>
+              <p className="text-sm text-gray-500">Join 1+ people finding clarity through Kind</p>
             </div>
           </motion.div>
         );
@@ -366,9 +465,11 @@ export default function OnboardingForm() {
                 I commit to respecting the Kind platform, myself, and my goals for using it.
               </span>
             </label>
-            <div className="text-sm text-gray-500 space-x-3 text-center pt-2">
-              You can always review our <Link href="/terms" className="text-indigo-600 hover:underline">Terms</Link>,
-              <Link href="/privacy" className="text-indigo-600 hover:underline">Privacy Policy</Link>, and
+            <div className="text-sm text-gray-500 text-center pt-2">
+              You can always review our <Link href="/terms" className="text-indigo-600 hover:underline">Terms</Link>
+              {', '}
+              <Link href="/privacy" className="text-indigo-600 hover:underline">Privacy Policy</Link>
+              {', and '}
               <Link href="/user-agreement" className="text-indigo-600 hover:underline">User Agreement</Link>.
             </div>
           </motion.div>
@@ -452,7 +553,21 @@ export default function OnboardingForm() {
             {/* Step 2: Test Microphone (Pastel Green Step, Purple Animation) */}
             <button
               type="button"
-              onClick={() => { if (!readiness.micTested && !showMicTestAnimation) setShowMicTestAnimation(true); }}
+              onClick={async () => { 
+                if (!readiness.micTested && !showMicTestAnimation) {
+                  setShowMicTestAnimation(true);
+                  try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    // Permission granted, start audio analysis
+                    startAudioAnalysis(stream);
+                  } catch (error) {
+                    console.error("Microphone permission denied:", error);
+                    setShowMicTestAnimation(false);
+                    alert("Microphone access is required for voice sessions. Please allow microphone access and try again.");
+                    return;
+                  }
+                }
+              }}
               disabled={readiness.micTested || showMicTestAnimation}
               className={`w-full flex items-center p-4 rounded-lg border-2 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-300
                 ${readiness.micTested ? 'border-green-400 bg-green-50 shadow-md' : 'border-gray-200 bg-white'}
@@ -467,15 +582,30 @@ export default function OnboardingForm() {
               <div className="text-left flex-1">
                 <h3 className={`font-medium text-sm ${readiness.micTested ? 'text-green-700' : 'text-gray-700'}`}>Test your microphone</h3>
                 <p className={`text-sm ${readiness.micTested ? 'text-green-600' : 'text-gray-500'}`}>
-                  {showMicTestAnimation ? "Listening..." : readiness.micTested ? "Microphone working great!" : "Click here to test your mic."}
+                  {showMicTestAnimation ? "Speak to test your microphone..." : readiness.micTested ? "Microphone working great!" : "Click here to test your mic."}
                 </p>
               </div>
-              {/* Mic Test Animation (Purple Bars) */}
+              {/* Mic Test Animation (Purple Bars - Real Audio Levels) */}
               {showMicTestAnimation && (
                 <div className="ml-auto flex space-x-1 items-end h-6">
-                  <div className="w-1.5 h-3 bg-indigo-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                  <div className="w-1.5 h-5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '200ms' }}></div>
-                  <div className="w-1.5 h-4 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '400ms' }}></div>
+                  <div 
+                    className="w-1.5 bg-indigo-400 rounded-full transition-all duration-75 ease-out" 
+                    style={{ 
+                      height: `${Math.max(4, Math.min(24, audioLevels[0] * 24))}px`,
+                    }}
+                  ></div>
+                  <div 
+                    className="w-1.5 bg-indigo-500 rounded-full transition-all duration-75 ease-out" 
+                    style={{ 
+                      height: `${Math.max(4, Math.min(24, audioLevels[1] * 24))}px`,
+                    }}
+                  ></div>
+                  <div 
+                    className="w-1.5 bg-indigo-400 rounded-full transition-all duration-75 ease-out" 
+                    style={{ 
+                      height: `${Math.max(4, Math.min(24, audioLevels[2] * 24))}px`,
+                    }}
+                  ></div>
                 </div>
               )}
               {readiness.micTested && <div className="ml-auto shrink-0"><CheckIcon className="w-5 h-5" color="rgb(74 222 128)" /></div>} {/* Pastel Green Check */}
@@ -499,6 +629,10 @@ export default function OnboardingForm() {
               <button
                 onClick={() => {
                     setShowAudioSetup(false);
+                    // Reset mic test state when going back
+                    setReadiness({ quietSpace: false, micTested: false });
+                    setShowMicTestAnimation(false);
+                    stopAudioAnalysis();
                 }}
                 className="w-full sm:w-auto px-8 py-3 rounded-lg text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
               >
@@ -514,7 +648,12 @@ export default function OnboardingForm() {
   // Main Onboarding Form
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50/30 via-white to-purple-50/20 flex items-center justify-center px-4 py-12 sm:px-6">
-      <div className="max-w-[38rem] w-full flex flex-col bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-100">
+      <motion.div 
+        initial={{ opacity: 0, y: 60 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="max-w-[38rem] w-full flex flex-col bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-100"
+      >
         <div className="flex justify-between items-center mb-6 px-6 sm:px-8 pt-8 ">
           <motion.h1 className="text-xl sm:text-2xl font-semibold text-gray-800" key={`title-${currentStep}`} initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }}>
             {currentStep === 1 && 'Welcome to Kind'}
@@ -577,7 +716,7 @@ export default function OnboardingForm() {
         </div>
         <div className="pt-3 mb-2 border-t border-gray-100 mt-4">
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

@@ -59,6 +59,17 @@ export default function UserCheckInConversation() {
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [enrolling, setEnrolling] = useState<string | null>(null);
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
+  const [showCustomizeModal, setShowCustomizeModal] = useState(false);
+  const [cardsDataLoaded, setCardsDataLoaded] = useState(false);
+  const [cardsVisible, setCardsVisible] = useState(true);
+  const [voiceSettings, setVoiceSettings] = useState({
+    name: 'Mira', // AI therapist name
+    voice: 'Mira', // Default voice
+    personality: 'Empathetic', // Default personality
+    primaryColor: '#4f46e5', // Default primary color (indigo)
+    secondaryColor: '#10b981', // Default secondary color (emerald)
+    accentColor: '#f59e0b' // Default accent color (amber)
+  });
   
   const { setSessionActive, updateSessionData, endSession: endActiveSession, setToggleMute } = useActiveSession();
 
@@ -250,6 +261,8 @@ export default function UserCheckInConversation() {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) return;
 
+    setCardsDataLoaded(false);
+
     // Fetch in-progress courses
     const { data: progressData } = await supabase
       .from("user_course_progress")
@@ -294,6 +307,10 @@ export default function UserCheckInConversation() {
     if (modulesData) {
       setRecommendedSessions(modulesData);
     }
+
+    // Mark cards data as loaded after all fetches are complete
+    setCardsDataLoaded(true);
+    setCardsVisible(true);
   };
 
   useEffect(() => {
@@ -381,6 +398,19 @@ export default function UserCheckInConversation() {
     };
   }, [started, conversation.isSpeaking, conversation, isMuted, updateSessionData]); // Added conversation to dependency array
 
+  const checkMicrophonePermission = async (): Promise<boolean> => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Stop the stream immediately, we just needed to check permission
+      stream.getTracks().forEach(track => track.stop());
+      return true;
+    } catch (error) {
+      console.error("Microphone permission denied:", error);
+      alert("Microphone access is required for this session. Please allow microphone access and try again.");
+      return false;
+    }
+  };
+
   const startConversation = async () => {
     if (!user || loadingVars || !varsRef.current.greeting) {
         console.warn("Cannot start conversation: User not loaded, vars loading, or greeting missing.");
@@ -388,17 +418,19 @@ export default function UserCheckInConversation() {
     }
     
     try {
-      // Request microphone permission first
-      await navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-          // Stop the stream immediately, we just needed permission
-          stream.getTracks().forEach(track => track.stop());
-        })
-        .catch(err => {
-          console.error("Microphone permission denied:", err);
-          alert("Microphone access is required for this session. Please allow microphone access and try again.");
-          throw err;
-        });
+      // Check microphone permission first
+      const hasPermission = await checkMicrophonePermission();
+      if (!hasPermission) {
+        return;
+      }
+
+      // Fade out cards before starting session
+      setCardsVisible(false);
+      
+      // Wait for fade-out animation to complete before hiding cards
+      setTimeout(() => {
+        setCardsDataLoaded(false);
+      }, 400);
 
       setConversationEnded(false);
       setIsMuted(false); // Ensure mic is unmuted (by prop) when starting
@@ -433,10 +465,7 @@ export default function UserCheckInConversation() {
       setAutoStartWelcome(false);
     } catch (error: any) {
       console.error("Failed to start conversation:", error);
-      // Don't show another alert if we already showed the microphone permission alert
-      if (error?.name !== 'NotAllowedError' && error?.name !== 'NotFoundError') {
-        alert("Failed to start session. Please check your connection and try again.");
-      }
+      alert("Failed to start session. Please check your connection and try again.");
     }
   };
 
@@ -550,6 +579,9 @@ export default function UserCheckInConversation() {
 
     console.log("Conversation stopped. Re-fetching user context...");
     await fetchUserContext();
+    
+    // Refresh course data to show updated progress
+    await fetchCourseProgress();
   };
 
   const toggleMute = useCallback(() => {
@@ -717,19 +749,30 @@ export default function UserCheckInConversation() {
     return `${minutes}:${secs}`;
   };
 
+
   return (
-    <div className="w-full max-w-4xl h-screen mx-auto flex flex-col px-4 transition-all duration-300">
+    <>
+      {/* Personalize Button - Fixed to top right of entire window */}
+      <button
+        onClick={() => setShowCustomizeModal(true)}
+        className="fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm border border-gray-200/60 rounded-lg text-gray-600 hover:text-gray-800 hover:bg-white hover:border-gray-300 transition-all duration-200 shadow-lg hover:shadow-xl"
+      >
+        <Sparkles className="w-4 h-4" />
+        <span className="text-sm font-medium">Personalize</span>
+      </button>
+
+    <div className="w-full max-w-4xl h-screen mx-auto flex flex-col px-4 transition-all duration-300 relative">
+
       {/* Main AI Therapist Section - Moved Up */}
       <div className="flex flex-col items-center pt-28 pb-8">
         <div className="mb-6 text-center">
-          <p className="text-lg font-semibold">Mira</p>
+          <p className="text-lg font-semibold">{voiceSettings.name}</p>
           <p className="text-sm">{formatTime(duration)}</p>
-          <p className="text-sm text-gray-400">
-            {loadingVars && !started ? <LoadingDots className="text-sm" /> :
-             !started && sessionStatus === "welcome_ready" ? "Welcome session ready." :
-             !started && sessionStatus === "pending_regular" && module?.name !== "Welcome" ? "Preparing your check-in..." :
-             !started && sessionStatus === "ready" && module?.name !== "Welcome" ? "Check-in ready." :
-             conversation.status !== "connected" && !started ? "Idle" :
+          <p className="text-sm text-gray-400 transition-opacity duration-500 h-5 flex items-center justify-center">
+            <span className={loadingVars && !started ? "opacity-0" : "opacity-100"}>
+              {!started && sessionStatus === "welcome_ready" ? "Welcome session ready." :
+               !started && sessionStatus === "pending_regular" && module?.name !== "Welcome" ? "Preparing your check-in..." :
+               !started && sessionStatus === "ready" && module?.name !== "Welcome" ? "Check-in ready." :
              conversation.isSpeaking
              ? isMuted
                ? "Speaking... (Muted)"
@@ -738,6 +781,7 @@ export default function UserCheckInConversation() {
                ? "Listening... (Muted)"
                : "Listening..."
             }
+            </span>
           </p>
         </div>
 
@@ -837,27 +881,28 @@ export default function UserCheckInConversation() {
       </div>
 
       {/* Microsoft Copilot-Style Activity Cards */}
-      {!started && (
+      {!started && cardsDataLoaded && (
         <div className="flex-1 flex flex-col items-center justify-start max-w-4xl mx-auto mt-10">
-          <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={`w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-400 ${!cardsVisible ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
             {/* Continue Course Cards - Show all in-progress courses */}
-            {inProgressCourses.map((courseProgress) => (
+            {inProgressCourses.map((courseProgress, index) => (
               <div 
                 key={courseProgress.id}
                 onClick={() => handleContinueCourse(courseProgress)}
-                className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative"
+                className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative opacity-0 animate-fade-in"
+                style={{ animationDelay: `${200 + index * 100}ms` }}
               >
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <PlayCircle className="w-4 h-4 text-gray-500" />
-                  </div>
-                  <div className="flex-1 pr-6">
-                    <p className="text-sm font-medium text-gray-700">Continue {courseProgress.courses?.title || 'Course'}</p>
-                    <p className="text-xs text-gray-400">
-                      {courseProgress.completed_modules?.length || 0} of {courseProgress.courses?.therapy_modules?.length || 0} modules completed
-                    </p>
-                  </div>
-                </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <PlayCircle className="w-4 h-4 text-gray-500" />
+                      </div>
+                      <div className="flex-1 pr-6">
+                        <p className="text-sm font-medium text-gray-700">Continue {courseProgress.courses?.title || 'Course'}</p>
+                        <p className="text-xs text-gray-400">
+                          {courseProgress.completed_modules?.length || 0} of {courseProgress.courses?.therapy_modules?.length || 0} modules completed
+                        </p>
+                      </div>
+                    </div>
                 <div className="absolute right-5 top-1/2 transform -translate-y-1/2 text-xs text-gray-300 group-hover:text-gray-400 transition-colors duration-300">→</div>
               </div>
             ))}
@@ -865,46 +910,268 @@ export default function UserCheckInConversation() {
             {/* Recommended Course Card - Show one available course as recommendation */}
             {availableCourses.length > 0 && (
               <div 
-                key={availableCourses[0].id}
+                key={`recommended-${availableCourses[0].id}`}
                 onClick={() => handleStartCourse(availableCourses[0])}
-                className={`group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative ${
+                className={`group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative opacity-0 animate-fade-in ${
                   enrolling === availableCourses[0].id ? 'opacity-50 cursor-wait' : ''
                 }`}
+                style={{ animationDelay: `${200 + inProgressCourses.length * 100}ms` }}
               >
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-gray-500" />
-                  </div>
-                  <div className="flex-1 pr-6">
-                    <p className="text-sm font-medium text-gray-700">
-                      {enrolling === availableCourses[0].id ? 'Starting...' : `Try ${availableCourses[0].title}`}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      Recommended for you
-                    </p>
-                  </div>
-                </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <BookOpen className="w-4 h-4 text-gray-500" />
+                      </div>
+                      <div className="flex-1 pr-6">
+                        <p className="text-sm font-medium text-gray-700">
+                          {enrolling === availableCourses[0].id ? 'Starting...' : `Try ${availableCourses[0].title}`}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Recommended for you
+                        </p>
+                      </div>
+                    </div>
                 <div className="absolute right-5 top-1/2 transform -translate-y-1/2 text-xs text-gray-300 group-hover:text-gray-400 transition-colors duration-300">→</div>
               </div>
             )}
 
-
             {/* Mindful Moments Card - Keep as a standalone quick session option */}
-            <div className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <Heart className="w-4 h-4 text-gray-500" />
-                </div>
-                <div className="flex-1 pr-6">
-                  <p className="text-sm font-medium text-gray-700">Mindful moments</p>
-                  <p className="text-xs text-gray-400">Quick wellness check-ins</p>
-                </div>
-              </div>
+            <div 
+              className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative opacity-0 animate-fade-in"
+              style={{ animationDelay: `${200 + (inProgressCourses.length + (availableCourses.length > 0 ? 1 : 0)) * 100}ms` }}
+            >
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <Heart className="w-4 h-4 text-gray-500" />
+                    </div>
+                    <div className="flex-1 pr-6">
+                      <p className="text-sm font-medium text-gray-700">Mindful moments</p>
+                      <p className="text-xs text-gray-400">Quick wellness check-ins</p>
+                    </div>
+                  </div>
               <div className="absolute right-5 top-1/2 transform -translate-y-1/2 text-xs text-gray-300 group-hover:text-gray-400 transition-colors duration-300">→</div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Customize Modal */}
+      {showCustomizeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[80vh] overflow-hidden border border-gray-200">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-800">Personalize Experience</h2>
+                <button
+                  onClick={() => setShowCustomizeModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="px-6 py-6 space-y-6 overflow-y-auto max-h-[60vh]">
+              {/* Name Customization */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">AI Therapist Name</label>
+                <input
+                  type="text"
+                  value={voiceSettings.name}
+                  onChange={(e) => setVoiceSettings(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter a name..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                />
+                <p className="text-xs text-gray-500">Give your AI therapist a personal touch</p>
+              </div>
+
+              {/* Voice Selection */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">Voice</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {['Mira', 'Alex', 'Emma', 'David'].map((voice) => (
+                    <label key={voice} className="flex items-center cursor-pointer group">
+                      <div className={`w-full p-3 rounded-lg border-2 transition-all duration-200 ${
+                        voiceSettings.voice === voice 
+                          ? 'border-indigo-500 bg-indigo-50' 
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="voice"
+                          value={voice}
+                          checked={voiceSettings.voice === voice}
+                          onChange={(e) => setVoiceSettings(prev => ({ ...prev, voice: e.target.value }))}
+                          className="sr-only"
+                        />
+                        <div className="text-center">
+                          <span className={`text-sm font-medium ${
+                            voiceSettings.voice === voice ? 'text-indigo-700' : 'text-gray-700'
+                          }`}>
+                            {voice}
+                          </span>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Personality Selection */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">Personality</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {['Empathetic', 'Professional', 'Warm', 'Direct'].map((personality) => (
+                    <label key={personality} className="flex items-center cursor-pointer group">
+                      <div className={`w-full p-3 rounded-lg border-2 transition-all duration-200 ${
+                        voiceSettings.personality === personality
+                          ? 'border-indigo-500 bg-indigo-50' 
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="personality"
+                          value={personality}
+                          checked={voiceSettings.personality === personality}
+                          onChange={(e) => setVoiceSettings(prev => ({ ...prev, personality: e.target.value }))}
+                          className="sr-only"
+                        />
+                        <div className="text-center">
+                          <span className={`text-sm font-medium ${
+                            voiceSettings.personality === personality ? 'text-indigo-700' : 'text-gray-700'
+                          }`}>
+                            {personality}
+                          </span>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Color Customization */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">Theme Colors</label>
+                
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Primary Color */}
+                  <div>
+                    <div className="text-center mb-2">
+                      <span className="text-sm text-gray-600">Primary</span>
+                    </div>
+                    <input
+                      type="color"
+                      value={voiceSettings.primaryColor}
+                      onChange={(e) => setVoiceSettings(prev => ({ ...prev, primaryColor: e.target.value }))}
+                      className="w-full h-12 rounded-lg border border-gray-300 cursor-pointer"
+                    />
+                    <div className="text-center mt-1">
+                      <span className="text-xs text-gray-500 font-mono">{voiceSettings.primaryColor}</span>
+                    </div>
+                  </div>
+
+                  {/* Secondary Color */}
+                  <div>
+                    <div className="text-center mb-2">
+                      <span className="text-sm text-gray-600">Secondary</span>
+                    </div>
+                    <input
+                      type="color"
+                      value={voiceSettings.secondaryColor}
+                      onChange={(e) => setVoiceSettings(prev => ({ ...prev, secondaryColor: e.target.value }))}
+                      className="w-full h-12 rounded-lg border border-gray-300 cursor-pointer"
+                    />
+                    <div className="text-center mt-1">
+                      <span className="text-xs text-gray-500 font-mono">{voiceSettings.secondaryColor}</span>
+                    </div>
+                  </div>
+
+                  {/* Accent Color */}
+                  <div>
+                    <div className="text-center mb-2">
+                      <span className="text-sm text-gray-600">Accent</span>
+                    </div>
+                    <input
+                      type="color"
+                      value={voiceSettings.accentColor}
+                      onChange={(e) => setVoiceSettings(prev => ({ ...prev, accentColor: e.target.value }))}
+                      className="w-full h-12 rounded-lg border border-gray-300 cursor-pointer"
+                    />
+                    <div className="text-center mt-1">
+                      <span className="text-xs text-gray-500 font-mono">{voiceSettings.accentColor}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowCustomizeModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    // Here you would save the settings and apply them
+                    console.log('Personalization settings saved:', voiceSettings);
+                    setShowCustomizeModal(false);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSS for slider styling and animations */}
+      <style jsx>{`
+        .slider::-webkit-slider-thumb {
+          appearance: none;
+          height: 20px;
+          width: 20px;
+          border-radius: 50%;
+          background: #4f46e5;
+          cursor: pointer;
+          border: 2px solid #ffffff;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .slider::-moz-range-thumb {
+          height: 20px;
+          width: 20px;
+          border-radius: 50%;
+          background: #4f46e5;
+          cursor: pointer;
+          border: 2px solid #ffffff;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.6s ease-out forwards;
+        }
+      `}</style>
     </div>
+    </>
   );
 }
