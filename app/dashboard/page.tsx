@@ -33,6 +33,9 @@ function DashboardInner() {
   const [visibleView, setVisibleView] = useState(activeView);
   const [viewVisible, setViewVisible] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isFromOnboarding, setIsFromOnboarding] = useState(false);
+  const [readyToAnimate, setReadyToAnimate] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -89,6 +92,54 @@ function DashboardInner() {
     validateSession();
   }, [router]);
 
+  // Handle onboarding flow - detect and set up animation
+  useEffect(() => {
+    // More aggressive detection methods
+    const referrer = document.referrer;
+    const urlParams = window.location.search;
+    const hasOnboardingInHistory = window.history.length > 1 && referrer.includes('/onboarding');
+    const hasOnboardingParam = urlParams.includes('from=onboarding');
+    const hasSessionFlag = sessionStorage.getItem('fromOnboarding') === 'true';
+    
+    const fromOnboarding = hasOnboardingInHistory || hasOnboardingParam || hasSessionFlag;
+    
+    console.log('Onboarding detection:', { 
+      referrer, 
+      urlParams, 
+      hasOnboardingInHistory, 
+      hasOnboardingParam,
+      hasSessionFlag,
+      fromOnboarding 
+    });
+    
+    if (fromOnboarding) {
+      console.log('Setting onboarding animation');
+      // Set both states together to avoid timing issues
+      setIsFromOnboarding(true);
+      setHasInitialized(true);
+      sessionStorage.removeItem('fromOnboarding'); // Clean up
+      
+      // Enable transitions after a brief moment, then animate in
+      const enableTransitionTimer = setTimeout(() => {
+        console.log('Enabling transitions');
+        setReadyToAnimate(true);
+        
+        // Then slide it in
+        const slideInTimer = setTimeout(() => {
+          console.log('Sliding in sidebar');
+          setIsFromOnboarding(false);
+        }, 100);
+        
+        return () => clearTimeout(slideInTimer);
+      }, 1500);
+      
+      return () => clearTimeout(enableTransitionTimer);
+    } else {
+      // Not from onboarding, just initialize normally
+      setHasInitialized(true);
+    }
+  }, []);
+
   const viewIcons: Record<string, ReactElement> = {
     home: <Home className="w-4 h-4" />,
     discover: <Compass className="w-4 h-4" />,
@@ -116,17 +167,38 @@ function DashboardInner() {
           visibility: visible;
           transition: opacity 200ms ease-in-out 150ms !important;
         }
+        .sidebar-from-onboarding {
+          transform: translateX(-100%) !important;
+        }
+        .sidebar-pre-init {
+          transform: translateX(-100%) !important;
+          transition: none !important;
+        }
+        /* CSS-only fallback - hide sidebar until JS loads */
+        aside.dashboard-sidebar {
+          transform: translateX(-100%);
+        }
+        aside.dashboard-sidebar.js-loaded {
+          transform: initial;
+        }
       `}</style>
       <main className="h-full bg-gray-50 flex">
       {/* Sidebar */}
-      <aside className={`fixed z-30 h-screen flex flex-col bg-neutral-50 border-r border-gray-100 transition-all duration-300 ease-in-out ${
-        sidebarOpen ? "w-60 translate-x-0" : "w-60 -translate-x-full"
-      }`}>
+      <aside className={`dashboard-sidebar ${hasInitialized ? "js-loaded" : ""} fixed z-30 h-screen flex flex-col bg-neutral-50 border-r border-gray-100 ${
+        isFromOnboarding && !readyToAnimate ? "" : "transition-all duration-300 ease-in-out"
+      } ${
+        isFromOnboarding 
+          ? "w-60 sidebar-from-onboarding" 
+          : sidebarOpen ? "w-60 translate-x-0" : "w-60 -translate-x-full"
+      } ${!hasInitialized ? "sidebar-pre-init" : ""}`}>
           {/* Header */}
           <div className="group flex items-center justify-between p-4 pt-5">
-            <h2 className="text-xl font-bold text-gray-800">
+            <button 
+              onClick={() => window.location.reload()}
+              className="text-xl font-bold text-gray-800 hover:text-gray-600 transition-colors cursor-pointer"
+            >
               kind
-            </h2>
+            </button>
             {sidebarOpen && (
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
