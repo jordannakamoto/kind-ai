@@ -119,18 +119,26 @@ function DashboardInner() {
       `}</style>
       <main className="h-full bg-gray-50 flex">
       {/* Sidebar */}
-      <aside
-        className={`fixed transition-all z-30 duration-300 ease-in-out h-screen bg-neutral-50 border-r border-gray-100 flex flex-col ${
-          sidebarOpen ? "w-60" : "w-0"
-        }`}
-      >
-        {/* Only render sidebar content if open */}
-        {sidebarOpen && (
-          <>
-            {/* Header */}
-            <div className="flex items-center p-4 pt-5">
-              <h2 className="text-xl font-bold text-gray-800">kind</h2>
-            </div>
+      <aside className={`fixed z-30 h-screen flex flex-col bg-neutral-50 border-r border-gray-100 transition-all duration-300 ease-in-out ${
+        sidebarOpen ? "w-60 translate-x-0" : "w-60 -translate-x-full"
+      }`}>
+          {/* Header */}
+          <div className="group flex items-center justify-between p-4 pt-5">
+            <h2 className="text-xl font-bold text-gray-800">
+              kind
+            </h2>
+            {sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                aria-label="Toggle sidebar"
+              >
+                <PanelLeft className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          
+          {/* Sidebar content */}
             {/* Navigation */}
             <nav className="flex-1 overflow-y-auto p-2">
               <div className="space-y-1">
@@ -199,28 +207,27 @@ function DashboardInner() {
                 </button>
               </div>
             </div>
-          </>
-        )}
-      </aside>
+        </aside>
       
-      {/* <button
+      {/* Floating toggle button when sidebar is closed */}
+      <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className={`fixed top-3 z-30 p-2 rounded-lg border shadow bg-white border-gray-200 gray-100 hover:bg-gray-100 transition-colors ${
-          sidebarOpen ? "left-65" : "left-4"
+        className={`fixed top-5 left-4 z-30 p-2 rounded-lg bg-white border border-gray-200 text-gray-600 hover:text-gray-800 hover:bg-gray-50 transition-all ${
+          sidebarOpen ? "opacity-0 pointer-events-none delay-0" : "opacity-100 delay-300"
         }`}
-        style={{ transition: "left 0.3s cubic-bezier(0.4,0,0.2,1)" }}
+        style={{ transitionDuration: "200ms" }}
+        aria-label="Toggle sidebar"
       >
-        <PanelLeft
-          className={`w-5 h-5 transition-transform ${
-            !sidebarOpen ? "rotate-180" : ""
-          }`}
-        />
-      </button> */}
+        <PanelLeft className="w-4 h-4 rotate-180" />
+      </button>
+      
       {/* Main Content */}
       <section
         ref={scrollRef}
         className="flex-1 relative h-screen transition-all duration-300 ease-in-out"
-        style={{ paddingBottom: isSessionActive && activeView !== 'home' ? '60px' : '0' }}
+        style={{ 
+          paddingBottom: isSessionActive && activeView !== 'home' ? '60px' : '0'
+        }}
       >
         {/* View Transitions */}
         {["home", "discover", "bio", "sessions", "progress"].map((view) => {

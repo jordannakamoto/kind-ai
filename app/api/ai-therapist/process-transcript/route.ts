@@ -41,7 +41,7 @@ function parseTherapyInsights(raw: string): ParsedTherapyInsights {
 
 async function getTherapyInsights(transcript: string): Promise<ParsedTherapyInsights> {
   const input = `
-You are an AI therapy assistant helping summarize therapy sessions. Analyze the transcript below and return the following five outputs.
+You are a therapy assistant helping summarize therapy sessions. Analyze the transcript below and return the following five outputs.
 
 1. A relevant session title (no quotes or emojis, in Title Case).
 2. A brief summary in second-person ("you") or "we talked about" tone, speaking to the client.

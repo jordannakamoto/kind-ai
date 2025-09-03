@@ -984,8 +984,15 @@ export default function UserCheckInConversation() {
 
       {/* Customize Modal */}
       {showCustomizeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[80vh] overflow-hidden border border-gray-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Glass backdrop */}
+          <div 
+            className="absolute inset-0 bg-white/80 backdrop-blur-sm animate-backdrop"
+            onClick={() => setShowCustomizeModal(false)}
+          />
+          
+          {/* Modal content */}
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-xl w-full max-h-[80vh] overflow-hidden animate-slideUp">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
@@ -1195,8 +1202,38 @@ export default function UserCheckInConversation() {
           }
         }
 
+        @keyframes slideUp {
+          from { 
+            opacity: 0;
+            transform: translateY(20px) scale(0.95); 
+          }
+          to { 
+            opacity: 1;
+            transform: translateY(0) scale(1); 
+          }
+        }
+
+        @keyframes backdropFadeIn {
+          from { 
+            opacity: 0;
+            backdrop-filter: blur(0px);
+          }
+          to { 
+            opacity: 1;
+            backdrop-filter: blur(4px);
+          }
+        }
+
         .animate-fade-in {
           animation: fade-in 0.6s ease-out forwards;
+        }
+
+        .animate-slideUp {
+          animation: slideUp 0.3s ease-out;
+        }
+
+        .animate-backdrop {
+          animation: backdropFadeIn 0.15s ease-out;
         }
       `}</style>
     </div>
