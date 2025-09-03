@@ -4,7 +4,8 @@ import {
   AlertTriangle,
   ChevronRight,
   Plus,
-  Circle
+  Circle,
+  CheckCircle2
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -22,6 +23,15 @@ interface UserProfile {
   banner_url?: string;
 }
 
+interface Goal {
+  id: string;
+  title: string;
+  description?: string;
+  completed_at?: string;
+  created_at: string;
+  is_active: boolean;
+}
+
 export default function UserFacingProfile() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,6 +39,10 @@ export default function UserFacingProfile() {
   const [initialBio, setInitialBio] = useState<string | null>(null);
   const [profilePicSrc, setProfilePicSrc] = useState<string | null>(null);
   const [bioExpanded, setBioExpanded] = useState(false);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [showAddGoal, setShowAddGoal] = useState(false);
+  const [newGoalTitle, setNewGoalTitle] = useState('');
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -36,6 +50,8 @@ export default function UserFacingProfile() {
       const result = await supabase.auth.getUser();
       const authUser = result.data?.user;
       if (!authUser) { setLoading(false); return; }
+
+      setUserId(authUser.id);
 
       const { data, error } = await supabase
         .from('users')
@@ -50,6 +66,19 @@ export default function UserFacingProfile() {
       } else {
         console.error("Error fetching user profile:", error?.message);
       }
+
+      // Fetch goals from the goals table
+      const { data: goalsData, error: goalsError } = await supabase
+        .from('goals')
+        .select('id, title, description, completed_at, created_at, is_active')
+        .eq('user_id', authUser.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: true });
+
+      if (!goalsError && goalsData) {
+        setGoals(goalsData);
+      }
+
       setLoading(false);
     };
     fetchUser();
@@ -84,6 +113,52 @@ export default function UserFacingProfile() {
     return names.map(n => n[0]).join('').toUpperCase().substring(0, 2);
   };
 
+  const toggleGoalCompletion = async (goalId: string) => {
+    if (!userId) return;
+
+    const goal = goals.find(g => g.id === goalId);
+    if (!goal) return;
+
+    const isCompleted = !!goal.completed_at;
+    const now = new Date().toISOString();
+
+    const { error } = await supabase
+      .from('goals')
+      .update({
+        completed_at: isCompleted ? null : now
+      })
+      .eq('id', goalId)
+      .eq('user_id', userId);
+
+    if (!error) {
+      setGoals(goals.map(g => 
+        g.id === goalId 
+          ? { ...g, completed_at: isCompleted ? null : now }
+          : g
+      ));
+    }
+  };
+
+  const addGoal = async () => {
+    if (!userId || !newGoalTitle.trim()) return;
+
+    const { data, error } = await supabase
+      .from('goals')
+      .insert({
+        user_id: userId,
+        title: newGoalTitle.trim(),
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (!error && data) {
+      setGoals([...goals, data]);
+      setNewGoalTitle('');
+      setShowAddGoal(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen bg-white text-slate-700 p-6">
@@ -102,7 +177,7 @@ export default function UserFacingProfile() {
     );
   }
 
-  const goalList = (user.goals || "").split('\n').filter(Boolean).map(g => g.indexOf(':') > 0 ? g.substring(0, g.indexOf(':')).trim() : g.trim());
+  // Remove old goal parsing since we now use the goals state
   // Fixed theme parsing to handle hyphens within words like "well-being"
   const themeTags = (user.themes || "").split(',').map(t => t.trim()).map(t => t.indexOf(':') > 0 ? t.substring(0, t.indexOf(':')).trim() : t).filter(Boolean);
   const avatarInitial = getInitials(user.full_name);
@@ -157,29 +232,105 @@ export default function UserFacingProfile() {
             <div className="flex items-center gap-2 mb-6">
               <h2 className="text-lg font-semibold text-gray-900">Goals</h2>
             </div>
-            {goalList.length > 0 ? (
+            {goals.length > 0 ? (
               <div className="space-y-2">
-                {goalList.map((goal, i) => (
-                  <div key={i} className="flex items-start gap-3 group cursor-pointer">
+                {goals.map((goal) => (
+                  <div 
+                    key={goal.id} 
+                    className="flex items-start gap-3 group cursor-pointer"
+                    onClick={() => toggleGoalCompletion(goal.id)}
+                  >
                     <div className="mt-1">
-                      <Circle className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                      {goal.completed_at ? (
+                        <CheckCircle2 className="w-4 h-4 text-green-500 group-hover:text-green-600 transition-colors" />
+                      ) : (
+                        <Circle className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                      )}
                     </div>
-                    <span className="text-gray-700 text-sm leading-relaxed flex-1 group-hover:text-gray-900 transition-colors">
-                      {goal}
+                    <span className={`text-sm leading-relaxed flex-1 transition-all ${
+                      goal.completed_at 
+                        ? 'text-gray-400 line-through' 
+                        : 'text-gray-700 group-hover:text-gray-900'
+                    }`}>
+                      {goal.title}
                     </span>
                   </div>
                 ))}
-                <button className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors mt-2">
-                  <Plus className="w-4 h-4" />
-                  <span className="text-xs">Add a goal</span>
-                </button>
+                {showAddGoal ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="text"
+                      value={newGoalTitle}
+                      onChange={(e) => setNewGoalTitle(e.target.value)}
+                      placeholder="Enter goal title..."
+                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      autoFocus
+                      onKeyPress={(e) => e.key === 'Enter' && addGoal()}
+                    />
+                    <button
+                      onClick={addGoal}
+                      className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Add
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowAddGoal(false);
+                        setNewGoalTitle('');
+                      }}
+                      className="px-3 py-2 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => setShowAddGoal(true)}
+                    className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors mt-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="text-xs">Add a goal</span>
+                  </button>
+                )}
               </div>
             ) : (
               <div className="py-6">
-                <button className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
-                  <Plus className="w-4 h-4" />
-                  <span className="text-xs">Add a goal</span>
-                </button>
+                {showAddGoal ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={newGoalTitle}
+                      onChange={(e) => setNewGoalTitle(e.target.value)}
+                      placeholder="Enter goal title..."
+                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      autoFocus
+                      onKeyPress={(e) => e.key === 'Enter' && addGoal()}
+                    />
+                    <button
+                      onClick={addGoal}
+                      className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Add
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowAddGoal(false);
+                        setNewGoalTitle('');
+                      }}
+                      className="px-3 py-2 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => setShowAddGoal(true)}
+                    className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="text-xs">Add a goal</span>
+                  </button>
+                )}
               </div>
             )}
           </section>
@@ -215,7 +366,7 @@ export default function UserFacingProfile() {
             <h3 className="text-base font-medium text-gray-500 mb-4">Progress</h3>
             <div className="grid grid-cols-3 gap-6">
               <div className="text-center">
-                <div className="text-2xl font-semibold text-gray-900">{goalList.length}</div>
+                <div className="text-2xl font-semibold text-gray-900">{goals.length}</div>
                 <div className="text-xs text-gray-500 mt-1">Active Goals</div>
               </div>
               <div className="text-center">

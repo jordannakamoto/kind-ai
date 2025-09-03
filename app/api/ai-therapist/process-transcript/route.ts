@@ -173,10 +173,19 @@ export async function POST(req: NextRequest) {
 
     const newInsights = await getTherapyInsights(transcript);
 
+    // Get existing goals from goals table instead of users table
+    const { data: existingGoalsData } = await supabase
+      .from('goals')
+      .select('title')
+      .eq('user_id', userId)
+      .eq('is_active', true);
+
+    const existingGoalTitles = existingGoalsData?.map(g => g.title) ?? [];
+
     const synthesized = await synthesizeUpdatedProfile({
       oldBio: userRecord.bio ?? '',
       oldSummary: userRecord.therapy_summary ?? '',
-      oldGoals: userRecord.goals?.split('\n') ?? [],
+      oldGoals: existingGoalTitles,
       oldThemes: userRecord.themes?.split(',')?.map((t: string) => t.trim()) ?? [],
       newInsights,
     });
@@ -193,16 +202,42 @@ export async function POST(req: NextRequest) {
       .eq('conversation_id', conversationId)
       .eq('user_id', userId);
 
-    // Update the user's profile
+    // Update the user's profile (excluding goals - they go in separate table now)
     await supabase
       .from('users')
       .update({
         bio: synthesized.bio,
         therapy_summary: synthesized.summary,
-        goals: synthesized.goals.join('\n'),
         themes: synthesized.themes.join(', '),
       })
       .eq('id', userId);
+
+    // Handle goals separately - add new goals to the goals table if they don't already exist
+    if (synthesized.goals.length > 0) {
+      // Get existing goals for this user
+      const { data: existingGoals } = await supabase
+        .from('goals')
+        .select('title')
+        .eq('user_id', userId)
+        .eq('is_active', true);
+
+      const existingGoalTitles = existingGoals?.map(g => g.title.toLowerCase()) || [];
+      
+      // Insert new goals that don't already exist
+      const newGoals = synthesized.goals
+        .filter(goal => !existingGoalTitles.includes(goal.toLowerCase()))
+        .map(goal => ({
+          user_id: userId,
+          title: goal,
+          is_active: true
+        }));
+
+      if (newGoals.length > 0) {
+        await supabase
+          .from('goals')
+          .insert(newGoals);
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

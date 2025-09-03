@@ -2,7 +2,9 @@
 
 import { addDays, eachDayOfInterval, endOfMonth, format, startOfMonth, startOfWeek, endOfWeek, isToday, isSameMonth, isSameDay } from "date-fns";
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Star } from "lucide-react";
+import { supabase } from "@/supabase/client";
+import { useRouter } from "next/navigation";
 
 const moodOptions = [
   { 
@@ -55,11 +57,31 @@ const journalPrompts = [
   "What is something you're looking forward to?",
 ];
 
+interface Session {
+  id: string;
+  created_at: string;
+  title?: string;
+  summary?: string;
+  duration?: number;
+}
+
+interface Goal {
+  id: string;
+  title: string;
+  description?: string;
+  completed_at?: string;
+  created_at: string;
+  is_active: boolean;
+}
+
 export default function ProgressView() {
+  const router = useRouter();
   const [moods, setMoods] = useState<Record<string, string>>({});
   const [journalEntries, setJournalEntries] = useState<Record<string, string>>({});
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const [sessions, setSessions] = useState<Record<string, Session[]>>({});
+  const [goalCompletions, setGoalCompletions] = useState<Record<string, Goal[]>>({});
 
   // Generate calendar grid including days from previous/next month
   const monthStart = startOfMonth(currentMonth);
@@ -98,6 +120,121 @@ export default function ProgressView() {
     });
   };
 
+  // Fetch sessions and goals for the current month
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+      
+      const { data: sessionsData, error } = await supabase
+        .from('sessions')
+        .select('id, created_at, title, summary, duration')
+        .eq('user_id', user.id)
+        .gte('created_at', monthStart.toISOString())
+        .lte('created_at', monthEnd.toISOString())
+        .order('created_at', { ascending: true });
+
+      if (!error && sessionsData) {
+        // Group sessions by date
+        const sessionsByDate: Record<string, Session[]> = {};
+        sessionsData.forEach((session) => {
+          const dateKey = format(new Date(session.created_at), 'yyyy-MM-dd');
+          if (!sessionsByDate[dateKey]) {
+            sessionsByDate[dateKey] = [];
+          }
+          sessionsByDate[dateKey].push(session);
+        });
+        setSessions(sessionsByDate);
+      }
+
+      // Fetch completed goals for the month
+      const { data: goalsData, error: goalsError } = await supabase
+        .from('goals')
+        .select('id, title, description, completed_at, created_at, is_active')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .not('completed_at', 'is', null)
+        .gte('completed_at', monthStart.toISOString())
+        .lte('completed_at', monthEnd.toISOString())
+        .order('completed_at', { ascending: true });
+
+      if (!goalsError && goalsData) {
+        // Group goals by completion date
+        const goalsByDate: Record<string, Goal[]> = {};
+        goalsData.forEach((goal) => {
+          if (goal.completed_at) {
+            const dateKey = format(new Date(goal.completed_at), 'yyyy-MM-dd');
+            if (!goalsByDate[dateKey]) {
+              goalsByDate[dateKey] = [];
+            }
+            goalsByDate[dateKey].push(goal);
+          }
+        });
+        setGoalCompletions(goalsByDate);
+      }
+    };
+
+    fetchData();
+  }, [currentMonth]);
+
+  // Refetch data when component becomes visible or focused
+  useEffect(() => {
+    const refetchGoals = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+      
+      // Fetch completed goals for the current month
+      const { data: goalsData, error: goalsError } = await supabase
+        .from('goals')
+        .select('id, title, description, completed_at, created_at, is_active')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .not('completed_at', 'is', null)
+        .gte('completed_at', monthStart.toISOString())
+        .lte('completed_at', monthEnd.toISOString())
+        .order('completed_at', { ascending: true });
+
+      if (!goalsError && goalsData) {
+        // Group goals by completion date
+        const goalsByDate: Record<string, Goal[]> = {};
+        goalsData.forEach((goal) => {
+          if (goal.completed_at) {
+            const dateKey = format(new Date(goal.completed_at), 'yyyy-MM-dd');
+            if (!goalsByDate[dateKey]) {
+              goalsByDate[dateKey] = [];
+            }
+            goalsByDate[dateKey].push(goal);
+          }
+        });
+        setGoalCompletions(goalsByDate);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refetchGoals();
+      }
+    };
+
+    const handleFocus = () => {
+      refetchGoals();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [currentMonth]);
+
   return (
     <div className="max-w-4xl mt-2 mx-auto p-4 pl-20 space-y-2 bg-white min-h-[calc(100vh+200px)]">
       {/* Header */}
@@ -135,7 +272,7 @@ export default function ProgressView() {
         {/* Day Headers */}
         <div className="grid grid-cols-7 border-b border-blue-100 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-t-xl">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <div key={day} className="py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
               {day}
             </div>
           ))}
@@ -151,6 +288,8 @@ export default function ProgressView() {
             const isCurrentMonth = isSameMonth(date, currentMonth);
             const isTodayDate = isToday(date);
             const moodOption = mood ? moodOptions.find(m => m.value === mood) : null;
+            const daySessions = sessions[formattedDate] || [];
+            const dayGoals = goalCompletions[formattedDate] || [];
 
             return (
               <div
@@ -186,6 +325,17 @@ export default function ProgressView() {
                   )}
                   {hasJournal && (
                     <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-indigo-400 to-purple-400 shadow-sm" />
+                  )}
+                  {daySessions.length > 0 && (
+                    <div className="flex items-center gap-0.5">
+                      <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                      {daySessions.length > 1 && (
+                        <span className="text-[10px] text-indigo-600 font-semibold">{daySessions.length}</span>
+                      )}
+                    </div>
+                  )}
+                  {dayGoals.length > 0 && (
+                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
                   )}
                 </div>
               </div>
@@ -254,6 +404,42 @@ export default function ProgressView() {
           />
         </div>
       </div>
+
+      {/* Sessions for Selected Date */}
+      {sessions[format(selectedDate, "yyyy-MM-dd")]?.length > 0 && (
+        <div className="mt-4 p-3 bg-indigo-50/30 rounded-lg border border-indigo-100">
+          <div className="flex items-start gap-2 text-sm text-gray-700">
+            <FileText className="w-3.5 h-3.5 text-indigo-500 mt-0.5" />
+            <div className="space-y-1">
+              {sessions[format(selectedDate, "yyyy-MM-dd")].map((session, index) => (
+                <button
+                  key={session.id}
+                  onClick={() => router.push(`/dashboard?tab=sessions&sid=${session.id}`)}
+                  className="block text-left font-medium text-gray-700 hover:text-gray-900 hover:underline transition-colors"
+                >
+                  {session.title || `Therapy Session ${index + 1}`}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Goals for Selected Date */}
+      {goalCompletions[format(selectedDate, "yyyy-MM-dd")]?.length > 0 && (
+        <div className="mt-4 p-3 bg-amber-50/30 rounded-lg border border-amber-100">
+          <div className="flex items-start gap-2 text-sm text-gray-700">
+            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 mt-0.5" />
+            <div className="space-y-1">
+              {goalCompletions[format(selectedDate, "yyyy-MM-dd")].map((goal) => (
+                <div key={goal.id} className="font-medium text-gray-700">
+                  {goal.title}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
