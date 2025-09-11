@@ -34,8 +34,7 @@ function DashboardInner() {
   const [viewVisible, setViewVisible] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isFromOnboarding, setIsFromOnboarding] = useState(false);
-  const [readyToAnimate, setReadyToAnimate] = useState(false);
-  const [hasInitialized, setHasInitialized] = useState(false);
+  const [shouldAnimate, setShouldAnimate] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -92,51 +91,26 @@ function DashboardInner() {
     validateSession();
   }, [router]);
 
-  // Handle onboarding flow - detect and set up animation
+  // Handle onboarding flow
   useEffect(() => {
-    // More aggressive detection methods
     const referrer = document.referrer;
-    const urlParams = window.location.search;
-    const hasOnboardingInHistory = window.history.length > 1 && referrer.includes('/onboarding');
-    const hasOnboardingParam = urlParams.includes('from=onboarding');
-    const hasSessionFlag = sessionStorage.getItem('fromOnboarding') === 'true';
-    
-    const fromOnboarding = hasOnboardingInHistory || hasOnboardingParam || hasSessionFlag;
-    
-    console.log('Onboarding detection:', { 
-      referrer, 
-      urlParams, 
-      hasOnboardingInHistory, 
-      hasOnboardingParam,
-      hasSessionFlag,
-      fromOnboarding 
-    });
+    const fromOnboarding = referrer.includes('/onboarding') || 
+                          window.location.search.includes('from=onboarding');
     
     if (fromOnboarding) {
-      console.log('Setting onboarding animation');
-      // Set both states together to avoid timing issues
       setIsFromOnboarding(true);
-      setHasInitialized(true);
-      sessionStorage.removeItem('fromOnboarding'); // Clean up
       
-      // Enable transitions after a brief moment, then animate in
-      const enableTransitionTimer = setTimeout(() => {
-        console.log('Enabling transitions');
-        setReadyToAnimate(true);
+      // Start animation sequence after delay
+      const timer = setTimeout(() => {
+        setShouldAnimate(true);
         
-        // Then slide it in
-        const slideInTimer = setTimeout(() => {
-          console.log('Sliding in sidebar');
+        // Complete animation
+        setTimeout(() => {
           setIsFromOnboarding(false);
-        }, 100);
-        
-        return () => clearTimeout(slideInTimer);
+        }, 300); // Match transition duration
       }, 1500);
       
-      return () => clearTimeout(enableTransitionTimer);
-    } else {
-      // Not from onboarding, just initialize normally
-      setHasInitialized(true);
+      return () => clearTimeout(timer);
     }
   }, []);
 
@@ -167,30 +141,24 @@ function DashboardInner() {
           visibility: visible;
           transition: opacity 200ms ease-in-out 150ms !important;
         }
-        .sidebar-from-onboarding {
-          transform: translateX(-100%) !important;
-        }
-        .sidebar-pre-init {
+        .sidebar-hidden-for-onboarding {
           transform: translateX(-100%) !important;
           transition: none !important;
-        }
-        /* CSS-only fallback - hide sidebar until JS loads */
-        aside.dashboard-sidebar {
-          transform: translateX(-100%);
-        }
-        aside.dashboard-sidebar.js-loaded {
-          transform: initial;
         }
       `}</style>
       <main className="h-full bg-gray-50 flex">
       {/* Sidebar */}
-      <aside className={`dashboard-sidebar ${hasInitialized ? "js-loaded" : ""} fixed z-30 h-screen flex flex-col bg-neutral-50 border-r border-gray-100 ${
-        isFromOnboarding && !readyToAnimate ? "" : "transition-all duration-300 ease-in-out"
+      <aside className={`fixed z-30 h-screen flex flex-col bg-neutral-50 border-r border-gray-100 w-60 ${
+        isFromOnboarding && !shouldAnimate 
+          ? "sidebar-hidden-for-onboarding"
+          : shouldAnimate || !isFromOnboarding
+            ? "transition-all duration-300 ease-in-out"
+            : ""
       } ${
-        isFromOnboarding 
-          ? "w-60 sidebar-from-onboarding" 
-          : sidebarOpen ? "w-60 translate-x-0" : "w-60 -translate-x-full"
-      } ${!hasInitialized ? "sidebar-pre-init" : ""}`}>
+        isFromOnboarding && !shouldAnimate
+          ? ""
+          : sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      }`}>
           {/* Header */}
           <div className="group flex items-center justify-between p-4 pt-5">
             <button 

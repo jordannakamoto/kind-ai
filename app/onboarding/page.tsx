@@ -75,6 +75,10 @@ export default function OnboardingForm() {
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
   const nameInputRef = useRef<HTMLInputElement>(null);
+  
+  // Transition states
+  const [isFromLanding, setIsFromLanding] = useState(false);
+  const [showContent, setShowContent] = useState(false);
 
   const [selfCommitment, setSelfCommitment] = useState(false);
   const [agreed, setAgreed] = useState(false);
@@ -186,6 +190,27 @@ export default function OnboardingForm() {
       // Cleanup on unmount
       stopAudioAnalysis();
     };
+  }, []);
+
+  // Handle landing page transition
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromLanding = urlParams.has('from') && urlParams.get('from') === 'landing';
+    
+    if (fromLanding) {
+      setIsFromLanding(true);
+      // Start the reveal animation after the white expansion completes
+      setTimeout(() => {
+        setShowContent(true);
+      }, 800);
+      
+      // Clean up URL parameter
+      const url = new URL(window.location.href);
+      url.searchParams.delete('from');
+      window.history.replaceState({}, '', url.toString());
+    } else {
+      setShowContent(true);
+    }
   }, []);
 
 
@@ -510,13 +535,25 @@ export default function OnboardingForm() {
   // Audio Setup Screen: Purple Mic/Animation/Button, Pastel Green Steps
   if (showAudioSetup) {
     return (
-      <div className="min-h-screen bg-white flex items-start justify-center px-4 pt-16 sm:pt-20 sm:px-6 font-sans">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="bg-white rounded-xl shadow-m w-full max-w-lg overflow-hidden"
-        >
+      <div className="min-h-screen bg-white flex flex-col relative overflow-hidden">
+        {/* Header with logo */}
+        <div className="fixed top-0 left-0 right-0 z-50">
+          <nav className="py-4 bg-transparent">
+            <div className="container mx-auto px-6 flex justify-center">
+              <div className="text-2xl md:text-3xl font-bold text-gray-800 tracking-tight">
+                kind
+              </div>
+            </div>
+          </nav>
+        </div>
+        
+        <div className="flex-1 flex items-start justify-center px-4 pt-20 sm:px-6 font-sans">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="bg-white rounded-xl shadow-m w-full max-w-lg overflow-hidden mt-8"
+          >
           <div className="p-6 md:p-8 text-center">
             <div className="mb-4 flex justify-center">
                 <div className={`relative w-24 h-24 flex items-center justify-center rounded-full transition-colors duration-300 ${showMicTestAnimation ? 'bg-indigo-100' : 'bg-gray-100'}`}> {/* Purple when testing */}
@@ -641,19 +678,38 @@ export default function OnboardingForm() {
             </div>
           </div>
         </motion.div>
+        </div>
       </div>
     );
   }
 
   // Main Onboarding Form
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4 py-12 sm:px-6">
-      <motion.div 
-        initial={{ opacity: 0, y: 60 }} 
-        animate={{ opacity: 1, y: 0 }} 
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="max-w-[38rem] w-full flex flex-col bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-100"
-      >
+    <div className="min-h-screen bg-white flex flex-col relative overflow-hidden">
+      {/* Header with logo that matches landing page position */}
+      <div className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out ${
+        isFromLanding && !showContent ? 'opacity-0' : 'opacity-100'
+      }`}>
+        <nav className="py-4 bg-transparent">
+          <div className="container mx-auto px-6 flex justify-center">
+            <div className="text-2xl md:text-3xl font-bold text-gray-800 tracking-tight">
+              kind
+            </div>
+          </div>
+        </nav>
+      </div>
+      
+      <div className="flex-1 flex items-center justify-center px-4 py-12 sm:px-6 pt-20">
+        <motion.div 
+          initial={isFromLanding ? { opacity: 0, y: 30 } : { opacity: 0, y: 60 }} 
+          animate={showContent ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+          transition={{ 
+            duration: isFromLanding ? 1.0 : 0.6, 
+            ease: "easeOut",
+            delay: isFromLanding ? 0.5 : 0
+          }}
+          className="max-w-[38rem] w-full flex flex-col bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-100"
+        >
         <div className="flex justify-between items-center mb-6 px-6 sm:px-8 pt-8 ">
           <motion.h1 className="text-xl sm:text-2xl font-semibold text-gray-800" key={`title-${currentStep}`} initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }}>
             {currentStep === 1 && 'Welcome'}
@@ -717,6 +773,7 @@ export default function OnboardingForm() {
         <div className="pt-3 mb-2 border-t border-gray-100 mt-4">
         </div>
       </motion.div>
+      </div>
     </div>
   );
 }

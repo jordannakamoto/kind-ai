@@ -17,6 +17,7 @@ import { useEffect, useState } from 'react';
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { NoHurdlesSection } from './NoHurdlesSection';
 import {TestimonialsSection} from './TestimonialsSection';
 
@@ -118,6 +119,8 @@ export default function AlphaLandingPageClone() {
   const [scrolled, setScrolled] = useState(false);
   const [reachedWhySection, setReachedWhySection] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -139,6 +142,14 @@ export default function AlphaLandingPageClone() {
 
   const toggleFAQ = (index: number) => setActiveFAQ(activeFAQ === index ? null : index);
 
+  const handleGetStarted = () => {
+    setIsTransitioning(true);
+    // Wait for expansion animation to complete before navigating
+    setTimeout(() => {
+      router.push('/onboarding?from=landing');
+    }, 800); // Match the animation duration
+  };
+
   // Helper function to get text alignment classes based on textPosition
   const getTextPositionClasses = (position?: string) => { // Made position optional
     switch (position) {
@@ -155,7 +166,19 @@ export default function AlphaLandingPageClone() {
 
 
   return (
-    <div className="min-h-screen bg-white text-gray-800 font-sans antialiased">
+    <div className="min-h-screen bg-white text-gray-800 font-sans antialiased relative overflow-hidden">
+      {/* Expanding white overlay from hero section */}
+      <div className={`fixed inset-0 bg-white z-40 transition-all duration-1000 ease-in-out ${
+        isTransitioning 
+          ? 'opacity-100' 
+          : 'opacity-0 pointer-events-none'
+      }`}
+        style={{
+          clipPath: isTransitioning 
+            ? 'circle(200% at 50% 40%)' 
+            : 'circle(0% at 50% 40%)'
+        }}
+      />
 
       {/* --- Simple Navigation (Styled like example) --- */}
       <nav
@@ -163,7 +186,9 @@ export default function AlphaLandingPageClone() {
               ${scrolled ? 'py-3 bg-white/80 backdrop-blur-lg shadow-md' : 'py-4 bg-transparent'}`}
       >
         <div className="container mx-auto px-6 flex justify-between items-center">
-          <Link href="/" className="text-2xl md:text-3xl font-bold text-gray-800 hover:text-indigo-600 transition-colors tracking-tight">
+          <Link href="/" className={`text-2xl md:text-3xl font-bold text-gray-800 hover:text-indigo-600 transition-all duration-300 tracking-tight z-50 relative ${
+            isTransitioning ? 'opacity-0' : 'opacity-100'
+          }`}>
             kind
             <span className={`ml-2 text-xs font-normal uppercase px-2 py-1 rounded-full tracking-wider align-middle transition-colors duration-300
                               ${scrolled ? 'bg-indigo-100 text-indigo-700' : 'bg-white/30 text-gray-700 backdrop-blur-sm'}`}
@@ -171,26 +196,39 @@ export default function AlphaLandingPageClone() {
               Early Access
             </span>
           </Link>
-          <Link 
-            href={reachedWhySection ? "/onboarding" : "#faq"}
-            className={`text-sm font-medium transition-all duration-500 px-4 py-2 rounded-lg
-                        ${reachedWhySection 
-                          ? 'bg-black text-white hover:bg-gray-800' 
-                          : scrolled 
-                            ? 'text-gray-600 hover:text-indigo-600' 
-                            : 'text-gray-700 hover:text-indigo-500'
-                        }`}
-          >
-            <span className="transition-opacity duration-300">
-              {reachedWhySection ? 'Get Started' : 'How Does This AI Work?'}
-            </span>
-          </Link>
+          {reachedWhySection ? (
+            <button 
+              onClick={handleGetStarted}
+              className={`text-sm font-medium transition-all duration-500 px-4 py-2 rounded-lg bg-black text-white hover:bg-gray-800 ${
+                isTransitioning ? 'opacity-0' : 'opacity-100'
+              }`}
+            >
+              <span className="transition-opacity duration-300">
+                Get Started
+              </span>
+            </button>
+          ) : (
+            <Link 
+              href="#faq"
+              className={`text-sm font-medium transition-all duration-500 px-4 py-2 rounded-lg ${
+                scrolled 
+                  ? 'text-gray-600 hover:text-indigo-600' 
+                  : 'text-gray-700 hover:text-indigo-500'
+              } ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
+            >
+              <span className="transition-opacity duration-300">
+                How Does This AI Work?
+              </span>
+            </Link>
+          )}
         </div>
       </nav>
 
       {/* --- Hero Section --- */}
       <header
-        className="relative pt-32 pb-20 md:pt-48 md:pb-32 text-center overflow-hidden"
+        className={`relative pt-32 pb-20 md:pt-48 md:pb-32 text-center overflow-hidden transition-all duration-800 ${
+          isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+        }`}
       >
         <div className="absolute inset-0 bg-gradient-to-b from-indigo-100/70 via-pink-50/50 to-white -z-10"></div>
         <div className="container mx-auto px-6 relative z-10 mt-8 md:mt-6">
@@ -203,12 +241,12 @@ export default function AlphaLandingPageClone() {
 
           {/* Primary CTA Section */}
           <div className="max-w-sm mx-auto">
-            <Link
-              href="/onboarding"
+            <button
+              onClick={handleGetStarted}
               className="inline-block px-6 py-3 bg-indigo-600 text-white font-semibold text-base rounded-lg hover:bg-indigo-700 transition-colors duration-200 shadow-md hover:shadow-lg"
             >
               Get Started
-            </Link>
+            </button>
             <p className="text-xs text-gray-500 text-center mt-4 leading-relaxed">
               3 free conversations on us.
             </p>
