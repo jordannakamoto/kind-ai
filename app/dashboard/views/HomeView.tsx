@@ -63,6 +63,9 @@ export default function UserCheckInConversation() {
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
   const [cardsDataLoaded, setCardsDataLoaded] = useState(false);
   const [cardsVisible, setCardsVisible] = useState(true);
+  // Check URL params immediately on mount to set loading state
+  const [loadingCourseFromUrl, setLoadingCourseFromUrl] = useState(false);
+  const [startingSession, setStartingSession] = useState(false); // Loading state for any session start
   const [voiceSettings, setVoiceSettings] = useState({
     name: 'Mira', // AI therapist name
     voice: 'Mira', // Default voice
@@ -127,6 +130,10 @@ export default function UserCheckInConversation() {
       startSound.current?.play();
       setIsMuted(false); // Ensure conversation starts unmuted
       setSessionActive(true);
+      // Set started and clear all loading states when conversation actually connects
+      setStarted(true);
+      setLoadingCourseFromUrl(false);
+      setStartingSession(false);
       setTimeout(() => updateSessionData({ status: 'connected', isMuted: false }), 0);
     },
     onDisconnect: () => {
@@ -419,10 +426,18 @@ export default function UserCheckInConversation() {
         return;
     }
     
+    // Set loading state for session start
+    setStartingSession(true);
+    
     try {
+      // Don't clear loading state here if we're loading from URL
+      // It will be cleared when conversation actually connects
+      
       // Check microphone permission first
       const hasPermission = await checkMicrophonePermission();
       if (!hasPermission) {
+        setLoadingCourseFromUrl(false);
+        setStartingSession(false);
         return;
       }
 
@@ -462,11 +477,14 @@ export default function UserCheckInConversation() {
         body: JSON.stringify({ conversationId: id, userId: user.id }),
       });
 
-      setStarted(true);
+      // Don't set started to true yet - wait for onConnect to avoid UI flash
       setDuration(0);
       setAutoStartWelcome(false);
+      // Don't clear startingSession here - wait for onConnect
     } catch (error: any) {
       console.error("Failed to start conversation:", error);
+      setLoadingCourseFromUrl(false); // Clear loading state on error
+      setStartingSession(false); // Clear session loading state on error
       alert("Failed to start session. Please check your connection and try again.");
     }
   };
@@ -723,6 +741,7 @@ export default function UserCheckInConversation() {
       setLoadingVars(false);
 
       // Auto-start the conversation after a brief delay
+      // Don't clear loading state here - let it clear when conversation connects
       setTimeout(() => {
         startConversation();
       }, 500);
@@ -730,34 +749,78 @@ export default function UserCheckInConversation() {
     } catch (error: any) {
       console.error("Error initializing session:", error.message);
       setLoadingVars(false);
+      setLoadingCourseFromUrl(false);
     }
   };
+
+  // Set initial loading state based on URL params when component mounts
+  useEffect(() => {
+    const startCourseId = searchParams.get('startCourse');
+    const continueCourseId = searchParams.get('continueCourse');
+    
+    // Set loading state if URL has course params
+    if ((startCourseId || continueCourseId) && !loadingCourseFromUrl) {
+      setLoadingCourseFromUrl(true);
+    }
+  }, []); // Run once on mount
 
   // Handle URL parameters to auto-start courses
   useEffect(() => {
     const startCourseId = searchParams.get('startCourse');
     const continueCourseId = searchParams.get('continueCourse');
 
-    if (startCourseId && user && !loadingVars && !started) {
-      // Find the newly enrolled course and start it
-      const courseToStart = inProgressCourses.find(progress => progress.course_id === startCourseId);
-      if (courseToStart) {
-        console.log('Auto-starting newly enrolled course:', courseToStart.courses?.title);
-        handleContinueCourse(courseToStart);
+    const handleCourseFromUrl = async (courseId: string, isNew: boolean) => {
+      if (!user || started) return;
+
+      setLoadingCourseFromUrl(true);
+      try {
+        // Fetch the course progress for this specific course
+        const { data: progressData, error: progressError } = await supabase
+          .from('user_course_progress')
+          .select(`
+            *,
+            courses (
+              id, title, description, image_path,
+              therapy_modules (id, name, description, greeting, instructions, agenda, course_id, created_at, updated_at)
+            )
+          `)
+          .eq('user_id', user.id)
+          .eq('course_id', courseId)
+          .single();
+
+        if (progressError || !progressData) {
+          console.error('Error fetching course progress:', progressError);
+          setLoadingCourseFromUrl(false);
+          // Clear the URL parameter even on error
+          router.replace('/dashboard?tab=home');
+          return;
+        }
+
+        console.log(isNew ? 'Auto-starting newly enrolled course:' : 'Auto-continuing course:', progressData.courses?.title);
+        
+        // Handle the course continuation
+        await handleContinueCourse(progressData);
+        
         // Clear the URL parameter
         router.replace('/dashboard?tab=home');
-      }
-    } else if (continueCourseId && user && !loadingVars && !started) {
-      // Find the course to continue and start it
-      const courseToContinue = inProgressCourses.find(progress => progress.course_id === continueCourseId);
-      if (courseToContinue) {
-        console.log('Auto-continuing course:', courseToContinue.courses?.title);
-        handleContinueCourse(courseToContinue);
-        // Clear the URL parameter
+      } catch (error: any) {
+        console.error('Error loading course from URL:', error.message);
+        setLoadingCourseFromUrl(false);
+        // Clear the URL parameter even on error
         router.replace('/dashboard?tab=home');
       }
+    };
+
+    // Check immediately when user is available, don't wait for loadingVars
+    if (startCourseId && user && !started) {
+      handleCourseFromUrl(startCourseId, true);
+    } else if (continueCourseId && user && !started) {
+      handleCourseFromUrl(continueCourseId, false);
+    } else if (!startCourseId && !continueCourseId && loadingCourseFromUrl) {
+      // No course parameters but loading state is true, reset it
+      setLoadingCourseFromUrl(false);
     }
-  }, [searchParams, user, loadingVars, started, inProgressCourses, router]);
+  }, [searchParams, user, started, router]);
 
   // Handle browsing courses
   const handleBrowseCourses = () => {
@@ -834,14 +897,14 @@ export default function UserCheckInConversation() {
           </div>
         </div>
 
-        {started && agentMessage && (
+        {started && !startingSession && agentMessage && (
           <p className="text-sm max-w-[320px] text-center text-gray-700 leading-snug mb-4 p-3 bg-gray-100 rounded-lg shadow">
             {agentMessage}
           </p>
         )}
 
         <div className="flex items-center justify-center gap-3 text-gray-600">
-          {started && (
+          {started && !startingSession && (
             <button
               onClick={toggleMute}
               className="flex items-center gap-2 px-4 py-2.5 rounded-full text-gray-700 bg-white hover:bg-gray-100 border border-gray-100 transition-colors shadow hover:shadow-md text-sm font-medium"
@@ -858,7 +921,7 @@ export default function UserCheckInConversation() {
   )}
             </button>
           )}
-          {started ? (
+          {started && !startingSession ? (
             <button
               onClick={stopConversation}
               className="flex items-center gap-2 px-5 py-2.5 rounded-full text-gray-700 bg-white hover:bg-gray-100 border border-gray-100 transition-colors shadow hover:shadow-md"
@@ -870,11 +933,12 @@ export default function UserCheckInConversation() {
             </button>
           ) : (
             <button
-              disabled={!canManuallyStart && !autoStartWelcome}
+              disabled={(!canManuallyStart && !autoStartWelcome) || loadingCourseFromUrl || startingSession || started}
               onClick={startConversation}
               className="px-6 py-3 border border-gray-300 rounded-full hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow hover:shadow-md"
             >
-              {loadingVars ? <LoadingDots className="text-sm" /> :
+              {startingSession || loadingCourseFromUrl ? <LoadingDots className="text-sm" /> :
+               loadingVars ? <LoadingDots className="text-sm" /> :
                sessionStatus === "welcome_ready" ? "Start Welcome Session" :
                sessionStatus === "pending_regular" ? "Processing previous session..." :
                "Start Check-In"}
@@ -883,7 +947,7 @@ export default function UserCheckInConversation() {
         </div>
 
         {/* Course Indicator - Show when session is active and course is selected */}
-        {started && activeCourse && (
+        {started && !startingSession && activeCourse && (
           <div className="mt-8 flex items-center justify-center">
             <div className="flex items-center gap-3 px-4 py-2 bg-gray-50/50 border border-gray-100 rounded-lg">
               <div className="w-8 h-8 rounded-md overflow-hidden bg-gray-200">

@@ -1,26 +1,26 @@
 "use client";
 
+import { ActiveSessionProvider, useActiveSession } from "@/app/contexts/ActiveSessionContext";
 import {
   CalendarCheck,
   Compass,
   Home,
   LineChart,
-  User,
   PanelLeft,
+  User,
 } from "lucide-react";
-import { useEffect, useRef, useState, Suspense } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import DiscoverView from "./views/DiscoverView";
 import HomeView from "./views/HomeView";
+import MiniSessionPlayer from "./components/MiniSessionPlayer";
 import ProfileView from "./views/ProfileView";
 import ProgressView from "./views/ProgressView";
 import type { ReactElement } from "react";
 import SessionDetailView from "./views/SessionDetailView";
 import SessionsView from "./views/SessionsView";
 import { supabase } from "@/supabase/client";
-import { ActiveSessionProvider, useActiveSession } from "@/app/contexts/ActiveSessionContext";
-import MiniSessionPlayer from "./components/MiniSessionPlayer";
 
 function DashboardInner() {
   const { isSessionActive } = useActiveSession();
@@ -34,7 +34,7 @@ function DashboardInner() {
   const [viewVisible, setViewVisible] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isFromOnboarding, setIsFromOnboarding] = useState(false);
-  const [shouldAnimate, setShouldAnimate] = useState(false);
+const [shouldAnimate, setShouldAnimate] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -322,7 +322,7 @@ function UserDashboardContent() {
 
 export default function UserDashboard() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div></div>}>
       <UserDashboardContent />
     </Suspense>
   );
