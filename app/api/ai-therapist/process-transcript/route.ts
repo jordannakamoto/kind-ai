@@ -44,10 +44,10 @@ async function getTherapyInsights(transcript: string): Promise<ParsedTherapyInsi
 You are a therapy assistant helping summarize therapy sessions. Analyze the transcript below and return the following five outputs.
 
 1. A relevant session title (no quotes or emojis, in Title Case).
-2. A brief summary in second-person ("you") or "we talked about" tone, speaking to the client.
+2. A brief summary in second-person ("you") voice, speaking directly TO the client. Use "you" throughout - for example: "You discussed your anxiety about...", "You explored strategies for...", "You reflected on...". Never use third-person pronouns like "the individual", "they", "the client", etc.
 3. A "Goals:" section (only if applicable).
 4. A "Themes:" section (only if applicable).
-5. A "Bio:" section (only if applicable).
+5. A "Bio:" section (only if applicable) - This should be in THIRD-PERSON as therapist notes about the client (e.g., "The client is experiencing...", "They mentioned...").
 
 Format:
 Title:
@@ -93,18 +93,28 @@ async function synthesizeUpdatedProfile({
   newInsights: ParsedTherapyInsights;
 }) {
   const prompt = `
-You are an assistant helping maintain a therapy profile. YDO NOT simply copy the new bio or summary. Instead, use it to improve or subtly extend the existing content.
+You are an assistant helping maintain a therapy profile. DO NOT simply copy the new bio or summary. Instead, use it to improve or subtly extend the existing content.
 
-The **Bio** should be written as a brief descriptive profile. 
-It should sound like a therapist’s case summary or intake note, using phrases like:
+The **Bio** should be written in THIRD-PERSON as a therapist's case note about the client. 
+It should sound like a therapist's case summary or intake note, using phrases like:
+- "A <descriptive> person who ..."
+- "They are experiencing..."
+- "The client has..."
 
-- “A <descriptive> person who ...”
-
-Avoid first-person phrasing like “I” or “my”. Use clear, concise observations, not speculation or analysis.
+Avoid first-person phrasing like "I" or "my". Use clear, concise observations, not speculation or analysis.
 The final compiled bio should be very readable and at maximum 4 sentences.
 
-The **Therapy Summary** should be a therapist's summary/observations of all sessions not just the current one being integrated. reflect overall progress, topics, etc.
-The final compiled therapy Summary should be very readable and at maximum 4 sentences.
+CRITICAL: The **Therapy Summary** (different from Bio) MUST be written in second-person ("you") voice throughout. This is text that will be shown TO the client, so speak directly to them using "you", never third-person.
+
+FORBIDDEN WORDS in Therapy Summary: "the individual", "they", "the client", "sessions have", "discussions have". 
+REQUIRED WORDS in Therapy Summary: "You have", "Your sessions", "You've", "You are", "You discussed".
+
+The **Therapy Summary** should be written in second-person ("you") voice, speaking directly TO the client. This is a summary of all sessions (not just the current one). Always use "you" throughout - for example: "You have been working on...", "Your sessions have focused on...", "You've made progress in...". 
+
+WRONG EXAMPLE: "Sessions have continued to explore... The individual has acknowledged..."
+CORRECT EXAMPLE: "You have continued to explore... You've acknowledged..."
+
+The final compiled therapy Summary should be very readable and at maximum 4 sentences, always in second-person voice.
 
 The **Goals** should move old goals down the list and prepend new ones to the top.
 
