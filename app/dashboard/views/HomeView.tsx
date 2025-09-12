@@ -236,7 +236,7 @@ export default function UserCheckInConversation() {
 
       const { data: fallbackModule, error: fallbackError } = await supabase
         .from("therapy_modules")
-        .select("greeting, instructions, agenda")
+        .select("greeting, instructions, agenda, name")
         .eq("name", "Default Daily Check In")
         .single();
 
@@ -471,10 +471,24 @@ export default function UserCheckInConversation() {
         dynamicVariables: varsRef.current,
       });
 
+      // Determine session type for metadata
+      const sessionType = module?.name === "Welcome" ? "welcome" : 
+                          activeCourse ? "course" : "regular";
+      
+      // Ensure module name is always set
+      const moduleName = module?.name || (activeCourse ? "Course Module" : "Default Daily Check In");
+      
+      console.log("Caching session metadata - Type:", sessionType, "Module:", moduleName, "ActiveCourse:", !!activeCourse);
+      
       await fetch("/api/ai-therapist/cache-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId: id, userId: user.id }),
+        body: JSON.stringify({ 
+          conversationId: id, 
+          userId: user.id,
+          sessionType,
+          moduleName
+        }),
       });
 
       // Don't set started to true yet - wait for onConnect to avoid UI flash

@@ -27,7 +27,7 @@ interface Goal {
   id: string;
   title: string;
   description?: string;
-  completed_at?: string;
+  completed_at?: string | null;
   created_at: string;
   is_active: boolean;
 }

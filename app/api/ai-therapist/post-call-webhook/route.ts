@@ -91,27 +91,65 @@ export async function POST(req: NextRequest) {
     }
     console.log('✅ Step 4 complete: All required data present');
 
-    console.log('🔑 Step 5: Looking up user ID from Redis...');
+    console.log('🔑 Step 5: Looking up session data from Redis...');
     console.log('Looking for conversation_id in Redis:', conversation_id);
     
-    const redisData = await redis.get<{ userId: string }>(conversation_id);
+    const redisData = await redis.get<{ userId: string; sessionType?: string; moduleName?: string }>(conversation_id);
     console.log('Redis response:', redisData);
     
     const userId = redisData?.userId;
-    console.log('Extracted userId:', userId);
+    // Default to 'regular' if sessionType is not in Redis (for backwards compatibility)
+    const sessionType = redisData?.sessionType || 'regular';
+    // Default to 'Default Daily Check In' if moduleName is not in Redis
+    const moduleName = redisData?.moduleName || 'Default Daily Check In';
+    console.log('Extracted userId:', userId, 'sessionType:', sessionType, 'moduleName:', moduleName);
+    console.log('Redis data was:', redisData ? 'present' : 'missing');
     
     if (!userId) {
       console.log('❌ Step 5 FAILED: No userId found in Redis for conversation_id:', conversation_id);
       return NextResponse.json({ error: 'Missing user_id' }, { status: 400 });
     }
-    console.log('✅ Step 5 complete: UserID found:', userId);
+    console.log('✅ Step 5 complete: UserID found:', userId, 'SessionType:', sessionType, 'ModuleName:', moduleName);
 
     console.log('📝 Step 6: Transforming transcript...');
     const transcriptString = transformTranscript(transcript);
     console.log('Transcript length after transformation:', transcriptString.length);
     console.log('✅ Step 6 complete: Transcript transformed');
 
-    console.log('💾 Step 7: Inserting session into Supabase...');
+    console.log('💾 Step 7: Checking session duration and inserting into Supabase...');
+    
+    // Check session type from Redis data
+    // Welcome sessions have no minimum, course and regular sessions require 2 minutes (120 seconds)
+    const sessionDuration = metadata?.call_duration_secs ?? 0;
+    const isWelcomeSession = sessionType === 'welcome' || moduleName === 'Welcome';
+    const MIN_DURATION_SECONDS = 120; // 2 minutes minimum for non-welcome sessions
+    
+    console.log('=== SESSION DURATION CHECK ===');
+    console.log(`Duration from metadata: ${metadata?.call_duration_secs}`);
+    console.log(`Session duration (processed): ${sessionDuration} seconds`);
+    console.log(`Session type from Redis: ${sessionType}`);
+    console.log(`Module name from Redis: ${moduleName}`);
+    console.log(`Is Welcome Session: ${isWelcomeSession}`);
+    console.log(`Minimum required: ${MIN_DURATION_SECONDS} seconds`);
+    console.log(`Will skip: ${!isWelcomeSession && sessionDuration < MIN_DURATION_SECONDS}`);
+    console.log('==============================');
+    
+    // Skip saving if duration is less than minimum for non-welcome sessions
+    if (!isWelcomeSession && sessionDuration < MIN_DURATION_SECONDS) {
+      console.log(`⏭️ Skipping session: Duration ${sessionDuration}s is less than minimum ${MIN_DURATION_SECONDS}s for non-welcome sessions`);
+      console.log('Session type:', sessionType, 'Module name:', moduleName);
+      // Don't save to database or trigger any background processes
+      return NextResponse.json({ 
+        success: true, 
+        message: `Session not saved: Duration ${sessionDuration}s is less than minimum ${MIN_DURATION_SECONDS}s for ${sessionType} sessions`,
+        skipped: true,
+        duration: sessionDuration,
+        minimum: MIN_DURATION_SECONDS,
+        sessionType: sessionType,
+        moduleName: moduleName
+      });
+    }
+    
     const insertResult = await supabase.from('sessions').insert({
       user_id: userId,
       conversation_id,
