@@ -27,6 +27,7 @@
     "three": "^0.175.0"
   },
   "devDependencies": {
+    "@next/swc-darwin-arm64": "^15.5.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

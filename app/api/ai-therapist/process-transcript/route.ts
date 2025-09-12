@@ -182,6 +182,12 @@ export async function POST(req: NextRequest) {
     }
 
     const newInsights = await getTherapyInsights(transcript);
+    console.log('🔍 [Process Transcript] Initial insights extracted:', {
+      title: newInsights.title,
+      goalCount: newInsights.goals.length,
+      goals: newInsights.goals,
+      themeCount: newInsights.themes.length
+    });
 
     // Get existing goals from goals table instead of users table
     const { data: existingGoalsData } = await supabase
@@ -223,6 +229,8 @@ export async function POST(req: NextRequest) {
       .eq('id', userId);
 
     // Handle goals separately - add new goals to the goals table if they don't already exist
+    console.log('🎯 [Process Transcript] Synthesized goals:', synthesized.goals);
+    
     if (synthesized.goals.length > 0) {
       // Get existing goals for this user
       const { data: existingGoals } = await supabase
@@ -232,6 +240,7 @@ export async function POST(req: NextRequest) {
         .eq('is_active', true);
 
       const existingGoalTitles = existingGoals?.map(g => g.title.toLowerCase()) || [];
+      console.log('🎯 [Process Transcript] Existing goal titles:', existingGoalTitles);
       
       // Insert new goals that don't already exist
       const newGoals = synthesized.goals
@@ -242,11 +251,23 @@ export async function POST(req: NextRequest) {
           is_active: true
         }));
 
+      console.log('🎯 [Process Transcript] New goals to insert:', newGoals);
+
       if (newGoals.length > 0) {
-        await supabase
+        const { error: goalInsertError } = await supabase
           .from('goals')
           .insert(newGoals);
+        
+        if (goalInsertError) {
+          console.error('🎯 [Process Transcript] Error inserting goals:', goalInsertError);
+        } else {
+          console.log('✅ [Process Transcript] Successfully inserted', newGoals.length, 'new goals');
+        }
+      } else {
+        console.log('🎯 [Process Transcript] No new goals to insert (all already exist)');
       }
+    } else {
+      console.log('🎯 [Process Transcript] No goals extracted from session');
     }
 
     return NextResponse.json({ success: true });

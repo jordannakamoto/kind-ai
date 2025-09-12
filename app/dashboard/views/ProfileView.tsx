@@ -1,17 +1,57 @@
 'use client';
 
-import {
-  AlertTriangle,
-  ChevronRight,
-  Plus,
-  Circle,
-  CheckCircle2
-} from 'lucide-react';
-import { useEffect, useState } from 'react';
-
+import { AlertTriangle, ChevronRight, Plus, Circle, CheckCircle2 } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/supabase/client';
 import { useConversationStatus } from '@/app/contexts/ConversationContext';
 import LoadingDots from '@/components/LoadingDots';
+
+const CACHE_VERSION = '1.0';
+
+const generateHash = (data: string): string => {
+  let hash = 0;
+  for (let i = 0; i < data.length; i++) {
+    const char = data.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString();
+};
+
+const getProfileCacheKey = (type: 'goals' | 'themes', userId: string): string => {
+  return `profile_${type}_${userId}_${CACHE_VERSION}`;
+};
+
+function getCachedData<T>(key: string): T | null {
+  try {
+    const cached = localStorage.getItem(key);
+    if (!cached) return null;
+    const { data, hash } = JSON.parse(cached);
+    const expectedHash = generateHash(JSON.stringify(data));
+    if (hash !== expectedHash) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedData<T>(key: string, data: T): void {
+  try {
+    const dataStr = JSON.stringify(data);
+    const hash = generateHash(dataStr);
+    const cacheEntry = { data, hash };
+    localStorage.setItem(key, JSON.stringify(cacheEntry));
+  } catch (error) {
+    console.warn('Failed to cache profile data:', error);
+  }
+}
+
+function findNewItems<T extends { id: string }>(oldItems: T[], newItems: T[]): T[] {
+  return newItems.filter(newItem => !oldItems.some(oldItem => oldItem.id === newItem.id));
+}
 
 interface UserProfile {
   full_name: string;
@@ -32,7 +72,7 @@ interface Goal {
   is_active: boolean;
 }
 
-export default function UserFacingProfile() {
+export default function ProfileView() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const { conversationEnded, pollingStatus, setPollingStatus } = useConversationStatus();
@@ -43,6 +83,10 @@ export default function UserFacingProfile() {
   const [userId, setUserId] = useState<string | null>(null);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [newGoalTitle, setNewGoalTitle] = useState('');
+  const [newGoalIds, setNewGoalIds] = useState<Set<string>>(new Set());
+  const [newThemes, setNewThemes] = useState<Set<string>>(new Set());
+  const previousGoals = useRef<Goal[]>([]);
+  const previousThemes = useRef<string[]>([]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -67,7 +111,9 @@ export default function UserFacingProfile() {
         console.error("Error fetching user profile:", error?.message);
       }
 
-      // Fetch goals from the goals table
+      const goalsCacheKey = getProfileCacheKey('goals', authUser.id);
+      const cachedGoals = getCachedData<Goal[]>(goalsCacheKey);
+      
       const { data: goalsData, error: goalsError } = await supabase
         .from('goals')
         .select('id, title, description, completed_at, created_at, is_active')
@@ -76,7 +122,36 @@ export default function UserFacingProfile() {
         .order('created_at', { ascending: true });
 
       if (!goalsError && goalsData) {
+        if (cachedGoals && cachedGoals.length > 0) {
+          const newGoalsList = findNewItems(cachedGoals, goalsData);
+          if (newGoalsList.length > 0) {
+            console.log('🎯 New goals detected:', newGoalsList.length);
+            const newIds = new Set(newGoalsList.map((g: Goal) => g.id));
+            setNewGoalIds(newIds);
+            setTimeout(() => setNewGoalIds(new Set()), 3000);
+          }
+        }
         setGoals(goalsData);
+        previousGoals.current = goalsData;
+        setCachedData(goalsCacheKey, goalsData);
+      }
+
+      if (data?.themes) {
+        const themesCacheKey = getProfileCacheKey('themes', authUser.id);
+        const cachedThemes = getCachedData<string>(themesCacheKey);
+        const currentThemes = data.themes.split(',').map((t: string) => t.trim()).filter(Boolean);
+        
+        if (cachedThemes) {
+          const oldThemes = cachedThemes.split(',').map((t: string) => t.trim()).filter(Boolean);
+          const newThemesList = currentThemes.filter((theme: string) => !oldThemes.includes(theme));
+          if (newThemesList.length > 0) {
+            console.log('🏷️ New themes detected:', newThemesList);
+            setNewThemes(new Set(newThemesList));
+            setTimeout(() => setNewThemes(new Set()), 3000);
+          }
+        }
+        previousThemes.current = currentThemes;
+        setCachedData(themesCacheKey, data.themes);
       }
 
       setLoading(false);
@@ -90,70 +165,99 @@ export default function UserFacingProfile() {
       const result = await supabase.auth.getUser();
       const authUser = result.data?.user;
       if (!authUser) return;
-      const { data, error } = await supabase
-        .from('users')
-        .select('full_name, avatar_url, bio, goals, therapy_summary, themes, banner_url')
-        .eq('id', authUser.id)
-        .single();
-      if (error || !data) return;
+      
+      const [userResponse, goalsResponse] = await Promise.all([
+        supabase.from('users').select('full_name, avatar_url, bio, goals, therapy_summary, themes, banner_url').eq('id', authUser.id).single(),
+        supabase.from('goals').select('id, title, description, completed_at, created_at, is_active').eq('user_id', authUser.id).eq('is_active', true).order('created_at', { ascending: true })
+      ]);
+      
+      if (userResponse.error || !userResponse.data) return;
+      const data = userResponse.data;
+      
       if (data.bio !== initialBio) {
+        console.log('📊 [ProfileView] Polling detected changes, updating profile and goals');
         setUser(data);
         setInitialBio(data.bio);
         if (data.avatar_url) setProfilePicSrc(data.avatar_url);
+        
+        if (!goalsResponse.error && goalsResponse.data) {
+          const goalsCacheKey = getProfileCacheKey('goals', authUser.id);
+          const cachedGoals = getCachedData<Goal[]>(goalsCacheKey);
+          if (cachedGoals && cachedGoals.length > 0) {
+            const newGoalsList = findNewItems(cachedGoals, goalsResponse.data);
+            if (newGoalsList.length > 0) {
+              console.log('🎯 New goals detected during polling:', newGoalsList.length);
+              const newIds = new Set(newGoalsList.map((g: Goal) => g.id));
+              setNewGoalIds(newIds);
+              setTimeout(() => setNewGoalIds(new Set()), 3000);
+            }
+          }
+          setGoals(goalsResponse.data);
+          setCachedData(goalsCacheKey, goalsResponse.data);
+        }
+        
+        if (data.themes && userId) {
+          const themesCacheKey = getProfileCacheKey('themes', userId);
+          const cachedThemes = getCachedData<string>(themesCacheKey);
+          const currentThemes = data.themes.split(',').map((t: string) => t.trim()).filter(Boolean);
+          if (cachedThemes) {
+            const oldThemes = cachedThemes.split(',').map((t: string) => t.trim()).filter(Boolean);
+            const newThemesList = currentThemes.filter((theme: string) => !oldThemes.includes(theme));
+            if (newThemesList.length > 0) {
+              console.log('🏷️ New themes detected during polling:', newThemesList);
+              setNewThemes(new Set(newThemesList));
+              setTimeout(() => setNewThemes(new Set()), 3000);
+            }
+          }
+          setCachedData(themesCacheKey, data.themes);
+        }
+        
         setPollingStatus({ bioUpdated: true });
         clearInterval(pollInterval);
       }
     }, 3000);
     return () => clearInterval(pollInterval);
-  }, [conversationEnded, pollingStatus.bioUpdated, user, initialBio]);
+  }, [conversationEnded, pollingStatus.bioUpdated, user, initialBio, userId]);
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return '';
     const names = name.split(' ');
-    return names.map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    return names.map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
   };
 
   const toggleGoalCompletion = async (goalId: string) => {
     if (!userId) return;
-
     const goal = goals.find(g => g.id === goalId);
     if (!goal) return;
-
     const isCompleted = !!goal.completed_at;
     const now = new Date().toISOString();
 
-    const { error } = await supabase
-      .from('goals')
-      .update({
-        completed_at: isCompleted ? null : now
-      })
-      .eq('id', goalId)
-      .eq('user_id', userId);
+    const { error } = await supabase.from('goals').update({ completed_at: isCompleted ? null : now }).eq('id', goalId).eq('user_id', userId);
 
     if (!error) {
-      setGoals(goals.map(g => 
-        g.id === goalId 
-          ? { ...g, completed_at: isCompleted ? null : now }
-          : g
-      ));
+      const updatedGoals = goals.map((g: Goal) => g.id === goalId ? { ...g, completed_at: isCompleted ? null : now } : g);
+      setGoals(updatedGoals);
+      if (userId) {
+        const goalsCacheKey = getProfileCacheKey('goals', userId);
+        setCachedData(goalsCacheKey, updatedGoals);
+      }
     }
   };
 
   const addGoal = async () => {
     if (!userId || !newGoalTitle.trim()) return;
 
-    const { data, error } = await supabase
-      .from('goals')
-      .insert({
-        user_id: userId,
-        title: newGoalTitle.trim(),
-        is_active: true
-      })
-      .select()
-      .single();
+    const { data, error } = await supabase.from('goals').insert({ user_id: userId, title: newGoalTitle.trim(), is_active: true }).select().single();
 
     if (!error && data) {
-      setGoals([...goals, data]);
+      const updatedGoals = [...goals, data];
+      setGoals(updatedGoals);
+      setNewGoalIds(new Set([data.id]));
+      setTimeout(() => setNewGoalIds(new Set()), 3000);
+      if (userId) {
+        const goalsCacheKey = getProfileCacheKey('goals', userId);
+        setCachedData(goalsCacheKey, updatedGoals);
+      }
       setNewGoalTitle('');
       setShowAddGoal(false);
     }
@@ -162,7 +266,7 @@ export default function UserFacingProfile() {
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen bg-white text-slate-700 p-6">
-        <LoadingDots text="Loading profile" className="text-lg" />
+        <LoadingDots />
       </div>
     );
   }
@@ -177,30 +281,34 @@ export default function UserFacingProfile() {
     );
   }
 
-  // Remove old goal parsing since we now use the goals state
-  // Fixed theme parsing to handle hyphens within words like "well-being"
-  const themeTags = (user.themes || "").split(',').map(t => t.trim()).map(t => t.indexOf(':') > 0 ? t.substring(0, t.indexOf(':')).trim() : t).filter(Boolean);
+  const themeTags = (user.themes || "").split(',').map((t: string) => t.trim()).map((t: string) => t.indexOf(':') > 0 ? t.substring(0, t.indexOf(':')).trim() : t).filter(Boolean);
   const avatarInitial = getInitials(user.full_name);
-  
-  // Parse bio into sentences and handle read more
   const bioSentences = (user.bio || "").split(/(?<=[.!?])\s+/).filter(Boolean);
-  const displayBio = bioExpanded || bioSentences.length <= 1 
-    ? user.bio 
-    : bioSentences[0] + (bioSentences.length > 1 ? '...' : '');
+  const displayBio = bioExpanded || bioSentences.length <= 1 ? user.bio : bioSentences[0] + (bioSentences.length > 1 ? '...' : '');
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Notion-style page container */}
-      <div className="max-w-4xl mx-auto px-6 py-12 pl-12">
+    <>
+      <style jsx>{`
+        @keyframes fadeSlideIn {
+          from {
+            opacity: 0;
+            transform: translateX(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
         
-        {/* Page header with avatar */}
+        .animate-fadeSlideIn {
+          animation: fadeSlideIn 0.5s ease-out;
+        }
+      `}</style>
+    <div className="min-h-screen bg-white">
+      <div className="max-w-4xl mx-auto px-6 py-12 pl-12">
         <div className="flex items-start gap-4 mb-8">
           {profilePicSrc ? (
-            <img 
-              src={profilePicSrc} 
-              alt={user.full_name || 'User'}
-              className="w-16 h-16 rounded-full object-cover"
-            />
+            <img src={profilePicSrc} alt={user.full_name || 'User'} className="w-16 h-16 rounded-full object-cover" />
           ) : (
             <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
               <span className="text-xl font-medium text-gray-600">{avatarInitial}</span>
@@ -212,10 +320,7 @@ export default function UserFacingProfile() {
               <div className="text-gray-600 text-sm leading-relaxed">
                 <span>{displayBio}</span>
                 {bioSentences.length > 1 && (
-                  <button
-                    onClick={() => setBioExpanded(!bioExpanded)}
-                    className="text-blue-600 hover:text-blue-700 ml-1 text-xs font-medium transition-colors"
-                  >
+                  <button onClick={() => setBioExpanded(!bioExpanded)} className="text-blue-600 hover:text-blue-700 ml-1 text-xs font-medium transition-colors">
                     {bioExpanded ? 'Show less' : 'Read more'}
                   </button>
                 )}
@@ -224,10 +329,7 @@ export default function UserFacingProfile() {
           </div>
         </div>
 
-        {/* Content sections */}
         <div className="space-y-16">
-          
-          {/* Goals Section - Notion style */}
           <section>
             <div className="flex items-center gap-2 mb-6">
               <h2 className="text-lg font-semibold text-gray-900">Goals</h2>
@@ -235,11 +337,7 @@ export default function UserFacingProfile() {
             {goals.length > 0 ? (
               <div className="space-y-2">
                 {goals.map((goal) => (
-                  <div 
-                    key={goal.id} 
-                    className="flex items-start gap-3 group cursor-pointer"
-                    onClick={() => toggleGoalCompletion(goal.id)}
-                  >
+                  <div key={goal.id} className={`flex items-start gap-3 group cursor-pointer transition-all duration-500 hover:bg-gray-50 rounded-lg p-1 ${newGoalIds.has(goal.id) ? 'animate-fadeSlideIn' : ''}`} onClick={() => toggleGoalCompletion(goal.id)}>
                     <div className="mt-1">
                       {goal.completed_at ? (
                         <CheckCircle2 className="w-4 h-4 text-green-500 group-hover:text-green-600 transition-colors" />
@@ -247,47 +345,19 @@ export default function UserFacingProfile() {
                         <Circle className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
                       )}
                     </div>
-                    <span className={`text-sm leading-relaxed flex-1 transition-all ${
-                      goal.completed_at 
-                        ? 'text-gray-400 line-through' 
-                        : 'text-gray-700 group-hover:text-gray-900'
-                    }`}>
+                    <span className={`text-sm leading-relaxed flex-1 transition-all ${goal.completed_at ? 'text-gray-400 line-through' : 'text-gray-700 group-hover:text-gray-900'}`}>
                       {goal.title}
                     </span>
                   </div>
                 ))}
                 {showAddGoal ? (
                   <div className="flex items-center gap-2 mt-2">
-                    <input
-                      type="text"
-                      value={newGoalTitle}
-                      onChange={(e) => setNewGoalTitle(e.target.value)}
-                      placeholder="Enter goal title..."
-                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      autoFocus
-                      onKeyPress={(e) => e.key === 'Enter' && addGoal()}
-                    />
-                    <button
-                      onClick={addGoal}
-                      className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Add
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowAddGoal(false);
-                        setNewGoalTitle('');
-                      }}
-                      className="px-3 py-2 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
+                    <input type="text" value={newGoalTitle} onChange={(e) => setNewGoalTitle(e.target.value)} placeholder="Enter goal title..." className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autoFocus onKeyPress={(e) => e.key === 'Enter' && addGoal()} />
+                    <button onClick={addGoal} className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">Add</button>
+                    <button onClick={() => { setShowAddGoal(false); setNewGoalTitle(''); }} className="px-3 py-2 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
                   </div>
                 ) : (
-                  <button 
-                    onClick={() => setShowAddGoal(true)}
-                    className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors mt-2"
-                  >
+                  <button onClick={() => setShowAddGoal(true)} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors mt-2">
                     <Plus className="w-4 h-4" />
                     <span className="text-xs">Add a goal</span>
                   </button>
@@ -297,36 +367,12 @@ export default function UserFacingProfile() {
               <div className="py-6">
                 {showAddGoal ? (
                   <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={newGoalTitle}
-                      onChange={(e) => setNewGoalTitle(e.target.value)}
-                      placeholder="Enter goal title..."
-                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      autoFocus
-                      onKeyPress={(e) => e.key === 'Enter' && addGoal()}
-                    />
-                    <button
-                      onClick={addGoal}
-                      className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Add
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowAddGoal(false);
-                        setNewGoalTitle('');
-                      }}
-                      className="px-3 py-2 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
+                    <input type="text" value={newGoalTitle} onChange={(e) => setNewGoalTitle(e.target.value)} placeholder="Enter goal title..." className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autoFocus onKeyPress={(e) => e.key === 'Enter' && addGoal()} />
+                    <button onClick={addGoal} className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">Add</button>
+                    <button onClick={() => { setShowAddGoal(false); setNewGoalTitle(''); }} className="px-3 py-2 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
                   </div>
                 ) : (
-                  <button 
-                    onClick={() => setShowAddGoal(true)}
-                    className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
+                  <button onClick={() => setShowAddGoal(true)} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
                     <Plus className="w-4 h-4" />
                     <span className="text-xs">Add a goal</span>
                   </button>
@@ -335,7 +381,6 @@ export default function UserFacingProfile() {
             )}
           </section>
 
-          {/* Themes Section - Notion style */}
           <section>
             <div className="flex items-center gap-2 mb-6">
               <h2 className="text-lg font-semibold text-gray-900">Emerging Themes</h2>
@@ -343,9 +388,9 @@ export default function UserFacingProfile() {
             {themeTags.length > 0 ? (
               <div className="space-y-2">
                 {themeTags.map((theme, i) => (
-                  <div key={i} className="flex items-center gap-3 group">
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-700 text-sm group-hover:text-gray-900 transition-colors">
+                  <div key={i} className={`flex items-center gap-3 group transition-all duration-500 hover:bg-gray-50 rounded-lg p-1 ${newThemes.has(theme) ? 'animate-fadeSlideIn' : ''}`}>
+                    <ChevronRight className="w-4 h-4 text-gray-400 transition-colors" />
+                    <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
                       {theme}
                     </span>
                   </div>
@@ -358,10 +403,8 @@ export default function UserFacingProfile() {
             )}
           </section>
 
-          {/* Spacer to push progress section down */}
           <div className="h-96"></div>
           
-          {/* Progress section - pushed down off initial viewport */}
           <section className="border-t pt-8">
             <h3 className="text-base font-medium text-gray-500 mb-4">Progress</h3>
             <div className="grid grid-cols-3 gap-6">
@@ -379,9 +422,9 @@ export default function UserFacingProfile() {
               </div>
             </div>
           </section>
-
         </div>
       </div>
     </div>
+    </>
   );
 }
