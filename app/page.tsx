@@ -1,28 +1,42 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-
-import { FcGoogle } from 'react-icons/fc';
 import { supabase } from '@/supabase/client';
 import { useRouter } from 'next/navigation';
+import { FcGoogle } from 'react-icons/fc';
 
-export default function LandingPage() {
+export default function HomePage() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [showEmailForm, setShowEmailForm] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showEmailForm, setShowEmailForm] = useState(false);
   const router = useRouter();
 
-  // OAuth Callback
   useEffect(() => {
-    const handleOAuthCallback = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) return console.error('Error fetching session:', error.message);
-      if (data.session) {
-        router.push('/dashboard'); // Redirect to dashboard if session exists
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        // User is authenticated, redirect to dashboard
+        router.push('/dashboard');
+      } else {
+        // User is not authenticated, show login page
+        setIsAuthenticated(false);
       }
     };
 
-    handleOAuthCallback();
+    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        router.push('/dashboard');
+      } else {
+        setIsAuthenticated(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [router]);
 
   const handleLogin = async () => {
@@ -46,15 +60,23 @@ export default function LandingPage() {
     if (error) return alert(error.message);
     router.push('/dashboard');
   };
-// 
+
+  // Show loading during auth check
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  // Show login form for non-authenticated users
   return (
     <main className="min-h-screen flex">
       {/* Left Panel */}
       <div
         className="w-1/2 hidden md:block bg-cover bg-center relative"
         style={{
-          // backgroundImage:
-          //   "url('https://images.unsplash.com/photo-1620003245355-b4469e9d6734?q=80&w=3087&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')",
           backgroundBlendMode: 'overlay',
         }}
       >
@@ -74,6 +96,7 @@ export default function LandingPage() {
           {/* Heading */}
           <h2 className="text-2xl font-semibold text-center text-gray-800">Sign In</h2>
           <p className="text-sm text-center text-gray-500">Logging into the Kind Demo</p>
+          
           {/* Google Sign In */}
           <button
             onClick={handleOAuth}
@@ -92,7 +115,6 @@ export default function LandingPage() {
               Sign in with Email
             </button>
           )}
-          
 
           {/* Email form */}
           {showEmailForm && (

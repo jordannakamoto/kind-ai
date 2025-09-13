@@ -26,15 +26,15 @@ function parseTherapyInsights(raw: string): ParsedTherapyInsights {
 
   return {
     title: extract('Title'),
-    summary: extract('Summary'),
+    summary: extract('Summary') || extract('TherapySummary'),
     goals: extract('Goals')
       .split('\n')
-      .map((g) => g.replace(/^-/, '').trim())
-      .filter(Boolean),
+      .map((g) => g.replace(/^[-•*]/, '').trim())
+      .filter(g => g.length > 0),
     themes: extract('Themes')
       .split('\n')
-      .map((t) => t.replace(/^-/, '').trim())
-      .filter(Boolean),
+      .map((t) => t.replace(/^[-•*]/, '').trim())
+      .filter(t => t.length > 0),
     bio: extract('Bio'),
   };
 }
@@ -45,9 +45,9 @@ You are a therapy assistant helping summarize therapy sessions. Analyze the tran
 
 1. A relevant session title (no quotes or emojis, in Title Case).
 2. A brief summary in second-person ("you") voice, speaking directly TO the client. Use "you" throughout - for example: "You discussed your anxiety about...", "You explored strategies for...", "You reflected on...". Never use third-person pronouns like "the individual", "they", "the client", etc.
-3. A "Goals:" section (only if applicable).
-4. A "Themes:" section (only if applicable).
-5. A "Bio:" section (only if applicable) - This should be in THIRD-PERSON as therapist notes about the client (e.g., "The client is experiencing...", "They mentioned...").
+3. A "Goals:" section - Extract any actionable goals, intentions, or things the client wants to work on. Look for statements about what they want to achieve, improve, or change. If no explicit goals, infer from their concerns.
+4. A "Themes:" section - Key topics or patterns discussed in the session.
+5. A "Bio:" section (only if new information emerges) - This should be in THIRD-PERSON as therapist notes about the client (e.g., "The client is experiencing...", "They mentioned...").
 
 Format:
 Title:
@@ -71,12 +71,22 @@ Transcript:
 ${transcript}
   `;
 
-  const response = await client.responses.create({
+  const response = await client.chat.completions.create({
     model: 'gpt-4o-mini',
-    input,
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a therapy assistant helping summarize therapy sessions.',
+      },
+      {
+        role: 'user',
+        content: input,
+      },
+    ],
   });
 
-  return parseTherapyInsights(response.output_text.trim());
+  const content = response.choices[0]?.message?.content || '';
+  return parseTherapyInsights(content.trim());
 }
 
 async function synthesizeUpdatedProfile({
@@ -156,12 +166,22 @@ Goals: ${newInsights.goals.join(', ')}
 Themes: ${newInsights.themes.join(', ')}
 `;
 
-  const response = await client.responses.create({
+  const response = await client.chat.completions.create({
     model: 'gpt-4o-mini',
-    input: prompt,
+    messages: [
+      {
+        role: 'system',
+        content: 'You are an assistant helping maintain a therapy profile.',
+      },
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ],
   });
 
-  return parseTherapyInsights(response.output_text.trim());
+  const content = response.choices[0]?.message?.content || '';
+  return parseTherapyInsights(content.trim());
 }
 
 export async function POST(req: NextRequest) {
@@ -186,7 +206,9 @@ export async function POST(req: NextRequest) {
       title: newInsights.title,
       goalCount: newInsights.goals.length,
       goals: newInsights.goals,
-      themeCount: newInsights.themes.length
+      themeCount: newInsights.themes.length,
+      themes: newInsights.themes,
+      bio: newInsights.bio?.substring(0, 100) + '...'
     });
 
     // Get existing goals from goals table instead of users table
@@ -204,6 +226,14 @@ export async function POST(req: NextRequest) {
       oldGoals: existingGoalTitles,
       oldThemes: userRecord.themes?.split(',')?.map((t: string) => t.trim()) ?? [],
       newInsights,
+    });
+    
+    console.log('🔀 [Process Transcript] Synthesized profile:', {
+      title: synthesized.title,
+      goalsCount: synthesized.goals?.length || 0,
+      goals: synthesized.goals,
+      themesCount: synthesized.themes?.length || 0,
+      themes: synthesized.themes
     });
 
     // Update the session record
@@ -254,14 +284,17 @@ export async function POST(req: NextRequest) {
       console.log('🎯 [Process Transcript] New goals to insert:', newGoals);
 
       if (newGoals.length > 0) {
-        const { error: goalInsertError } = await supabase
+        console.log('🎯 [Process Transcript] Attempting to insert goals:', JSON.stringify(newGoals, null, 2));
+        
+        const { data: insertedGoals, error: goalInsertError } = await supabase
           .from('goals')
-          .insert(newGoals);
+          .insert(newGoals)
+          .select();
         
         if (goalInsertError) {
           console.error('🎯 [Process Transcript] Error inserting goals:', goalInsertError);
         } else {
-          console.log('✅ [Process Transcript] Successfully inserted', newGoals.length, 'new goals');
+          console.log('✅ [Process Transcript] Successfully inserted', newGoals.length, 'new goals:', insertedGoals);
         }
       } else {
         console.log('🎯 [Process Transcript] No new goals to insert (all already exist)');
