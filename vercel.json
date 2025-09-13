@@ -1,0 +1,4 @@
+{
+  "installCommand": "npm install --force --no-save",
+  "buildCommand": "npm run build"
+}
