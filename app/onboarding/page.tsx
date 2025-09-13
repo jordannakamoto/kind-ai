@@ -46,12 +46,12 @@ const experienceOptions = [
 
 const fadeIn = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.6, ease: 'easeOut' } },
+  visible: { opacity: 1 },
 };
 
 const slideIn = {
   hidden: { x: 10, opacity: 0 },
-  visible: { x: 0, opacity: 1, transition: { duration: 0.5, ease: 'easeOut' } },
+  visible: { x: 0, opacity: 1 },
 };
 
 // Helper SVG Icons
@@ -362,7 +362,7 @@ export default function OnboardingForm() {
     switch (currentStep) {
       case 1:
         return (
-          <motion.div key="step1" variants={fadeIn} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
+          <motion.div key="step1" variants={fadeIn} initial="hidden" animate="visible" exit="hidden" transition={{ duration: 0.6, ease: "easeOut" }} className="space-y-8">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 px-9">What's your name?</label>
               <div className="relative px-8">
@@ -392,7 +392,7 @@ export default function OnboardingForm() {
         );
       case 2:
         return (
-          <motion.div key="step2" variants={fadeIn} initial="hidden" animate="visible" exit="hidden" className="w-full">
+          <motion.div key="step2" variants={fadeIn} initial="hidden" animate="visible" exit="hidden" transition={{ duration: 0.6, ease: "easeOut" }} className="w-full">
             <div className="max-w-full space-y-5">
               <div className="w-full max-w-md px-9">
                 <label className="block text-sm font-medium text-gray-700 leading-snug">What's your therapy background?</label>
@@ -451,7 +451,7 @@ export default function OnboardingForm() {
         );
       case 4:
         return (
-          <motion.div key="step4-letter" variants={fadeIn} initial="hidden" animate="visible" exit="hidden" className="space-y-6 px-8 text-gray-700 text-sm leading-relaxed">
+          <motion.div key="step4-letter" variants={fadeIn} initial="hidden" animate="visible" exit="hidden" transition={{ duration: 0.6, ease: "easeOut" }} className="space-y-6 px-8 text-gray-700 text-sm leading-relaxed">
             <p>Hi {name?.split(' ')[0] || "there"},</p>
             {/* with a simple belief: everyone deserves access to mental well-being support that is flexible, affordable, and genuinely helpful. */}
             <p>
@@ -501,7 +501,7 @@ export default function OnboardingForm() {
         );
       case 5:
         return (
-          <motion.div key="step5-notice" variants={fadeIn} initial="hidden" animate="visible" exit="hidden" className="space-y-6 px-8 py-4">
+          <motion.div key="step5-notice" variants={fadeIn} initial="hidden" animate="visible" exit="hidden" transition={{ duration: 0.6, ease: "easeOut" }} className="space-y-6 px-8 py-4">
             <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-sm">
               <h3 className="font-semibold text-yellow-800 mb-2 flex items-center gap-2">
                 <svg className="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
