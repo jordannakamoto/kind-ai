@@ -265,7 +265,7 @@ export default function ProfileView() {
 
   if (loading) {
     return (
-      <div className="flex flex-col justify-center items-center min-h-screen bg-white text-slate-700 p-6">
+      <div className="flex flex-col justify-center items-center min-h-screen bg-white text-slate-700 p-4 md:p-6">
         <LoadingDots />
       </div>
     );
@@ -273,10 +273,10 @@ export default function ProfileView() {
 
   if (!user) {
     return (
-      <div className="flex flex-col justify-center items-center min-h-screen bg-white text-slate-700 p-6">
+      <div className="flex flex-col justify-center items-center min-h-screen bg-white text-slate-700 p-4 md:p-6">
         <AlertTriangle size={48} className="text-red-500 mb-4" />
-        <h2 className="text-2xl font-semibold mb-2">Profile Not Found</h2>
-        <p className="text-center max-w-md">We couldn't find your profile data. Please check your connection or try again later.</p>
+        <h2 className="text-xl md:text-2xl font-semibold mb-2">Profile Not Found</h2>
+        <p className="text-center max-w-md text-sm md:text-base">We couldn't find your profile data. Please check your connection or try again later.</p>
       </div>
     );
   }
@@ -305,22 +305,22 @@ export default function ProfileView() {
         }
       `}</style>
     <div className="min-h-screen bg-white">
-      <div className="max-w-4xl mx-auto px-6 py-12 pl-12">
-        <div className="flex items-start gap-4 mb-8">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 md:py-12 md:pl-12">
+        <div className="flex items-start gap-3 md:gap-4 mb-6 md:mb-8">
           {profilePicSrc ? (
-            <img src={profilePicSrc} alt={user.full_name || 'User'} className="w-16 h-16 rounded-full object-cover" />
+            <img src={profilePicSrc} alt={user.full_name || 'User'} className="w-12 md:w-16 h-12 md:h-16 rounded-full object-cover" />
           ) : (
-            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
-              <span className="text-xl font-medium text-gray-600">{avatarInitial}</span>
+            <div className="w-12 md:w-16 h-12 md:h-16 rounded-full bg-gray-100 flex items-center justify-center">
+              <span className="text-lg md:text-xl font-medium text-gray-600">{avatarInitial}</span>
             </div>
           )}
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-gray-900 mb-1">{user.full_name}</h1>
+            <h1 className="text-lg md:text-xl font-bold text-gray-900 mb-1">{user.full_name}</h1>
             {user.bio && (
-              <div className="text-gray-600 text-sm leading-relaxed">
+              <div className="text-gray-600 text-xs md:text-sm leading-relaxed">
                 <span>{displayBio}</span>
                 {bioSentences.length > 1 && (
-                  <button onClick={() => setBioExpanded(!bioExpanded)} className="text-blue-600 hover:text-blue-700 ml-1 text-xs font-medium transition-colors">
+                  <button onClick={() => setBioExpanded(!bioExpanded)} className="text-blue-600 hover:text-blue-700 ml-1 text-[10px] md:text-xs font-medium transition-colors">
                     {bioExpanded ? 'Show less' : 'Read more'}
                   </button>
                 )}
@@ -331,21 +331,21 @@ export default function ProfileView() {
 
         <div className="space-y-16">
           <section>
-            <div className="flex items-center gap-2 mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">Goals</h2>
+            <div className="flex items-center gap-2 mb-4 md:mb-6">
+              <h2 className="text-base md:text-lg font-semibold text-gray-900">Goals</h2>
             </div>
             {goals.length > 0 ? (
               <div className="space-y-2">
                 {goals.map((goal) => (
-                  <div key={goal.id} className={`flex items-start gap-3 group cursor-pointer transition-all duration-500 hover:bg-gray-50 rounded-lg p-1 ${newGoalIds.has(goal.id) ? 'animate-fadeSlideIn' : ''}`} onClick={() => toggleGoalCompletion(goal.id)}>
+                  <div key={goal.id} className={`flex items-start gap-2 md:gap-3 group cursor-pointer transition-all duration-500 hover:bg-gray-50 rounded-lg p-1 ${newGoalIds.has(goal.id) ? 'animate-fadeSlideIn' : ''}`} onClick={() => toggleGoalCompletion(goal.id)}>
                     <div className="mt-1">
                       {goal.completed_at ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-500 group-hover:text-green-600 transition-colors" />
+                        <CheckCircle2 className="w-3.5 md:w-4 h-3.5 md:h-4 text-green-500 group-hover:text-green-600 transition-colors" />
                       ) : (
-                        <Circle className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                        <Circle className="w-3.5 md:w-4 h-3.5 md:h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
                       )}
                     </div>
-                    <span className={`text-sm leading-relaxed flex-1 transition-all ${goal.completed_at ? 'text-gray-400 line-through' : 'text-gray-700 group-hover:text-gray-900'}`}>
+                    <span className={`text-xs md:text-sm leading-relaxed flex-1 transition-all ${goal.completed_at ? 'text-gray-400 line-through' : 'text-gray-700 group-hover:text-gray-900'}`}>
                       {goal.title}
                     </span>
                   </div>

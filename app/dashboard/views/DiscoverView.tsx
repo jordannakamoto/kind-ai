@@ -49,11 +49,11 @@ interface UserCourseProgress {
 // Default fallback image
 const DEFAULT_COURSE_IMAGE = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
 
-// 3. Size styling - Made smaller
+// 3. Size styling - Made smaller and responsive
 const sizeClass: Record<ModuleSize, string> = {
-  square: 'row-span-1 h-[180px]',
-  tall: 'row-span-2 h-[380px]',
-  wide: 'col-span-2 row-span-1 h-[180px]',
+  square: 'row-span-1 h-[140px] md:h-[180px]',
+  tall: 'row-span-2 h-[300px] md:h-[380px]',
+  wide: 'col-span-2 row-span-1 h-[140px] md:h-[180px]',
 };
 
 // Helper function to determine course size based on index
@@ -209,7 +209,7 @@ export default function TherapyLibraryFeed() {
 
   if (loading) {
     return (
-      <div className="w-full max-w-4xl mx-auto px-4 py-10 pl-10">
+      <div className="w-full max-w-4xl mx-auto px-4 py-6 md:py-10 md:pl-10">
         <div className="flex items-center justify-center min-h-[400px]">
           <LoadingDots className="text-lg" />
         </div>
@@ -219,7 +219,7 @@ export default function TherapyLibraryFeed() {
 
   if (error) {
     return (
-      <div className="w-full max-w-4xl mx-auto px-4 py-10 pl-10">
+      <div className="w-full max-w-4xl mx-auto px-4 py-6 md:py-10 md:pl-10">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <p className="text-red-600 mb-2">{error}</p>
@@ -236,9 +236,9 @@ export default function TherapyLibraryFeed() {
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-10 pl-10">
+    <div className="w-full max-w-3xl mx-auto px-4 py-6 md:py-10 md:pl-10">
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Therapy Library</h2>
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3 md:mb-4">Therapy Library</h2>
 
         <div className="flex items-center space-x-2 overflow-x-auto pb-2">
           {allTags.map((tag) => (
@@ -263,7 +263,7 @@ export default function TherapyLibraryFeed() {
           <p className="text-gray-600">No courses available yet.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           {filteredCourses.map((course, index) => {
             const progress = course.user_progress;
             const completedCount = progress?.completed_modules?.length || 0;
@@ -290,7 +290,7 @@ export default function TherapyLibraryFeed() {
                 {/* Progress Indicator */}
                 {totalModules > 0 && (
                   <div className="absolute top-3 right-3 z-20">
-                    <div className="bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 text-xs font-medium text-gray-800">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-full px-1.5 py-0.5 md:px-2 md:py-1 text-[10px] md:text-xs font-medium text-gray-800">
                       {completedCount}/{totalModules}
                     </div>
                   </div>
@@ -299,15 +299,15 @@ export default function TherapyLibraryFeed() {
 
 
                 {/* Overlay Content */}
-                <div className="relative z-10 flex flex-col justify-end h-full p-3 text-white">
+                <div className="relative z-10 flex flex-col justify-end h-full p-2 md:p-3 text-white">
                   <div className="space-y-1 transition-transform duration-300 group-hover:-translate-y-1">
-                    <h3 className="text-base font-bold drop-shadow-lg">{course.title}</h3>
+                    <h3 className="text-sm md:text-base font-bold drop-shadow-lg">{course.title}</h3>
                     
                     {/* Session Count */}
-                    <div className="text-xs opacity-70 mt-1">
+                    <div className="text-[10px] md:text-xs opacity-70 mt-0.5 md:mt-1">
                       {totalModules} {totalModules === 1 ? 'session' : 'sessions'}
                       {progress?.is_completed && (
-                        <span className="ml-2 text-white font-medium">
+                        <span className="ml-1 md:ml-2 text-white font-medium">
                           - ✓ Completed
                         </span>
                       )}

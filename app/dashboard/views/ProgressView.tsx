@@ -236,14 +236,14 @@ export default function ProgressView() {
   }, [currentMonth]);
 
   return (
-    <div className="max-w-4xl mt-2 mx-auto p-4 pl-20 space-y-2 bg-white min-h-[calc(100vh+200px)]">
+    <div className="max-w-4xl mt-2 mx-auto p-4 md:pl-20 space-y-2 bg-white min-h-[calc(100vh+200px)]">
       {/* Header */}
       <div className="flex justify-between items-center mb-2">
-        <h2 className="text-lg font-semibold text-gray-800">Your Wellness Journey</h2>
+        <h2 className="text-base md:text-lg font-semibold text-gray-800">Your Wellness Journey</h2>
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setCurrentMonth(new Date())}
-            className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition"
+            className="px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition"
           >
             Today
           </button>
@@ -254,7 +254,7 @@ export default function ProgressView() {
             >
               <ChevronLeft className="w-4 h-4 text-gray-600" />
             </button>
-            <span className="px-3 py-1 text-sm font-medium text-gray-700 min-w-[120px] text-center">
+            <span className="px-2 md:px-3 py-1 text-xs md:text-sm font-medium text-gray-700 min-w-[100px] md:min-w-[120px] text-center">
               {format(currentMonth, "MMMM yyyy")}
             </span>
             <button 
@@ -272,7 +272,7 @@ export default function ProgressView() {
         {/* Day Headers */}
         <div className="grid grid-cols-7 border-b border-blue-100 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-t-xl">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <div key={day} className="py-1.5 md:py-2 text-center text-[10px] md:text-xs font-semibold text-gray-600 uppercase tracking-wider">
               {day}
             </div>
           ))}
@@ -347,7 +347,7 @@ export default function ProgressView() {
       {/* Mood Selector */}
       <div className="mt-4">
         <div className="mb-3 ml-2">
-          <h3 className="text-lg font-semibold text-gray-800">Today's Mood</h3>
+          <h3 className="text-base md:text-lg font-semibold text-gray-800">Today's Mood</h3>
         </div>
         <div className="flex items-center space-x-3">
           {moodOptions.map((option) => (
@@ -362,8 +362,8 @@ export default function ProgressView() {
               `}
             >
               <div className="flex items-center space-x-2">
-                <span className="text-xl">{option.label}</span>
-                <span className="text-sm capitalize font-medium">{option.value}</span>
+                <span className="text-lg md:text-xl">{option.label}</span>
+                <span className="text-xs md:text-sm capitalize font-medium">{option.value}</span>
               </div>
               <div className={`w-12 h-0.5 rounded-full transition-opacity duration-300 ${option.dotColor.replace('bg-gradient-to-r', 'bg-gradient-to-r')} ${moods[format(selectedDate, "yyyy-MM-dd")] === option.value ? 'opacity-100' : 'opacity-0'}`} />
             </button>
@@ -375,7 +375,7 @@ export default function ProgressView() {
       <div className="mt-4">
         <div className="flex items-center justify-between mb-2">
           {journalEntries[format(selectedDate, "yyyy-MM-dd")] && (
-            <span className="text-xs text-green-600 font-medium">Saved ✓</span>
+            <span className="text-[10px] md:text-xs text-green-600 font-medium">Saved ✓</span>
           )}
         </div>
         

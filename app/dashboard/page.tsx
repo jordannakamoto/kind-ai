@@ -15,6 +15,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import DiscoverView from "./views/DiscoverView";
 import HomeView from "./views/HomeView";
 import MiniSessionPlayer from "./components/MiniSessionPlayer";
+import MobileBottomNav from "./components/MobileBottomNav";
 import ProfileView from "./views/ProfileView";
 import ProgressView from "./views/ProgressView";
 import type { ReactElement } from "react";
@@ -33,6 +34,8 @@ function DashboardInner() {
   const [visibleView, setVisibleView] = useState(activeView);
   const [viewVisible, setViewVisible] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [isFromOnboarding, setIsFromOnboarding] = useState(false);
 const [shouldAnimate, setShouldAnimate] = useState(false);
 
@@ -91,25 +94,47 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
     validateSession();
   }, [router]);
 
+  // Handle screen size changes and touch detection
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const isSmall = window.innerWidth < 1024; // lg breakpoint
+      setIsSmallScreen(isSmall);
+    };
+
+    const checkTouchDevice = () => {
+      const hasTouchScreen = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsTouchDevice(hasTouchScreen && isMobileUserAgent);
+    };
+
+    checkScreenSize();
+    checkTouchDevice();
+    window.addEventListener('resize', checkScreenSize);
+
+    return () => {
+      window.removeEventListener('resize', checkScreenSize);
+    };
+  }, []);
+
   // Handle onboarding flow
   useEffect(() => {
     const referrer = document.referrer;
-    const fromOnboarding = referrer.includes('/onboarding') || 
+    const fromOnboarding = referrer.includes('/onboarding') ||
                           window.location.search.includes('from=onboarding');
-    
+
     if (fromOnboarding) {
       setIsFromOnboarding(true);
-      
+
       // Start animation sequence after delay
       const timer = setTimeout(() => {
         setShouldAnimate(true);
-        
+
         // Complete animation
         setTimeout(() => {
           setIsFromOnboarding(false);
         }, 300); // Match transition duration
       }, 1500);
-      
+
       return () => clearTimeout(timer);
     }
   }, []);
@@ -147,12 +172,15 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
         }
       `}</style>
       <main className="h-full bg-gray-50 flex">
-      {/* Sidebar */}
-      <aside className={`fixed z-30 h-screen flex flex-col bg-neutral-50 border-r border-gray-100 w-60 ${
-        isFromOnboarding && !shouldAnimate 
+      {/* Sidebar - Hidden on touch devices */}
+      {!isTouchDevice && (
+      <aside className={`fixed h-screen flex flex-col bg-neutral-50 border-r border-gray-100 flex z-30 transition-[width] duration-200 ease-out ${
+        isSmallScreen ? "w-16 overflow-visible" : "w-60"
+      } ${
+        isFromOnboarding && !shouldAnimate
           ? "sidebar-hidden-for-onboarding"
           : shouldAnimate || !isFromOnboarding
-            ? "transition-all duration-300 ease-in-out"
+            ? "transition-transform duration-200 ease-out"
             : ""
       } ${
         isFromOnboarding && !shouldAnimate
@@ -160,8 +188,8 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
           : sidebarOpen ? "translate-x-0" : "-translate-x-full"
       }`}>
           {/* Header */}
-          <div className="group flex items-center justify-between p-4 pt-5">
-            <button 
+          <div className="group flex items-center justify-between px-2 py-4">
+            <button
               onClick={() => window.location.reload()}
               className="text-xl font-bold text-gray-800 hover:text-gray-600 transition-colors cursor-pointer"
             >
@@ -180,23 +208,30 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
           
           {/* Sidebar content */}
             {/* Navigation */}
-            <nav className="flex-1 overflow-y-auto p-2">
+            <nav className={`flex-1 p-2 ${isSmallScreen ? "overflow-visible" : "overflow-y-auto"}`}>
               <div className="space-y-1">
                 {["home", "discover", "bio", "sessions", "progress"].map(
                   (view) => (
                     <button
                       key={view}
                       onClick={() => handleSidebarNav(view as any)}
-                      className={`w-full flex items-center gap-3 text-left py-2 px-2 rounded-lg transition-all duration-200 ${
+                      className={`w-full flex items-center text-left rounded-lg transition-all duration-200 group relative py-2 px-2 ${
+                        isSmallScreen ? "" : "gap-3"
+                      } ${
                         activeView === view
                           ? "bg-indigo-50 text-indigo-700 font-medium"
                           : "text-gray-700 hover:bg-gray-50"
                       }`}
                     >
                       <span className="flex-shrink-0">{viewIcons[view]}</span>
-                      <span className="ml-2">
+                      <span className={`ml-2 ${isSmallScreen ? "opacity-0 w-0 overflow-hidden" : "opacity-100"} transition-[opacity,width] duration-200`}>
                         {view.charAt(0).toUpperCase() + view.slice(1)}
                       </span>
+                      {isSmallScreen && (
+                        <span className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-3 py-2 bg-white text-gray-900 text-sm font-medium rounded-lg invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap z-[60] shadow-xl border border-gray-200">
+                          {view.charAt(0).toUpperCase() + view.slice(1)}
+                        </span>
+                      )}
                     </button>
                   )
                 )}
@@ -205,18 +240,25 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
             {/* Footer */}
             <div className="mt-auto border-t border-gray-100 p-2 transition-all duration-200">
               {/* User Profile */}
-              <div className="flex items-center gap-3 mb-4">
+              <div className={`flex items-center mb-4 group relative ${isSmallScreen ? "justify-center" : "gap-3"}`}>
                 <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-medium flex-shrink-0">
                   {user?.email?.charAt(0).toUpperCase() || "U"}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">
+                {!isSmallScreen && (
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">
+                      {user?.email || "User"}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      3/3 sessions
+                    </p>
+                  </div>
+                )}
+                {isSmallScreen && (
+                  <div className="absolute left-full ml-2 px-3 py-2 bg-white text-gray-900 text-sm font-medium rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-[60] shadow-xl border border-gray-200">
                     {user?.email || "User"}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    3/3 sessions
-                  </p>
-                </div>
+                  </div>
+                )}
               </div>
               {/* Sign Out */}
               <div className="space-y-2">
@@ -225,7 +267,10 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
                     await supabase.auth.signOut();
                     router.push("/");
                   }}
-                  className="w-full flex items-center gap-3 text-left py-2 px-3 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+                  className={`w-full flex items-center rounded-lg text-gray-600 hover:bg-gray-50 transition-colors group relative py-2 ${
+                    isSmallScreen ? "justify-center px-1" : "gap-3 px-3"
+                  }`}
+                  title={isSmallScreen ? "Sign Out" : undefined}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -243,16 +288,23 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
                     <polyline points="16 17 21 12 16 7"></polyline>
                     <line x1="21" y1="12" x2="9" y2="12"></line>
                   </svg>
-                  <span className="text-sm">Sign Out</span>
+                  {!isSmallScreen && <span className="text-sm">Sign Out</span>}
+                  {isSmallScreen && (
+                    <div className="absolute left-full ml-2 px-3 py-2 bg-white text-gray-900 text-sm font-medium rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-[60] shadow-xl border border-gray-200">
+                      Sign Out
+                    </div>
+                  )}
                 </button>
               </div>
             </div>
         </aside>
-      
+      )}
+
       {/* Floating toggle button when sidebar is closed */}
+      {!isTouchDevice && (
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className={`fixed top-5 left-4 z-30 p-2 rounded-lg bg-white border border-gray-200 text-gray-600 hover:text-gray-800 hover:bg-gray-50 transition-all ${
+        className={`fixed top-5 left-4 z-40 p-2 rounded-lg bg-white border border-gray-200 text-gray-600 hover:text-gray-800 hover:bg-gray-50 transition-all ${
           sidebarOpen ? "opacity-0 pointer-events-none delay-0" : "opacity-100 delay-300"
         }`}
         style={{ transitionDuration: "200ms" }}
@@ -260,13 +312,16 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
       >
         <PanelLeft className="w-4 h-4 rotate-180" />
       </button>
-      
+      )}
+
       {/* Main Content */}
       <section
         ref={scrollRef}
-        className="flex-1 relative h-screen transition-all duration-300 ease-in-out"
-        style={{ 
-          paddingBottom: isSessionActive && activeView !== 'home' ? '60px' : '0'
+        className={`flex-1 relative h-screen transition-[margin] duration-200 ease-out pb-16 md:pb-0 ${
+          !isTouchDevice && sidebarOpen ? (isSmallScreen ? 'ml-16' : 'ml-60') : 'ml-0'
+        }`}
+        style={{
+          paddingBottom: isSessionActive && activeView !== 'home' ? '120px' : undefined
         }}
       >
         {/* View Transitions */}
@@ -307,6 +362,12 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
       </section>
       {/* Mini Player - Only show when session is active and not on home view */}
       {isSessionActive && activeView !== 'home' && <MiniSessionPlayer />}
+      
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav 
+        activeView={activeView} 
+        onViewChange={(view) => handleSidebarNav(view as any)}
+      />
     </main>
     </>
   );

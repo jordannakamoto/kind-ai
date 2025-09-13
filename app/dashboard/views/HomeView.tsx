@@ -860,20 +860,20 @@ export default function UserCheckInConversation() {
       {/* Personalize Button - Fixed to top right of entire window */}
       <button
         onClick={() => setShowCustomizeModal(true)}
-        className="fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm border border-gray-200/60 rounded-lg text-gray-600 hover:text-gray-800 hover:bg-white hover:border-gray-300 transition-all duration-200 shadow-lg hover:shadow-xl"
+        className="fixed top-4 right-4 md:top-6 md:right-6 z-50 flex items-center gap-1 md:gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-white/90 backdrop-blur-sm border border-gray-200/60 rounded-lg text-gray-600 hover:text-gray-800 hover:bg-white hover:border-gray-300 transition-all duration-200 shadow-lg hover:shadow-xl"
       >
-        <Sparkles className="w-4 h-4" />
-        <span className="text-sm font-medium">Personalize</span>
+        <Sparkles className="w-3.5 h-3.5 md:w-4 md:h-4" />
+        <span className="text-xs md:text-sm font-medium">Personalize</span>
       </button>
 
-    <div className="w-full max-w-4xl h-screen mx-auto flex flex-col px-4 transition-all duration-300 relative">
+    <div className="w-full max-w-4xl h-screen mx-auto flex flex-col px-4 md:px-6 transition-all duration-300 relative">
 
       {/* Main AI Therapist Section - Moved Up */}
-      <div className="flex flex-col items-center pt-28 pb-8">
-        <div className="mb-6 text-center">
-          <p className="text-lg font-semibold">{voiceSettings.name}</p>
-          <p className="text-sm">{formatTime(duration)}</p>
-          <p className="text-sm text-gray-400 transition-opacity duration-500 h-5 flex items-center justify-center">
+      <div className="flex flex-col items-center pt-20 md:pt-28 pb-6 md:pb-8">
+        <div className="mb-4 md:mb-6 text-center">
+          <p className="text-base md:text-lg font-semibold">{voiceSettings.name}</p>
+          <p className="text-xs md:text-sm">{formatTime(duration)}</p>
+          <p className="text-xs md:text-sm text-gray-400 transition-opacity duration-500 h-5 flex items-center justify-center">
             <span className={loadingVars && !started ? "opacity-0" : "opacity-100"}>
               {!started && sessionStatus === "welcome_ready" ? "Welcome session ready." :
                !started && sessionStatus === "pending_regular" && module?.name !== "Welcome" ? "Preparing your check-in..." :
@@ -891,8 +891,8 @@ export default function UserCheckInConversation() {
         </div>
 
         <div
-          className="relative flex items-center justify-center mb-6 transition-opacity duration-300"
-          style={{ width: "200px", height: "200px" }}
+          className="relative flex items-center justify-center mb-4 md:mb-6 transition-opacity duration-300"
+          style={{ width: "160px", height: "160px" }}
         >
           <div
             className="absolute rounded-full transition-transform duration-100 ease-in-out"
@@ -912,25 +912,25 @@ export default function UserCheckInConversation() {
         </div>
 
         {started && !startingSession && agentMessage && (
-          <p className="text-sm max-w-[320px] text-center text-gray-700 leading-snug mb-4 p-3 bg-gray-100 rounded-lg shadow">
+          <p className="text-xs md:text-sm max-w-[280px] md:max-w-[320px] text-center text-gray-700 leading-snug mb-3 md:mb-4 p-2 md:p-3 bg-gray-100 rounded-lg shadow">
             {agentMessage}
           </p>
         )}
 
-        <div className="flex items-center justify-center gap-3 text-gray-600">
+        <div className="flex items-center justify-center gap-2 md:gap-3 text-gray-600">
           {started && !startingSession && (
             <button
               onClick={toggleMute}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-full text-gray-700 bg-white hover:bg-gray-100 border border-gray-100 transition-colors shadow hover:shadow-md text-sm font-medium"
+              className="flex items-center gap-1.5 md:gap-2 px-3 py-2 md:px-4 md:py-2.5 rounded-full text-gray-700 bg-white hover:bg-gray-100 border border-gray-100 transition-colors shadow hover:shadow-md text-xs md:text-sm font-medium"
               aria-label={isMuted ? "Unmute" : "Mute"}
             >
               {isMuted ? (
     <>
-      <MicOff className="w-5 h-5" />
+      <MicOff className="w-4 h-4 md:w-5 md:h-5" />
     </>
   ) : (
     <>
-      <Mic className="w-5 h-5" />
+      <Mic className="w-4 h-4 md:w-5 md:h-5" />
     </>
   )}
             </button>
@@ -938,18 +938,18 @@ export default function UserCheckInConversation() {
           {started && !startingSession ? (
             <button
               onClick={stopConversation}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-gray-700 bg-white hover:bg-gray-100 border border-gray-100 transition-colors shadow hover:shadow-md"
+              className="flex items-center gap-1.5 md:gap-2 px-4 py-2 md:px-5 md:py-2.5 rounded-full text-gray-700 bg-white hover:bg-gray-100 border border-gray-100 transition-colors shadow hover:shadow-md"
             >
               <svg className="w-4 h-4 fill-current text-gray-600" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                 <path fillRule="evenodd" d="M5 5h10v10H5V5z" clipRule="evenodd"></path>
               </svg>
-              <span className="text-sm font-medium">End Session</span>
+              <span className="text-xs md:text-sm font-medium">End Session</span>
             </button>
           ) : (
             <button
               disabled={(!canManuallyStart && !autoStartWelcome) || loadingCourseFromUrl || startingSession || started}
               onClick={startConversation}
-              className="px-6 py-3 border border-gray-300 rounded-full hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow hover:shadow-md"
+              className="px-5 py-2.5 md:px-6 md:py-3 border border-gray-300 rounded-full hover:bg-gray-100 text-xs md:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow hover:shadow-md"
             >
               {startingSession || loadingCourseFromUrl ? <LoadingDots className="text-sm" /> :
                loadingVars ? <LoadingDots className="text-sm" /> :
@@ -988,23 +988,23 @@ export default function UserCheckInConversation() {
 
       {/* Microsoft Copilot-Style Activity Cards */}
       {!started && cardsDataLoaded && (
-        <div className="flex-1 flex flex-col items-center justify-start max-w-4xl mx-auto mt-10">
-          <div className={`w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-400 ${!cardsVisible ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
+        <div className="flex-1 flex flex-col items-center justify-start max-w-4xl mx-auto mt-6 md:mt-10">
+          <div className={`w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6 transition-all duration-400 ${!cardsVisible ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
             {/* Continue Course Cards - Show all in-progress courses */}
             {inProgressCourses.map((courseProgress, index) => (
               <div 
                 key={courseProgress.id}
                 onClick={() => handleContinueCourse(courseProgress)}
-                className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative opacity-0 animate-fade-in"
+                className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-4 md:p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[64px] md:min-h-[72px] relative opacity-0 animate-fade-in"
                 style={{ animationDelay: `${200 + index * 100}ms` }}
               >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-2 md:gap-3">
                       <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
                         <PlayCircle className="w-4 h-4 text-gray-500" />
                       </div>
                       <div className="flex-1 pr-6">
-                        <p className="text-sm font-medium text-gray-700">Continue {courseProgress.courses?.title || 'Course'}</p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs md:text-sm font-medium text-gray-700">Continue {courseProgress.courses?.title || 'Course'}</p>
+                        <p className="text-[10px] md:text-xs text-gray-400">
                           {courseProgress.completed_modules?.length || 0} of {courseProgress.courses?.therapy_modules?.length || 0} modules completed
                         </p>
                       </div>
@@ -1023,15 +1023,15 @@ export default function UserCheckInConversation() {
                 }`}
                 style={{ animationDelay: `${200 + inProgressCourses.length * 100}ms` }}
               >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-2 md:gap-3">
                       <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
                         <BookOpen className="w-4 h-4 text-gray-500" />
                       </div>
                       <div className="flex-1 pr-6">
-                        <p className="text-sm font-medium text-gray-700">
+                        <p className="text-xs md:text-sm font-medium text-gray-700">
                           {enrolling === availableCourses[0].id ? 'Starting...' : `Try ${availableCourses[0].title}`}
                         </p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-[10px] md:text-xs text-gray-400">
                           Recommended for you
                         </p>
                       </div>
@@ -1042,16 +1042,16 @@ export default function UserCheckInConversation() {
 
             {/* Mindful Moments Card - Keep as a standalone quick session option */}
             <div 
-              className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[72px] relative opacity-0 animate-fade-in"
+              className="group cursor-pointer bg-gray-50/50 border border-gray-100 rounded-lg p-4 md:p-5 hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 min-h-[64px] md:min-h-[72px] relative opacity-0 animate-fade-in"
               style={{ animationDelay: `${200 + (inProgressCourses.length + (availableCourses.length > 0 ? 1 : 0)) * 100}ms` }}
             >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-2 md:gap-3">
                     <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
                       <Heart className="w-4 h-4 text-gray-500" />
                     </div>
                     <div className="flex-1 pr-6">
-                      <p className="text-sm font-medium text-gray-700">Mindful moments</p>
-                      <p className="text-xs text-gray-400">Quick wellness check-ins</p>
+                      <p className="text-xs md:text-sm font-medium text-gray-700">Mindful moments</p>
+                      <p className="text-[10px] md:text-xs text-gray-400">Quick wellness check-ins</p>
                     </div>
                   </div>
               <div className="absolute right-5 top-1/2 transform -translate-y-1/2 text-xs text-gray-300 group-hover:text-gray-400 transition-colors duration-300">→</div>

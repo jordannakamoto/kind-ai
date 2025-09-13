@@ -349,7 +349,7 @@ export default function UserSessionHistory() {
   };
 
   return (
-    <div className="bg-white min-h-screen py-8 sm:py-12 w-full">
+    <div className="bg-white min-h-screen py-4 md:py-8 sm:py-12 w-full">
       
       <div className="hidden max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 mb-10"> {/* Search Bar */}
         <div className="relative">
@@ -363,40 +363,40 @@ export default function UserSessionHistory() {
       </div>
 
       {showInitialLoading ? ( /* Loading Spinner */
-        <div className="text-center py-10">
+        <div className="text-center py-6 md:py-10">
           <LoadingDots text="Loading your sessions" className="text-sm font-medium text-slate-600" />
         </div>
       ) : showEmptyMessage ? ( /* Empty State */
-        <div className="text-center py-10 px-4 max-w-md mx-auto">
+        <div className="text-center py-6 md:py-10 px-4 max-w-md mx-auto">
           <svg className="mx-auto h-12 w-12 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 10.5v3.75m-9.303 3.376C1.82 19.513 3.252 21 5.006 21h13.988c1.754 0 3.186-1.487 2.31-3.374L13.949 4.878c-.875-1.887-3.021-1.887-3.896 0L2.697 17.626ZM12 17.25h.007v.008H12v-.008Z" /></svg>
-          <h3 className="mt-4 text-lg font-semibold text-slate-700">{searchQuery ? 'No Sessions Found' : 'Your Session History is Empty'}</h3>
-          <p className="mt-1.5 text-sm text-slate-500">{searchQuery ? 'Try different keywords or clear your search.' : 'Once you complete a session, it will appear here.'}</p>
+          <h3 className="mt-3 md:mt-4 text-base md:text-lg font-semibold text-slate-700">{searchQuery ? 'No Sessions Found' : 'Your Session History is Empty'}</h3>
+          <p className="mt-1 md:mt-1.5 text-xs md:text-sm text-slate-500">{searchQuery ? 'Try different keywords or clear your search.' : 'Once you complete a session, it will appear here.'}</p>
         </div>
       ) : (
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl mx-auto px-4 md:px-6 lg:px-8">
           {showSpecialMostRecentView && mostRecentSessionActual && ( /* Most Recent Session View */
             <section className="mb-6" aria-labelledby="most-recent-session-title">
               <div className="flex items-center justify-between mb-2 px-1">
-                <h2 id="most-recent-session-title" className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Latest Session</h2>
+                <h2 id="most-recent-session-title" className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-wider">Latest Session</h2>
                 {!showInitialLoading && !showEmptyMessage && (
                   <div className="flex items-center gap-2">
                     {isSelectMode && selectedSessions.size > 0 && (
                       <button
                         onClick={() => setConfirmDeleteSessionId('bulk')}
                         disabled={deletingSessionId === 'bulk'}
-                        className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {deletingSessionId === 'bulk' ? 'Deleting...' : `Delete ${selectedSessions.size}`}
                       </button>
                     )}
                     {isSelectMode && (
-                      <div className="text-xs text-slate-500">
+                      <div className="text-[10px] md:text-xs text-slate-500">
                         {selectedSessions.size} selected
                       </div>
                     )}
                     <button
                       onClick={toggleSelectMode}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                      className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-medium rounded-md transition-colors ${
                         isSelectMode 
                           ? 'text-slate-600 hover:text-slate-700 hover:bg-slate-100' 
                           : 'text-slate-500 hover:text-slate-600 hover:bg-slate-100'
@@ -428,7 +428,7 @@ export default function UserSessionHistory() {
                   }}
                   disabled={isMostRecentActualPlaceholder}
                   aria-label={`${isSelectMode ? 'Select' : 'View'} latest session: ${mostRecentSessionActual.title || 'Untitled Session'}`}
-                  className={`w-full text-left bg-white p-5 sm:p-6 rounded-xl shadow-lg border border-slate-200 transition-all duration-200 ease-in-out ${
+                  className={`w-full text-left bg-white p-4 md:p-5 sm:p-6 rounded-xl shadow-lg border border-slate-200 transition-all duration-200 ease-in-out ${
                     isMostRecentActualPlaceholder 
                       ? 'opacity-70 animate-pulse cursor-default' 
                       : isSelectMode
@@ -440,10 +440,10 @@ export default function UserSessionHistory() {
                 {isMostRecentActualPlaceholder ? (<> {/* Placeholder for most recent */}
                   <div className="h-5 bg-slate-300 rounded w-3/5 mb-3"></div> <div className="space-y-2"><div className="h-3 bg-slate-300/80 rounded w-full"></div><div className="h-3 bg-slate-300/80 rounded w-full"></div><div className="h-3 bg-slate-300/80 rounded w-3/4"></div></div> <div className="h-4 bg-slate-300 rounded w-1/3 mt-4"></div>
                 </>) : (<>
-                  <h3 className="text-lg sm:text-xl font-bold text-slate-800 group-hover:text-indigo-700 mb-1.5 transition-colors">{mostRecentSessionActual.title || 'Untitled Session'}</h3>
-                  <p className="text-xs text-slate-500 mb-3">{formatDetailedTimestamp(mostRecentSessionActual.created_at)}{mostRecentSessionActual.duration !== null && ` • ${formatDuration(mostRecentSessionActual.duration)}`}</p>
-                  {mostRecentSessionActual.summary && (<p className="text-sm text-slate-600 leading-relaxed line-clamp-3 group-hover:text-slate-700">{truncateSummary(mostRecentSessionActual.summary, 3)}</p>)}
-                  <div className="mt-4 flex justify-end"><span className="text-xs font-medium text-indigo-600 group-hover:text-indigo-700">View Details →</span></div>
+                  <h3 className="text-base md:text-lg sm:text-xl font-bold text-slate-800 group-hover:text-indigo-700 mb-1 md:mb-1.5 transition-colors">{mostRecentSessionActual.title || 'Untitled Session'}</h3>
+                  <p className="text-[10px] md:text-xs text-slate-500 mb-2 md:mb-3">{formatDetailedTimestamp(mostRecentSessionActual.created_at)}{mostRecentSessionActual.duration !== null && ` • ${formatDuration(mostRecentSessionActual.duration)}`}</p>
+                  {mostRecentSessionActual.summary && (<p className="text-xs md:text-sm text-slate-600 leading-relaxed line-clamp-3 group-hover:text-slate-700">{truncateSummary(mostRecentSessionActual.summary, 3)}</p>)}
+                  <div className="mt-3 md:mt-4 flex justify-end"><span className="text-[10px] md:text-xs font-medium text-indigo-600 group-hover:text-indigo-700">View Details →</span></div>
                 </>)}
                 </button>
               </div>
@@ -456,7 +456,7 @@ export default function UserSessionHistory() {
               return (
                 periodGroup.sessions.length > 0 && (
                   <section key={periodGroup.title} className="mb-6 last:mb-0" aria-labelledby={`section-title-recent`}>
-                    <h2 id="section-title-recent" className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">{periodGroup.title}</h2>
+                    <h2 id="section-title-recent" className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 md:mb-2 px-1">{periodGroup.title}</h2>
                     <ul className="space-y-2">
                       {periodGroup.sessions.map((session) => {
                         const isListItemPlaceholder = session.title === 'Recent Session' && session.summary === 'Summarizing...';
@@ -483,7 +483,7 @@ export default function UserSessionHistory() {
                                 }}
                                 disabled={isListItemPlaceholder}
                                 aria-label={`${isSelectMode ? 'Select' : 'View'} session: ${session.title || 'Untitled Session'}`}
-                                className={`w-full flex items-center bg-white p-3.5 sm:p-4 rounded-xl shadow transition-all duration-200 ease-in-out ${
+                                className={`w-full flex items-center bg-white p-3 md:p-3.5 sm:p-4 rounded-xl shadow transition-all duration-200 ease-in-out ${
                                   isListItemPlaceholder 
                                     ? 'opacity-60 animate-pulse cursor-default' 
                                     : isSelectMode
@@ -495,12 +495,12 @@ export default function UserSessionHistory() {
                               {isListItemPlaceholder ? (<> {/* Placeholder for recent list item */}
                                 <div className="mr-4 text-center w-16 h-6 bg-slate-300/70 rounded-md flex-shrink-0"></div> <div className="flex-grow min-w-0"><div className="h-4 bg-slate-300 rounded w-3/4 mb-1.5"></div><div className="h-3 bg-slate-300 rounded w-1/2"></div></div> <div className="h-4 bg-slate-300 rounded w-10 ml-3"></div>
                               </>) : (<>
-                                <div className="mr-3 sm:mr-4 text-center w-16 sm:w-20 flex-shrink-0 py-1 px-1">
-                                  <span className="text-[11px] sm:text-xs font-medium text-slate-500 group-hover:text-slate-600 bg-slate-200/70 group-hover:bg-slate-200 rounded px-1.5 py-0.5">{formatRelativeDateForRecent(session.created_at)}</span>
+                                <div className="mr-2 md:mr-3 sm:mr-4 text-center w-12 md:w-16 sm:w-20 flex-shrink-0 py-0.5 md:py-1 px-0.5 md:px-1">
+                                  <span className="text-[9px] md:text-[11px] sm:text-xs font-medium text-slate-500 group-hover:text-slate-600 bg-slate-200/70 group-hover:bg-slate-200 rounded px-1 md:px-1.5 py-0.5">{formatRelativeDateForRecent(session.created_at)}</span>
                                 </div>
                                 <div className="flex-grow min-w-0">
-                                  <h3 className="text-sm sm:text-base font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">{session.title || 'Untitled Session'}</h3>
-                                  <p className="text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">{formatDuration(session.duration)}</p>
+                                  <h3 className="text-xs md:text-sm sm:text-base font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">{session.title || 'Untitled Session'}</h3>
+                                  <p className="text-[10px] md:text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">{formatDuration(session.duration)}</p>
                                 </div>
                                 <svg className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 ml-3 flex-shrink-0 transition-colors" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
                               </>)}
@@ -564,8 +564,8 @@ export default function UserSessionHistory() {
                                   <div className="text-s font-bold text-slate-700 group-hover:text-slate-800">{dayOfMonth}</div>
                                 </div>
                                 <div className="flex-grow min-w-0">
-                                  <h3 className="text-sm sm:text-base font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">{session.title || 'Untitled Session'}</h3>
-                                  <p className="text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">{formatDuration(session.duration)}</p>
+                                  <h3 className="text-xs md:text-sm sm:text-base font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">{session.title || 'Untitled Session'}</h3>
+                                  <p className="text-[10px] md:text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">{formatDuration(session.duration)}</p>
                                 </div>
                                 <svg className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 ml-3 flex-shrink-0 transition-colors" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
                               </button>
