@@ -5,6 +5,8 @@ import {
   Brain,
   CalendarX,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Headphones,
   Lock,
@@ -126,6 +128,7 @@ export default function AlphaLandingPageClone() {
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [scrollY, setScrollY] = useState(0);
+  const [activeCarouselSlide, setActiveCarouselSlide] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -148,6 +151,47 @@ export default function AlphaLandingPageClone() {
   }, []);
 
   const toggleFAQ = (index: number) => setActiveFAQ(activeFAQ === index ? null : index);
+
+  // Carousel data
+  const carouselFeatures = [
+    {
+      title: "Voice-First Therapy",
+      description: "Have natural, spoken conversations with AI that responds with human-like voice and empathy.",
+      iconType: "headphones"
+    },
+    {
+      title: "Goals & Insights",
+      description: "Kind incorporates your goals and insights directly into your conversations, creating a seamless therapy experience.",
+      iconType: "barchart"
+    },
+    {
+      title: "Complete Privacy",
+      description: "Your conversations are encrypted and private. No data sharing, no judgment, just support.",
+      iconType: "shield"
+    }
+  ];
+
+  const getCarouselIcon = (iconType: string) => {
+    switch (iconType) {
+      case "headphones":
+        return <Headphones className="w-5 h-5 text-gray-700" />;
+      case "barchart":
+        return <BarChart3 className="w-5 h-5 text-gray-700" />;
+      case "shield":
+        return <Shield className="w-5 h-5 text-gray-700" />;
+      default:
+        return <Headphones className="w-5 h-5 text-gray-700" />;
+    }
+  };
+
+  // Auto-advance carousel
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveCarouselSlide((prev) => (prev + 1) % carouselFeatures.length);
+    }, 4000); // Change slide every 4 seconds
+
+    return () => clearInterval(interval);
+  }, [carouselFeatures.length]);
 
   const handleGetStarted = () => {
     setIsTransitioning(true);
@@ -360,11 +404,11 @@ export default function AlphaLandingPageClone() {
           <div
             className="absolute bottom-8 right-8 z-20 transition-opacity duration-300 hover:!opacity-100"
             style={{
-              opacity: Math.max(0, 1 - (scrollY / (window.innerHeight * 0.8)))
+              opacity: typeof window !== 'undefined' ? Math.max(0, 1 - (scrollY / (window.innerHeight * 0.8))) : 1
             }}
           >
             <button
-              onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
+              onClick={() => typeof window !== 'undefined' && window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
               className="group flex items-center gap-3 px-6 py-3 bg-gray-50/90 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-gray-50 border border-gray-200/50"
             >
               <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">Learn more</span>
@@ -427,53 +471,63 @@ export default function AlphaLandingPageClone() {
                   </div>
                 </div>
 
-                {/* Right side - Feature highlights */}
-                <div className="p-8 lg:p-12 flex flex-col justify-center">
+                {/* Right side - Feature Carousel */}
+                <div className="p-8 lg:p-12 flex flex-col justify-center relative">
                   <div className="space-y-8">
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Headphones className="w-5 h-5 text-gray-700" />
+                    {/* Current Feature Display */}
+                    <div className="min-h-[300px] flex flex-col justify-center py-8">
+                      <div className="flex items-start gap-4 mb-8">
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          {getCarouselIcon(carouselFeatures[activeCarouselSlide].iconType)}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900 mb-4 text-xl transition-all duration-500">
+                            {carouselFeatures[activeCarouselSlide].title}
+                          </h3>
+                          <p className="text-gray-600 leading-relaxed transition-all duration-500">
+                            {carouselFeatures[activeCarouselSlide].description}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900 mb-2">Voice-First Therapy</h3>
-                        <p className="text-sm text-gray-600">
-                          Have natural, spoken conversations with AI that responds with human-like voice and empathy.
-                        </p>
+
+                      {/* Carousel Controls */}
+                      <div className="flex items-center justify-center gap-6 mt-8">
+                        {/* Navigation Arrows */}
+                        <button
+                          onClick={() => setActiveCarouselSlide((prev) =>
+                            prev === 0 ? carouselFeatures.length - 1 : prev - 1
+                          )}
+                          className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors group"
+                        >
+                          <ChevronLeft className="w-4 h-4 text-gray-600 group-hover:text-gray-800" />
+                        </button>
+
+                        {/* Indicator Dots */}
+                        <div className="flex gap-2">
+                          {carouselFeatures.map((_, index) => (
+                            <button
+                              key={index}
+                              onClick={() => setActiveCarouselSlide(index)}
+                              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                                index === activeCarouselSlide
+                                  ? 'bg-gray-600 w-6'
+                                  : 'bg-gray-300 hover:bg-gray-400'
+                              }`}
+                            />
+                          ))}
+                        </div>
+
+                        <button
+                          onClick={() => setActiveCarouselSlide((prev) =>
+                            (prev + 1) % carouselFeatures.length
+                          )}
+                          className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors group"
+                        >
+                          <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-gray-800" />
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <BarChart3 className="w-5 h-5 text-gray-700" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900 mb-2">Goals & Insights</h3>
-                        <p className="text-sm text-gray-600">
-                          Kind incorporates your goals and insights directly into your conversations, creating a seamless therapy experience.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Shield className="w-5 h-5 text-gray-700" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900 mb-2">Complete Privacy</h3>
-                        <p className="text-sm text-gray-600">
-                          Your conversations are encrypted and private. No data sharing, no judgment - just confidential support.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="pt-6">
-                      <button
-                        onClick={handleGetStarted}
-                        className="px-6 py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
-                      >
-                        Try it yourself →
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -590,14 +644,14 @@ export default function AlphaLandingPageClone() {
               <div className="space-y-8">
                 <div>
                   <h2 className="text-3xl md:text-4xl font-light text-gray-900 mb-6 leading-tight">
-                    Mental wellness shouldn't be a luxury
+                    Support when you need it
                   </h2>
                   <div className="text-lg text-gray-600 leading-relaxed">
                     <p>
-                      Traditional therapy has barriers: cost, waitlists, scheduling. Kind removes them.
+                      Getting help shouldn't be complicated. No waitlists, no scheduling conflicts, no high costs.
                     </p>
                     <p className="font-medium text-gray-900 mt-4">
-                      Talk whenever you need to. No appointments, no judgment.
+                      Just open the app and start talking.
                     </p>
                   </div>
                 </div>
@@ -605,20 +659,20 @@ export default function AlphaLandingPageClone() {
                 <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6">
                   <div className="text-center space-y-4">
                     <div>
-                      <div className="text-2xl font-light text-gray-900 mb-2">Available right now</div>
-                      <div className="text-sm text-gray-600">No waiting. No scheduling. Just start talking.</div>
+                      <div className="text-2xl font-light text-gray-900 mb-2">Ready when you are</div>
+                      <div className="text-sm text-gray-600">Available 24/7. No appointments needed.</div>
                     </div>
                     <button
                       onClick={handleGetStarted}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+                      className="group relative px-8 py-4 bg-white border-2 border-gray-200 text-gray-700 font-medium rounded-2xl hover:border-gray-300 hover:shadow-lg transition-all duration-300 overflow-hidden"
                     >
-                      <svg className="w-5 h-5" viewBox="0 0 24 24">
-                        <path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#fbbc05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                        <path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                      </svg>
-                      Start with Google
+                      <span className="relative z-10 flex items-center gap-2">
+                        Open Kind
+                        <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                        </svg>
+                      </span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-50 to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     </button>
                   </div>
                 </div>
@@ -681,9 +735,11 @@ export default function AlphaLandingPageClone() {
                     <p className="text-white/90 text-sm leading-relaxed mb-4">
                       Connect with others on their mental health journey. Share experiences, get support, and stay updated on new features.
                     </p>
-                    <button className="bg-white text-indigo-600 px-4 py-2 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors">
-                      Join Discord →
-                    </button>
+                    <div className="flex justify-end">
+                      <button className="bg-white text-indigo-600 px-4 py-2 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors">
+                        Join Discord →
+                      </button>
+                    </div>
                   </div>
 
                   <div className="bg-gray-50 rounded-2xl p-5 text-left border border-gray-100">
@@ -709,64 +765,162 @@ export default function AlphaLandingPageClone() {
             </div>
           </div>
 
-          {/* Features Grid */}
-          <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Journaling Feature */}
-            <div className="bg-gray-50 rounded-2xl p-8 text-center">
-              <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.25-4.875v-.75a3.75 3.75 0 11-7.5 0v.75m7.5 0H18a2.25 2.25 0 012.25 2.25v10.125a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18.375V8.25A2.25 2.25 0 015.25 6h.75m13.5 0v5.25a2.25 2.25 0 01-2.25 2.25H9a2.25 2.25 0 01-2.25-2.25V8.25m13.5 0H9m4.5 11.25v-5.25" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">AI Journaling</h3>
-              <p className="text-gray-600 mb-4">
-                Your conversations automatically become journal entries with insights and reflections
-              </p>
-              <div className="bg-white rounded-lg p-4 text-left shadow-sm">
-                <div className="text-xs text-gray-500 mb-2">Today's reflection</div>
-                <p className="text-sm text-gray-700">"You mentioned feeling overwhelmed about work three times this week. Let's explore what specific triggers..."</p>
-              </div>
-            </div>
+        </div>
+      </section>
 
-            {/* Goals Feature */}
-            <div className="bg-gray-50 rounded-2xl p-8 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Personal Goals</h3>
-              <p className="text-gray-600 mb-4">
-                Set meaningful goals and let Kind gently keep you accountable through natural conversation
-              </p>
-              <div className="bg-white rounded-lg p-4 text-left shadow-sm">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-gray-700">Practice mindfulness daily</span>
+      {/* Full-Width Three Screenshots Section */}
+      <section className="w-full bg-gray-50">
+        <div className="grid lg:grid-cols-3 min-h-[600px]">
+          {/* AI Journaling Screenshot */}
+          <div className="relative bg-gradient-to-br from-indigo-50 to-indigo-100 flex items-center justify-center p-8">
+            <div className="w-full max-w-sm">
+              {/* Phone mockup for AI Journaling */}
+              <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border-8 border-gray-800">
+                {/* Phone header */}
+                <div className="bg-indigo-600 px-4 py-3 flex items-center justify-between">
+                  <span className="text-white font-medium text-sm">AI Journaling</span>
+                  <div className="flex gap-1">
+                    <div className="w-1 h-1 bg-white/60 rounded-full"></div>
+                    <div className="w-1 h-1 bg-white/60 rounded-full"></div>
+                    <div className="w-1 h-1 bg-white rounded-full"></div>
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500">3 days streak • Goal set 2 weeks ago</div>
+
+                {/* Content */}
+                <div className="p-4 space-y-3 h-80">
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <div className="text-xs text-gray-500 mb-1">Today's reflection</div>
+                    <p className="text-xs text-gray-700 leading-relaxed">"You mentioned feeling overwhelmed about work three times this week. Let's explore what specific triggers..."</p>
+                  </div>
+
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <div className="text-xs text-gray-500 mb-1">Pattern identified</div>
+                    <p className="text-xs text-gray-700 leading-relaxed">"I notice you often feel stressed on Monday mornings. This could be related to..."</p>
+                  </div>
+
+                  <div className="bg-indigo-50 p-3 rounded-lg">
+                    <div className="text-xs text-gray-500 mb-1">Weekly summary</div>
+                    <p className="text-xs text-gray-700 leading-relaxed">"Your emotional awareness has grown significantly this week..."</p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Insights Feature */}
-            <div className="bg-gray-50 rounded-2xl p-8 text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <BarChart3 className="w-8 h-8 text-purple-600" strokeWidth={1.5} />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Session Insights</h3>
-              <p className="text-gray-600 mb-4">
-                Get personalized insights about your patterns, progress, and breakthrough moments
-              </p>
-              <div className="bg-white rounded-lg p-4 text-left shadow-sm">
-                <div className="text-xs text-gray-500 mb-2">This week's insight</div>
-                <p className="text-sm text-gray-700">"Your stress levels tend to peak on Tuesdays. Consider scheduling self-care on Monday evenings."</p>
-              </div>
+            {/* Overlay text */}
+            <div className="absolute bottom-8 left-8 right-8 text-center">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">AI Journaling</h3>
+              <p className="text-gray-700 text-sm">Conversations become insights automatically</p>
             </div>
           </div>
 
+          {/* Personal Goals Screenshot */}
+          <div className="relative bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-8 border-x border-gray-200">
+            <div className="w-full max-w-sm">
+              {/* Phone mockup for Personal Goals */}
+              <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border-8 border-gray-800">
+                {/* Phone header */}
+                <div className="bg-green-600 px-4 py-3 flex items-center justify-between">
+                  <span className="text-white font-medium text-sm">Personal Goals</span>
+                  <div className="flex gap-1">
+                    <div className="w-1 h-1 bg-white/60 rounded-full"></div>
+                    <div className="w-1 h-1 bg-white/60 rounded-full"></div>
+                    <div className="w-1 h-1 bg-white rounded-full"></div>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-4 space-y-3 h-80">
+                  <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-xs font-medium text-gray-900">Practice mindfulness daily</span>
+                    </div>
+                    <div className="text-xs text-gray-500">5 days streak • 73% this month</div>
+                  </div>
+
+                  <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                      <span className="text-xs font-medium text-gray-900">Exercise 3x per week</span>
+                    </div>
+                    <div className="text-xs text-gray-500">2/3 this week • On track</div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                    <p className="text-xs text-gray-700 italic">"How did your mindfulness practice feel yesterday?"</p>
+                    <div className="text-xs text-gray-500 mt-1">Kind's check-in</div>
+                  </div>
+
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <div className="text-xs text-gray-500 mb-1">Goal suggestion</div>
+                    <p className="text-xs text-gray-700">"Consider adding a gratitude practice to your routine"</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Overlay text */}
+            <div className="absolute bottom-8 left-8 right-8 text-center">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Personal Goals</h3>
+              <p className="text-gray-700 text-sm">Gentle accountability through conversation</p>
+            </div>
+          </div>
+
+          {/* Session Insights Screenshot */}
+          <div className="relative bg-gradient-to-br from-purple-50 to-purple-100 flex items-center justify-center p-8">
+            <div className="w-full max-w-sm">
+              {/* Phone mockup for Session Insights */}
+              <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border-8 border-gray-800">
+                {/* Phone header */}
+                <div className="bg-purple-600 px-4 py-3 flex items-center justify-between">
+                  <span className="text-white font-medium text-sm">Session Insights</span>
+                  <div className="flex gap-1">
+                    <div className="w-1 h-1 bg-white/60 rounded-full"></div>
+                    <div className="w-1 h-1 bg-white/60 rounded-full"></div>
+                    <div className="w-1 h-1 bg-white rounded-full"></div>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-4 space-y-3 h-80">
+                  <div className="bg-purple-50 p-3 rounded-lg">
+                    <div className="text-xs text-gray-500 mb-1">This week's insight</div>
+                    <p className="text-xs text-gray-700 leading-relaxed">"Your stress levels tend to peak on Tuesdays. Consider scheduling self-care on Monday evenings."</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-gray-50 p-2 rounded text-center">
+                      <div className="text-lg font-semibold text-gray-900">12</div>
+                      <div className="text-xs text-gray-500">sessions</div>
+                    </div>
+                    <div className="bg-gray-50 p-2 rounded text-center">
+                      <div className="text-lg font-semibold text-gray-900">4.3</div>
+                      <div className="text-xs text-gray-500">avg mood</div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <div className="text-xs text-gray-500 mb-1">Progress trend</div>
+                    <p className="text-xs text-gray-700">"Your emotional regulation has improved 23% this month"</p>
+                  </div>
+
+                  <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
+                    <div className="text-xs text-gray-500 mb-1">Breakthrough moment</div>
+                    <p className="text-xs text-gray-700">"Yesterday's session: Major insight about work boundaries"</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Overlay text */}
+            <div className="absolute bottom-8 left-8 right-8 text-center">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Session Insights</h3>
+              <p className="text-gray-700 text-sm">Track patterns and breakthrough moments</p>
+            </div>
+          </div>
         </div>
       </section>
-           
+
 
 
 
