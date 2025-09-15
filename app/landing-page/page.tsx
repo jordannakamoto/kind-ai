@@ -9,24 +9,24 @@ import {
   ChevronRight,
   Clock,
   Headphones,
+  Heart,
   Lock,
+  MessageCircle,
   PiggyBank,
+  Shield,
   Sparkles,
   ThumbsUp,
-  Zap,
-  MessageCircle,
-  Shield,
-  Heart
+  Zap
 } from 'lucide-react';
-import { useEffect, useState, useRef } from 'react';
-import { FcGoogle } from 'react-icons/fc';
-import { supabase } from '@/supabase/client';
+import { useEffect, useRef, useState } from 'react';
 
+import { FcGoogle } from 'react-icons/fc';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { NoHurdlesSection } from './NoHurdlesSection';
-import {TestimonialsSection} from './TestimonialsSection';
+// import {TestimonialsSection} from './TestimonialsSection';
+import { supabase } from '@/supabase/client';
+import { useRouter } from 'next/navigation';
 
 // --- Data for "What You'll Experience" cards ---
 const alphaExperiencePillars = [
@@ -129,6 +129,13 @@ export default function AlphaLandingPageClone() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const [activeCarouselSlide, setActiveCarouselSlide] = useState(0);
+  const [showStickyButton, setShowStickyButton] = useState(false);
+  const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set());
+  const [isTestimonialsPaused, setIsTestimonialsPaused] = useState(false);
+  const [testimonialsTransform, setTestimonialsTransform] = useState(0);
+  const animationFrameRef = useRef<number>();
+  const testimonialsRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -136,6 +143,9 @@ export default function AlphaLandingPageClone() {
       const currentScrollY = window.scrollY;
       setScrollY(currentScrollY);
       setScrolled(currentScrollY > 10);
+
+      // Show sticky button after scrolling past section 2 (roughly 200vh)
+      setShowStickyButton(currentScrollY > window.innerHeight * 1.5);
 
       // Check if user has scrolled to the "Why we built kind" section
       const whySection = document.querySelector('#why-section');
@@ -193,6 +203,124 @@ export default function AlphaLandingPageClone() {
     return () => clearInterval(interval);
   }, [carouselFeatures.length]);
 
+  // Smooth testimonials animation
+  useEffect(() => {
+    if (!isTestimonialsPaused) {
+      const startTime = Date.now();
+      const startTransform = testimonialsTransform;
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const speed = 0.03; // pixels per millisecond
+        const newTransform = startTransform - (elapsed * speed);
+
+        // Calculate container and content dimensions
+        const containerWidth = testimonialsRef.current?.offsetWidth || 0;
+        const cardWidth = 288 + 16; // card width + gap
+        const totalCards = 30; // 10 testimonials × 3 sets
+        const totalWidth = totalCards * cardWidth;
+        const sectionWidth = totalWidth / 3; // One complete set
+
+        // Wrap around when we reach the end of one section
+        let wrappedTransform = newTransform;
+        if (Math.abs(newTransform) >= sectionWidth) {
+          wrappedTransform = newTransform + sectionWidth;
+        }
+
+        setTestimonialsTransform(wrappedTransform);
+
+        if (!isTestimonialsPaused) {
+          animationFrameRef.current = requestAnimationFrame(animate);
+        }
+      };
+
+      animationFrameRef.current = requestAnimationFrame(animate);
+    }
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isTestimonialsPaused, testimonialsTransform]);
+
+  // Testimonials data
+  const testimonials = [
+    {
+      name: "moonchild",
+      avatar: "https://i.pravatar.cc/40?img=44",
+      text: "Finally found something that actually helps with my anxiety. It's like having a therapist who actually gets it."
+    },
+    {
+      name: "alex_m",
+      avatar: "https://i.pravatar.cc/40?img=12",
+      text: "finally found something that fits my schedule. no more waiting weeks for an appointment."
+    },
+    {
+      name: "sarah_k",
+      avatar: "https://i.pravatar.cc/40?img=25",
+      text: "the mood tracking really helped me see patterns i never noticed before. game changer."
+    },
+    {
+      name: "jordanw",
+      avatar: "https://i.pravatar.cc/40?img=33",
+      text: "honestly didn't expect much but this has been more helpful than i thought possible."
+    },
+    {
+      name: "maya_r",
+      avatar: "https://i.pravatar.cc/40?img=15",
+      text: "love that i can just talk through my thoughts whenever i need to. feels so natural."
+    },
+    {
+      name: "chris_l",
+      avatar: "https://i.pravatar.cc/40?img=8",
+      text: "the insights after each session help me understand myself better. really eye-opening."
+    },
+    {
+      name: "taylor_b",
+      avatar: "https://i.pravatar.cc/40?img=31",
+      text: "no more awkward small talk or waiting rooms. just straight to what matters."
+    },
+    {
+      name: "sam_p",
+      avatar: "https://i.pravatar.cc/40?img=19",
+      text: "been using this for 2 months and my stress levels have definitely improved."
+    },
+    {
+      name: "riley_v",
+      avatar: "https://i.pravatar.cc/40?img=7",
+      text: "the voice conversations feel so much more natural than typing everything out."
+    },
+    {
+      name: "dakota_m",
+      avatar: "https://i.pravatar.cc/40?img=22",
+      text: "finally something that doesn't make me feel judged. just pure support."
+    }
+  ];
+
+
+  // Intersection Observer for scroll animations
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.target.id) {
+            setVisibleElements(prev => new Set([...prev, entry.target.id]));
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+    );
+
+    // Observe elements with scroll-animate class
+    const elements = document.querySelectorAll('.scroll-animate');
+    elements.forEach(el => observer.observe(el));
+
+    return () => {
+      elements.forEach(el => observer.unobserve(el));
+    };
+  }, []);
+
   const handleGetStarted = () => {
     setIsTransitioning(true);
     // Wait for expansion animation to complete before navigating
@@ -217,7 +345,88 @@ export default function AlphaLandingPageClone() {
 
 
   return (
-    <div className="min-h-screen bg-white text-gray-800 font-sans antialiased relative overflow-hidden">
+    <>
+      <style jsx global>{`
+
+        .testimonials-manual {
+          transition: transform 0.1s ease-out;
+        }
+
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fadeInLeft {
+          from {
+            opacity: 0;
+            transform: translateX(-30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        @keyframes fadeInRight {
+          from {
+            opacity: 0;
+            transform: translateX(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        .scroll-animate {
+          opacity: 0;
+          transition: opacity 0.6s ease-out;
+        }
+
+        .animate-fade-in-up {
+          animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        .animate-fade-in-left {
+          animation: fadeInLeft 0.8s ease-out forwards;
+        }
+
+        .animate-fade-in-right {
+          animation: fadeInRight 0.8s ease-out forwards;
+        }
+
+        .animate-scale-in {
+          animation: scaleIn 0.8s ease-out forwards;
+        }
+
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+      <div className="min-h-screen bg-white text-gray-800 font-sans antialiased relative overflow-hidden">
       {/* Expanding white overlay from hero section */}
       <div className={`fixed inset-0 bg-white z-40 transition-all duration-1000 ease-in-out ${
         isTransitioning 
@@ -651,31 +860,11 @@ export default function AlphaLandingPageClone() {
                       Getting help shouldn't be complicated. No waitlists, no scheduling conflicts, no high costs.
                     </p>
                     <p className="font-medium text-gray-900 mt-4">
-                      Just open the app and start talking.
+                      Just open the app and work on what matters to you.
                     </p>
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6">
-                  <div className="text-center space-y-4">
-                    <div>
-                      <div className="text-2xl font-light text-gray-900 mb-2">Ready when you are</div>
-                      <div className="text-sm text-gray-600">Available 24/7. No appointments needed.</div>
-                    </div>
-                    <button
-                      onClick={handleGetStarted}
-                      className="group relative px-8 py-4 bg-white border-2 border-gray-200 text-gray-700 font-medium rounded-2xl hover:border-gray-300 hover:shadow-lg transition-all duration-300 overflow-hidden"
-                    >
-                      <span className="relative z-10 flex items-center gap-2">
-                        Open Kind
-                        <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                        </svg>
-                      </span>
-                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-50 to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -683,9 +872,11 @@ export default function AlphaLandingPageClone() {
       </section>
 
       {/* --- Features Showcase Section --- */}
-      <section className="py-20 md:py-32 bg-white">
+      <section className="py-12 md:py-16 bg-white">
         <div className="container mx-auto px-6">
-          <div className="max-w-4xl mx-auto text-center mb-16">
+          <div
+               className={`max-w-4xl mx-auto text-center mb-16 scroll-animate ${visibleElements.has('features-header') ? 'animate-fade-in-up' : ''}`}
+               id="features-header">
             <h2 className="text-3xl md:text-4xl font-light text-gray-900 mb-4 tracking-tight">
               More than just talking
             </h2>
@@ -714,7 +905,7 @@ export default function AlphaLandingPageClone() {
                 <div className="text-center lg:text-left">
                   <h3 className="text-2xl font-light text-gray-900 mb-4">Real people, real progress</h3>
                   <p className="text-gray-600 leading-relaxed">
-                    Kind is helping thousands find clarity, process emotions, and build healthier thought patterns through natural conversation.
+                    Kind helps people find clarity, process emotions, and build healthier thought patterns through natural conversation.
                   </p>
                 </div>
 
@@ -742,23 +933,73 @@ export default function AlphaLandingPageClone() {
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 rounded-2xl p-5 text-left border border-gray-100">
-                    <div className="flex items-start gap-3 mb-3">
-                      <img
-                        src="https://i.pravatar.cc/40?img=44"
-                        alt="moonchild profile"
-                        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                      />
-                      <div>
-                        <div className="font-semibold text-gray-900 text-sm mb-1">moonchild</div>
-                        <div className="flex text-yellow-400 text-xs">
-                          {"★".repeat(5)}
+                  <div
+                    className="bg-gray-50 rounded-2xl p-5 text-left relative overflow-hidden"
+                    onMouseEnter={() => {
+                      // Prevent page scroll when hovering over testimonials
+                      document.body.style.overflow = 'hidden';
+                    }}
+                    onMouseLeave={() => {
+                      // Re-enable page scroll when leaving testimonials
+                      document.body.style.overflow = 'unset';
+                    }}
+                  >
+                    {/* Smooth Scrolling Ticker Tape */}
+                    <div
+                      ref={testimonialsRef}
+                      className="flex gap-4 testimonials-manual"
+                      style={{
+                        transform: `translateX(${testimonialsTransform}px)`
+                      }}
+                      onMouseEnter={() => {
+                        setIsTestimonialsPaused(true);
+                      }}
+                      onMouseLeave={() => {
+                        setIsTestimonialsPaused(false);
+                      }}
+                      onWheel={(e) => {
+                        if (isTestimonialsPaused) {
+                          e.preventDefault();
+                          const delta = e.deltaY * 0.5; // Adjust sensitivity
+                          const containerWidth = testimonialsRef.current?.offsetWidth || 0;
+                          const contentWidth = (10 * 288 + 9 * 16) * 3; // 3 sets of testimonials
+                          const maxTransform = -(contentWidth - containerWidth);
+
+                          setTestimonialsTransform(prev => {
+                            const newTransform = prev - delta;
+                            // Keep within bounds and allow looping
+                            if (newTransform > 0) {
+                              return maxTransform + (newTransform % (contentWidth / 3));
+                            } else if (newTransform < maxTransform) {
+                              return newTransform % (maxTransform / 3);
+                            }
+                            return newTransform;
+                          });
+                        }
+                      }}
+                    >
+                      {/* Triple the testimonials for seamless infinite scroll */}
+                      {[...testimonials, ...testimonials, ...testimonials].map((testimonial, index) => (
+                        <div key={index} className="flex-shrink-0 w-72 bg-white rounded-xl p-4 shadow-sm">
+                          <div className="flex items-start gap-3 mb-3">
+                            <img
+                              src={testimonial.avatar}
+                              alt={`${testimonial.name} profile`}
+                              className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                            />
+                            <div>
+                              <div className="font-semibold text-gray-900 text-sm mb-1">{testimonial.name}</div>
+                              <div className="flex text-yellow-400 text-xs">
+                                {"★".repeat(5)}
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-700 leading-relaxed">
+                            "{testimonial.text}"
+                          </p>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      "Finally found something that actually helps with my anxiety. It's like having a therapist who actually gets it."
-                    </p>
                   </div>
                 </div>
               </div>
@@ -768,154 +1009,84 @@ export default function AlphaLandingPageClone() {
         </div>
       </section>
 
-      {/* Full-Width Three Screenshots Section */}
-      <section className="w-full bg-gray-50">
-        <div className="grid lg:grid-cols-3 min-h-[600px]">
-          {/* AI Journaling Screenshot */}
-          <div className="relative bg-gradient-to-br from-indigo-50 to-indigo-100 flex items-center justify-center p-8">
-            <div className="w-full max-w-sm">
-              {/* Phone mockup for AI Journaling */}
-              <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border-8 border-gray-800">
-                {/* Phone header */}
-                <div className="bg-indigo-600 px-4 py-3 flex items-center justify-between">
-                  <span className="text-white font-medium text-sm">AI Journaling</span>
-                  <div className="flex gap-1">
-                    <div className="w-1 h-1 bg-white/60 rounded-full"></div>
-                    <div className="w-1 h-1 bg-white/60 rounded-full"></div>
-                    <div className="w-1 h-1 bg-white rounded-full"></div>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-4 space-y-3 h-80">
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Today's reflection</div>
-                    <p className="text-xs text-gray-700 leading-relaxed">"You mentioned feeling overwhelmed about work three times this week. Let's explore what specific triggers..."</p>
-                  </div>
-
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Pattern identified</div>
-                    <p className="text-xs text-gray-700 leading-relaxed">"I notice you often feel stressed on Monday mornings. This could be related to..."</p>
-                  </div>
-
-                  <div className="bg-indigo-50 p-3 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Weekly summary</div>
-                    <p className="text-xs text-gray-700 leading-relaxed">"Your emotional awareness has grown significantly this week..."</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Overlay text */}
-            <div className="absolute bottom-8 left-8 right-8 text-center">
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">AI Journaling</h3>
-              <p className="text-gray-700 text-sm">Conversations become insights automatically</p>
-            </div>
+      {/* App Features Screenshots */}
+      <section className="w-full bg-gray-50 py-12">
+        <div className="max-w-7xl mx-auto px-6">
+          {/* Section Header */}
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-light text-gray-900">
+              Extras
+            </h2>
           </div>
 
-          {/* Personal Goals Screenshot */}
-          <div className="relative bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-8 border-x border-gray-200">
-            <div className="w-full max-w-sm">
-              {/* Phone mockup for Personal Goals */}
-              <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border-8 border-gray-800">
-                {/* Phone header */}
-                <div className="bg-green-600 px-4 py-3 flex items-center justify-between">
-                  <span className="text-white font-medium text-sm">Personal Goals</span>
-                  <div className="flex gap-1">
-                    <div className="w-1 h-1 bg-white/60 rounded-full"></div>
-                    <div className="w-1 h-1 bg-white/60 rounded-full"></div>
-                    <div className="w-1 h-1 bg-white rounded-full"></div>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-4 space-y-3 h-80">
-                  <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-xs font-medium text-gray-900">Practice mindfulness daily</span>
-                    </div>
-                    <div className="text-xs text-gray-500">5 days streak • 73% this month</div>
-                  </div>
-
-                  <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                      <span className="text-xs font-medium text-gray-900">Exercise 3x per week</span>
-                    </div>
-                    <div className="text-xs text-gray-500">2/3 this week • On track</div>
-                  </div>
-
-                  <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-                    <p className="text-xs text-gray-700 italic">"How did your mindfulness practice feel yesterday?"</p>
-                    <div className="text-xs text-gray-500 mt-1">Kind's check-in</div>
-                  </div>
-
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Goal suggestion</div>
-                    <p className="text-xs text-gray-700">"Consider adding a gratitude practice to your routine"</p>
-                  </div>
-                </div>
+          {/* Three Screenshots Grid - Equal Height */}
+          <div
+               className={`grid lg:grid-cols-3 gap-8 scroll-animate ${visibleElements.has('screenshots-grid') ? 'animate-scale-in' : ''}`}
+               id="screenshots-grid">
+            {/* Mood Tracking Screenshot */}
+            <div className="relative overflow-hidden group">
+              <div className="relative h-96">
+                <Image
+                  src="/calendar_screenshot.png"
+                  alt="Mood tracking and goals"
+                  width={400}
+                  height={700}
+                  className="w-full h-full object-cover object-top rounded-xl transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-50 via-gray-50/80 to-transparent rounded-xl"></div>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 p-6 bg-white/30 backdrop-blur-sm">
+                <h3 className="text-xl font-medium text-gray-900 mb-2">
+                  Mood Tracking & Goals
+                </h3>
+                <p className="text-gray-800 text-sm leading-relaxed">
+                  Track your daily mood patterns and check-off personalized wellness goals
+                </p>
               </div>
             </div>
 
-            {/* Overlay text */}
-            <div className="absolute bottom-8 left-8 right-8 text-center">
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Personal Goals</h3>
-              <p className="text-gray-700 text-sm">Gentle accountability through conversation</p>
-            </div>
-          </div>
-
-          {/* Session Insights Screenshot */}
-          <div className="relative bg-gradient-to-br from-purple-50 to-purple-100 flex items-center justify-center p-8">
-            <div className="w-full max-w-sm">
-              {/* Phone mockup for Session Insights */}
-              <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border-8 border-gray-800">
-                {/* Phone header */}
-                <div className="bg-purple-600 px-4 py-3 flex items-center justify-between">
-                  <span className="text-white font-medium text-sm">Session Insights</span>
-                  <div className="flex gap-1">
-                    <div className="w-1 h-1 bg-white/60 rounded-full"></div>
-                    <div className="w-1 h-1 bg-white/60 rounded-full"></div>
-                    <div className="w-1 h-1 bg-white rounded-full"></div>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-4 space-y-3 h-80">
-                  <div className="bg-purple-50 p-3 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">This week's insight</div>
-                    <p className="text-xs text-gray-700 leading-relaxed">"Your stress levels tend to peak on Tuesdays. Consider scheduling self-care on Monday evenings."</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-gray-50 p-2 rounded text-center">
-                      <div className="text-lg font-semibold text-gray-900">12</div>
-                      <div className="text-xs text-gray-500">sessions</div>
-                    </div>
-                    <div className="bg-gray-50 p-2 rounded text-center">
-                      <div className="text-lg font-semibold text-gray-900">4.3</div>
-                      <div className="text-xs text-gray-500">avg mood</div>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Progress trend</div>
-                    <p className="text-xs text-gray-700">"Your emotional regulation has improved 23% this month"</p>
-                  </div>
-
-                  <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Breakthrough moment</div>
-                    <p className="text-xs text-gray-700">"Yesterday's session: Major insight about work boundaries"</p>
-                  </div>
-                </div>
+            {/* Guided Learning Screenshot */}
+            <div className="relative overflow-hidden group">
+              <div className="relative h-96">
+                <Image
+                  src="/courses_screenshot.png"
+                  alt="Guided courses"
+                  width={400}
+                  height={700}
+                  className="w-full h-full object-cover object-top rounded-xl transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-50 via-gray-50/80 to-transparent rounded-xl"></div>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 p-6 bg-white/30 backdrop-blur-sm">
+                <h3 className="text-xl font-medium text-gray-900 mb-2">
+                  Guided Learning
+                </h3>
+                <p className="text-gray-800 text-sm leading-relaxed">
+                  Curated content and exercises based on proven therapeutic techniques
+                </p>
               </div>
             </div>
 
-            {/* Overlay text */}
-            <div className="absolute bottom-8 left-8 right-8 text-center">
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Session Insights</h3>
-              <p className="text-gray-700 text-sm">Track patterns and breakthrough moments</p>
+            {/* Personal Insights Screenshot */}
+            <div className="relative overflow-hidden group">
+              <div className="relative h-96">
+                <Image
+                  src="/feedback-screenshot.png"
+                  alt="AI insights"
+                  width={400}
+                  height={700}
+                  className="w-full h-full object-cover object-top rounded-xl transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-50 via-gray-50/80 to-transparent rounded-xl"></div>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 p-6 bg-white/30 backdrop-blur-sm">
+                <h3 className="text-xl font-medium text-gray-900 mb-2">
+                  Personal Insights
+                </h3>
+                <p className="text-gray-800 text-sm leading-relaxed">
+                  AI-powered reflections help you understand your patterns and growth
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -923,15 +1094,13 @@ export default function AlphaLandingPageClone() {
 
 
 
-
-      
 
       {/* --- FAQ Section --- */}
       <section id="faq" className="py-20 md:py-32 bg-gray-50">
         <div className="container mx-auto px-6 max-w-4xl">
-          <div className="text-center mb-16">
-            <span className="text-sm font-medium text-gray-500 tracking-wide uppercase">How it works</span>
-            <h2 className="text-4xl md:text-5xl font-light text-gray-900 mt-4">Understanding Kind AI</h2>
+          <div className="text-center mb-12">
+            <span className="text-xs font-medium text-gray-500 tracking-wide uppercase">How it works</span>
+            <h2 className="text-2xl md:text-3xl font-light text-gray-900 mt-3">Understanding Kind AI</h2>
           </div>
           <div className="space-y-6">
             {faqDataAlpha.map((faq, index) => (
@@ -947,82 +1116,157 @@ export default function AlphaLandingPageClone() {
         </div>
       </section>
 
-
-{/* --- NEW: Powered By Section --- */}
-<div className="max-w-md mx-auto">
-            <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-3">
-              Powered By
+      {/* Powered By Section - Seamless transition to footer */}
+      <section className="py-20 bg-gradient-to-b from-white via-gray-50/50 to-gray-50">
+        <div className="max-w-4xl mx-auto text-center px-6">
+          <div className="mb-16">
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-8">
+              Built with Industry-Leading Technology
             </p>
-            <div className="flex justify-center items-center gap-6 sm:gap-8 opacity-30">
-              {/* Replace with your actual logo images using Next/Image */}
-              <div className="relative h-7 sm:h-8 md:h-9 w-auto"> {/* Adjust height as needed */}
+            <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-6">
+              <div className="group transition-all duration-300 hover:scale-110">
                 <img
                   src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Claude_AI_logo.svg/1280px-Claude_AI_logo.svg.png"
-                  alt="Claude AI Logo"
-                  width={80}
-                  height={16}
-                  // objectFit="contain"
+                  alt="Claude AI"
+                  className="h-6 opacity-40 group-hover:opacity-60 transition-opacity"
                 />
               </div>
-              {/* <div className="text-gray-300 text-xl">&</div> Simple separator */}
-              <div className="pt-1 relative h-7 sm:h-8 md:h-9 w-auto"> {/* Adjust height */}
+              <div className="group transition-all duration-300 hover:scale-110">
                 <img
-                  src="https://eleven-public-cdn.elevenlabs.io/payloadcms/8xden71nndm-ElevenLabs_Grants_Dark.webp" // Use a version suitable for light backgrounds
-                  alt="ElevenLabs Logo"
-                  width={160} // Example width
-                  height={36}
-                  // objectFit="contain"
+                  src="https://eleven-public-cdn.elevenlabs.io/payloadcms/8xden71nndm-ElevenLabs_Grants_Dark.webp"
+                  alt="ElevenLabs"
+                  className="h-7 opacity-40 group-hover:opacity-60 transition-opacity"
                 />
               </div>
-              <div className="pt-2 relative h-7 sm:h-8 md:h-9 w-auto"> {/* Adjust height */}
+              <div className="group transition-all duration-300 hover:scale-110">
                 <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Vercel_logo_black.svg/2560px-Vercel_logo_black.svg.png" // Use a version suitable for light backgrounds
-                  alt="Vercel Logo"
-                  width={60} // Example width
-                  height={36}
-                  // objectFit="contain"
+                  src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Vercel_logo_black.svg/2560px-Vercel_logo_black.svg.png"
+                  alt="Vercel"
+                  className="h-5 opacity-40 group-hover:opacity-60 transition-opacity"
                 />
-              </div>              <div className="pt-2 relative h-7 sm:h-8 md:h-9 w-auto"> {/* Adjust height */}
+              </div>
+              <div className="group transition-all duration-300 hover:scale-110">
                 <img
-                  src="https://miro.medium.com/v2/resize:fit:1400/format:webp/0*KyMeuRwaprE-47HY.png" // Use a version suitable for light backgrounds
-                  alt="Spuabase Logo"
-                  width={80} // Example width
-                  height={36}
-                  // objectFit="contain"
+                  src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Supabase_logo.svg/2560px-Supabase_logo.svg.png"
+                  alt="Supabase"
+                  className="h-5 opacity-40 group-hover:opacity-60 transition-opacity"
                 />
               </div>
             </div>
-            {/* <p className="mt-6 text-sm text-gray-600">
-              Leveraging cutting-edge technology for truly empathetic and natural conversations.
+            <p className="text-sm text-gray-500 mt-8 max-w-2xl mx-auto">
+              Combining advanced AI, natural voice synthesis, and secure infrastructure to deliver compassionate mental wellness support
             </p>
-             <div className="mt-8">
-                <Link
-                    href="#faq" // Or your primary CTA to join waitlist / learn more
-                    className="inline-block px-8 py-3 bg-gray-800 text-white rounded-lg font-semibold text-md hover:bg-gray-900 transition-colors duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
-                >
-                    Join Early Access Waitlist
-                </Link>
-            </div> */}
           </div>
 
-       {/* --- Simple Footer (Styled like example's simplicity) --- */}
-      <footer className="py-12 md:py-16 bg-white text-center border-t border-gray-200">
-        <div className="container mx-auto px-6">
-          <Link href="/" className="text-2xl font-bold text-gray-800 hover:text-indigo-600 transition-colors tracking-tight">
-            Kind
-          </Link>
-          <p className="text-sm text-gray-600 mt-3 mb-2 max-w-md mx-auto">
-            Co-creating the future of empathetic AI support. Thank you for being part of our Alpha journey.
-          </p>
-          <p className="text-xs text-gray-500">
-            © {new Date().getFullYear()} Kind AI. Early Alpha Program.
-          </p>
-           <p className="text-xs text-gray-500 mt-3">
-            Important: Kind AI Alpha is for exploratory and feedback purposes and is not a substitute for professional mental health services.
-          </p>
+          {/* Decorative Divider */}
+          <div className="flex items-center justify-center mb-0">
+            <div className="h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent w-full max-w-xs"></div>
+          </div>
+        </div>
+      </section>
+
+       {/* Professional Footer - No top border needed due to gradient */}
+      <footer className="bg-gray-50">
+        <div className="max-w-6xl mx-auto px-6 py-12">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            {/* Company Info */}
+            <div className="md:col-span-2">
+              <Link href="/" className="text-2xl font-bold text-gray-900 hover:text-gray-700 transition-colors tracking-tight">
+                Kind
+              </Link>
+              <p className="text-gray-600 mt-4 text-sm leading-relaxed max-w-md">
+                AI-powered mental wellness support designed to make emotional well-being accessible to everyone.
+              </p>
+              <div className="mt-6">
+                <p className="text-xs text-gray-500 mb-2">
+                  <strong>Important:</strong> Kind is designed to supplement, not replace, professional mental health care.
+                </p>
+                <p className="text-xs text-gray-500">
+                  If you're experiencing a mental health emergency, please contact emergency services or a crisis hotline immediately.
+                </p>
+              </div>
+            </div>
+
+            {/* Product Links */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Product</h3>
+              <ul className="space-y-3">
+                <li>
+                  <Link href="/dashboard" className="text-gray-600 hover:text-gray-900 transition-colors text-sm">
+                    Dashboard
+                  </Link>
+                </li>
+                <li>
+                  <Link href="#faq" className="text-gray-600 hover:text-gray-900 transition-colors text-sm">
+                    How it Works
+                  </Link>
+                </li>
+                <li>
+                  <a href="mailto:support@kindtherapy.app" className="text-gray-600 hover:text-gray-900 transition-colors text-sm">
+                    Support
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Legal Links */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Legal</h3>
+              <ul className="space-y-3">
+                <li>
+                  <Link href="/legal/privacy" className="text-gray-600 hover:text-gray-900 transition-colors text-sm">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/legal/terms" className="text-gray-600 hover:text-gray-900 transition-colors text-sm">
+                    Terms of Service
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/legal/user-agreement" className="text-gray-600 hover:text-gray-900 transition-colors text-sm">
+                    User Agreement
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="border-t border-gray-200 pt-8 flex flex-col md:flex-row justify-between items-center">
+            <p className="text-xs text-gray-500">
+              © {new Date().getFullYear()} Kind AI, Inc. All rights reserved.
+            </p>
+            <div className="flex items-center gap-6 mt-4 md:mt-0">
+              <p className="text-xs text-gray-500">
+                San Francisco, California
+              </p>
+              <a
+                href="mailto:hello@kindtherapy.app"
+                className="text-xs text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                hello@kindtherapy.app
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
-    </div>
+
+      {/* Sticky Get Started Button */}
+      <div className={`fixed top-6 right-6 z-50 transition-all duration-500 ease-out ${
+        showStickyButton
+          ? 'opacity-100 translate-y-0 scale-100'
+          : 'opacity-0 translate-y-4 scale-95 pointer-events-none'
+      }`}>
+        <button
+          onClick={handleGetStarted}
+          className="bg-gray-800 hover:bg-gray-900 text-white px-6 py-3 rounded-full font-medium shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+        >
+          Sign Up
+        </button>
+      </div>
+      </div>
+    </>
   );
 }
 
@@ -1030,16 +1274,16 @@ export default function AlphaLandingPageClone() {
 const FAQItem = ({ question, answer, isOpen, onClick }: { question: string, answer: string, isOpen: boolean, onClick: () => void }) => (
   <div className="border-b border-gray-200 last:border-b-0">
     <button
-      className="w-full text-left py-6 focus:outline-none flex justify-between items-start group"
+      className="w-full text-left py-4 focus:outline-none flex justify-between items-start group"
       onClick={onClick}
       aria-expanded={isOpen}
     >
-      <span className="font-medium text-lg text-gray-900 pr-8 leading-relaxed group-hover:text-gray-700 transition-colors">{question}</span>
-      <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-300 flex-shrink-0 mt-1 ${isOpen ? 'transform rotate-180' : ''}`} strokeWidth={2}/>
+      <span className="font-medium text-base text-gray-900 pr-6 leading-relaxed group-hover:text-gray-700 transition-colors">{question}</span>
+      <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-300 flex-shrink-0 mt-1 ${isOpen ? 'transform rotate-180' : ''}`} strokeWidth={2}/>
     </button>
     {isOpen && (
-      <div className="pb-6 pr-8">
-        <p className="text-gray-600 leading-relaxed text-base">{answer}</p>
+      <div className="pb-4 pr-6">
+        <p className="text-gray-600 leading-relaxed text-sm">{answer}</p>
       </div>
     )}
   </div>
