@@ -134,7 +134,7 @@ export default function AlphaLandingPageClone() {
   const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set());
   const [isTestimonialsPaused, setIsTestimonialsPaused] = useState(false);
   const [testimonialsTransform, setTestimonialsTransform] = useState(0);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | null>(null);
   const testimonialsRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
