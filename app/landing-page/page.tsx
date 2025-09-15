@@ -11,9 +11,14 @@ import {
   PiggyBank,
   Sparkles,
   ThumbsUp,
-  Zap
+  Zap,
+  MessageCircle,
+  Shield,
+  Heart
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { FcGoogle } from 'react-icons/fc';
+import { supabase } from '@/supabase/client';
 
 import Image from 'next/image';
 import Link from 'next/link';
@@ -21,22 +26,22 @@ import { useRouter } from 'next/navigation';
 import { NoHurdlesSection } from './NoHurdlesSection';
 import {TestimonialsSection} from './TestimonialsSection';
 
-// --- Data for "What You'll Experience" cards (mimicking the 3-card layout) ---
+// --- Data for "What You'll Experience" cards ---
 const alphaExperiencePillars = [
   {
-    icon: <Headphones className="w-8 h-8 text-indigo-600" strokeWidth={1.5} />,
-    title: "Natural Voice Interaction",
-    description: "Engage with our advanced AI through fluid, empathetic voice conversations designed to feel genuinely understanding."
+    icon: <Headphones className="w-6 h-6 text-gray-700" strokeWidth={1.5} />,
+    title: "Voice-First Therapy",
+    description: "Natural conversations that flow like speaking with a trusted friend who truly listens."
   },
   {
-    icon: <Brain className="w-8 h-8 text-indigo-600" strokeWidth={1.5} />,
-    title: "Reflective Dialogue Space",
-    description: "Kind AI serves as your personal sounding board, helping you process thoughts, explore emotions, and gain new perspectives."
+    icon: <Brain className="w-6 h-6 text-gray-700" strokeWidth={1.5} />,
+    title: "Personalized Understanding",
+    description: "AI that learns your patterns, remembers your journey, and adapts to your unique needs."
   },
   {
-    icon: <Lock className="w-8 h-8 text-indigo-600" strokeWidth={1.5} />,
-    title: "Confidential & Secure Alpha",
-    description: "Experience the core of Kind AI in a private environment, built with your data security as a top priority from day one."
+    icon: <Lock className="w-6 h-6 text-gray-700" strokeWidth={1.5} />,
+    title: "Complete Confidentiality",
+    description: "Your thoughts remain private. No data sharing, no judgment, just support."
   }
 ];
 
@@ -120,13 +125,15 @@ export default function AlphaLandingPageClone() {
   const [reachedWhySection, setReachedWhySection] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrollY = window.scrollY;
-      setScrolled(scrollY > 10);
-      
+      const currentScrollY = window.scrollY;
+      setScrollY(currentScrollY);
+      setScrolled(currentScrollY > 10);
+
       // Check if user has scrolled to the "Why we built kind" section
       const whySection = document.querySelector('#why-section');
       if (whySection) {
@@ -180,79 +187,300 @@ export default function AlphaLandingPageClone() {
         }}
       />
 
-      {/* --- Simple Navigation (Styled like example) --- */}
-      <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out
-              ${scrolled ? 'py-3 bg-white/80 backdrop-blur-lg shadow-md' : 'py-4 bg-transparent'}`}
-      >
-        <div className="container mx-auto px-6 flex justify-between items-center">
-          <Link href="/" className={`text-2xl md:text-3xl font-bold text-gray-800 hover:text-indigo-600 transition-all duration-300 tracking-tight z-50 relative ${
-            isTransitioning ? 'opacity-0' : 'opacity-100'
-          }`}>
-            kind
-            <span className={`ml-2 text-xs font-normal uppercase px-2 py-1 rounded-full tracking-wider align-middle transition-colors duration-300
-                              ${scrolled ? 'bg-indigo-100 text-indigo-700' : 'bg-white/30 text-gray-700 backdrop-blur-sm'}`}
-            >
-              Early Access
-            </span>
-          </Link>
-          {reachedWhySection ? (
-            <button 
-              onClick={handleGetStarted}
-              className={`text-sm font-medium transition-all duration-500 px-4 py-2 rounded-lg bg-black text-white hover:bg-gray-800 ${
-                isTransitioning ? 'opacity-0' : 'opacity-100'
-              }`}
-            >
-              <span className="transition-opacity duration-300">
-                Get Started
-              </span>
-            </button>
-          ) : (
-            <Link 
-              href="#faq"
-              className={`text-sm font-medium transition-all duration-500 px-4 py-2 rounded-lg ${
-                scrolled 
-                  ? 'text-gray-600 hover:text-indigo-600' 
-                  : 'text-gray-700 hover:text-indigo-500'
-              } ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
-            >
-              <span className="transition-opacity duration-300">
-                How Does This AI Work?
-              </span>
-            </Link>
-          )}
+
+      {/* --- Hero Section (Soft & Classy) --- */}
+      <header className={`min-h-screen flex transition-all duration-800 ${
+        isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+      }`}>
+        {/* Left Panel - Visual Elements */}
+        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 relative overflow-hidden group">
+          {/* Floating soft visual elements representing mental health topics */}
+          <div className="absolute inset-0 p-16">
+            {/* Anxiety & Overwhelm - top left */}
+            <div className="absolute top-12 left-16 w-40 h-24 rounded-2xl overflow-hidden shadow-2xl opacity-90 transform -rotate-3 hover:scale-110 hover:shadow-2xl transition-all duration-700 ease-out group-hover:translate-x-2 group-hover:-translate-y-1 group-hover:rotate-1">
+              <Image
+                src={mentalHealthTiles[0].imageSrc}
+                alt="Anxiety & Overwhelm"
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/15 via-purple-600/15 to-black/60"></div>
+              <div className="absolute bottom-3 left-3 text-white text-sm font-bold drop-shadow-2xl">
+                Anxiety & Overwhelm
+              </div>
+            </div>
+
+            {/* Relationship Dynamics - center right */}
+            <div className="absolute top-24 right-20 w-28 h-40 rounded-2xl overflow-hidden shadow-2xl opacity-85 transform rotate-6 hover:scale-110 hover:shadow-2xl transition-all duration-700 ease-out group-hover:-translate-x-3 group-hover:translate-y-2 group-hover:rotate-12">
+              <Image
+                src={mentalHealthTiles[1].imageSrc}
+                alt="Relationship Dynamics"
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-pink-500/15 via-rose-600/15 to-black/60"></div>
+              <div className="absolute bottom-3 left-3 text-white text-sm font-bold drop-shadow-2xl writing-mode-vertical">
+                Relationships
+              </div>
+            </div>
+
+            {/* Stress & Burnout - middle left */}
+            <div className="absolute top-1/2 left-8 transform -translate-y-1/2 w-32 h-32 rounded-2xl overflow-hidden shadow-2xl opacity-75 rotate-12 hover:scale-110 hover:shadow-2xl transition-all duration-700 ease-out group-hover:translate-x-4 group-hover:-translate-y-2 group-hover:rotate-6">
+              <Image
+                src={mentalHealthTiles[2].imageSrc}
+                alt="Stress & Burnout"
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/15 via-red-600/15 to-black/60"></div>
+              <div className="absolute bottom-3 left-3 text-white text-sm font-bold drop-shadow-2xl">
+                Stress
+              </div>
+            </div>
+
+            {/* Self-Doubt - bottom center */}
+            <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 w-36 h-24 rounded-2xl overflow-hidden shadow-2xl opacity-85 -rotate-6 hover:scale-110 hover:shadow-2xl transition-all duration-700 ease-out group-hover:-translate-x-2 group-hover:translate-y-3 group-hover:-rotate-12">
+              <Image
+                src={mentalHealthTiles[3].imageSrc}
+                alt="Self-Doubt"
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/15 via-indigo-600/15 to-black/60"></div>
+              <div className="absolute bottom-3 left-3 text-white text-sm font-bold drop-shadow-2xl">
+                Self-Doubt
+              </div>
+            </div>
+
+            {/* Finding Focus - top center */}
+            <div className="absolute top-16 left-1/2 transform -translate-x-1/2 w-44 h-20 rounded-2xl overflow-hidden shadow-2xl opacity-80 rotate-2 hover:scale-110 hover:shadow-2xl transition-all duration-700 ease-out group-hover:translate-y-4 group-hover:rotate-6">
+              <Image
+                src={mentalHealthTiles[4].imageSrc}
+                alt="Finding Focus"
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/15 via-emerald-600/15 to-black/60"></div>
+              <div className="absolute bottom-3 left-3 text-white text-sm font-bold drop-shadow-2xl">
+                Finding Focus
+              </div>
+            </div>
+
+            {/* Emotional Processing - bottom right */}
+            <div className="absolute bottom-20 right-12 w-32 h-32 rounded-2xl overflow-hidden shadow-2xl opacity-70 rotate-45 hover:scale-110 hover:shadow-2xl transition-all duration-700 ease-out group-hover:-translate-x-1 group-hover:-translate-y-3 group-hover:rotate-30">
+              <Image
+                src={mentalHealthTiles[5].imageSrc}
+                alt="Emotional Processing"
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/15 via-violet-600/15 to-black/60"></div>
+              <div className="absolute bottom-3 left-3 text-white text-sm font-bold drop-shadow-2xl">
+                Emotions
+              </div>
+            </div>
+          </div>
+
+          {/* Main content overlay */}
+          <div className="relative z-10 flex flex-col justify-center px-12 xl:px-20">
+            <div className="text-gray-800 bg-white/90 backdrop-blur-sm rounded-3xl p-8 shadow-xl group-hover:scale-105 group-hover:shadow-2xl transition-all duration-500 ease-out">
+              <h2 className="text-4xl font-light mb-2 leading-tight">
+                Talk it through
+                <span className="block font-medium text-gray-900">with Kind</span>
+              </h2>
+              <div className="mb-4">
+                <span className="text-sm text-gray-500 tracking-wide">Kind is your <span className="text-indigo-600">AI voice therapist and mental health journal</span> that's available 24/7</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Subtle background gradients */}
+          <div className="absolute top-20 left-20 w-96 h-96 bg-slate-200/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-gray-200/10 rounded-full blur-3xl"></div>
         </div>
-      </nav>
 
-      {/* --- Hero Section --- */}
-      <header
-        className={`relative pt-32 pb-20 md:pt-48 md:pb-32 text-center overflow-hidden transition-all duration-800 ${
-          isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-        }`}
-      >
-        <div className="absolute inset-0 bg-gradient-to-b from-indigo-100/70 via-pink-50/50 to-white -z-10"></div>
-        <div className="container mx-auto px-6 relative z-10 mt-8 md:mt-6">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 mb-5 md:mb-6 leading-tight tracking-tight">
-            Talk Therapy
-          </h1>
-          <p className="text-lg md:text-xl text-gray-700 mb-10 md:mb-12 max-w-2xl mx-auto leading-relaxed">
-            An AI app for mental health. Have a conversation — and get started on feeling better.
-          </p>
+        {/* Right Panel - Auth Section */}
+        <div className="w-full lg:w-1/2 flex items-center justify-center px-6 sm:px-12 bg-white relative">
+          <div className="w-full max-w-md">
+            {/* Logo */}
+            <div className="mb-12">
+              <div className="flex items-center gap-3 justify-center">
+                <div className="w-12 h-12 bg-gray-900 rounded-xl flex items-center justify-center">
+                  <span className="text-white text-xl font-semibold">K</span>
+                </div>
+                <span className="text-2xl font-light text-gray-900">Kind</span>
+              </div>
+            </div>
 
-          {/* Primary CTA Section */}
-          <div className="max-w-sm mx-auto">
+            {/* Main content */}
+            <div className="space-y-8">
+              <div className="text-center">
+                <h1 className="text-3xl font-light text-gray-900 mb-4">
+                  Start here
+                </h1>
+              </div>
+
+              {/* Google Sign In */}
+              <div className="space-y-4">
+                <button
+                  onClick={async () => {
+                    const { error } = await supabase.auth.signInWithOAuth({
+                      provider: 'google',
+                      options: {
+                        redirectTo: `${window.location.origin}/auth/callback`
+                      }
+                    });
+                    if (error) console.error(error);
+                  }}
+                  className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-white text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors duration-200 border border-gray-300 shadow-sm"
+                >
+                  <FcGoogle size={20} />
+                  Sign up with Google
+                </button>
+
+              </div>
+
+              {/* Simple benefits */}
+              <div className="pt-8">
+                <div className="text-center space-y-3">
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>3 free sessions</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>No scheduling required</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Learn More / Scroll Indicator */}
+          <div
+            className="absolute bottom-8 right-8 z-20 transition-opacity duration-300 hover:!opacity-100"
+            style={{
+              opacity: Math.max(0, 1 - (scrollY / (window.innerHeight * 0.8)))
+            }}
+          >
             <button
-              onClick={handleGetStarted}
-              className="inline-block px-6 py-3 bg-indigo-600 text-white font-semibold text-base rounded-lg hover:bg-indigo-700 transition-colors duration-200 shadow-md hover:shadow-lg"
+              onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
+              className="group flex items-center gap-3 px-6 py-3 bg-gray-50/90 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-gray-50 border border-gray-200/50"
             >
-              Get Started
+              <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">Learn more</span>
+              <div className="w-6 h-6 rounded-full bg-gray-100 group-hover:bg-indigo-100 flex items-center justify-center transition-colors duration-300">
+                <svg className="w-3 h-3 text-gray-600 group-hover:text-indigo-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+              </div>
             </button>
-            <p className="text-xs text-gray-500 text-center mt-4 leading-relaxed">
-              3 free conversations on us.
-            </p>
           </div>
         </div>
       </header>
+
+      {/* --- Autoplay Demo Section (Claude-inspired) --- */}
+      <section className="py-20 md:py-32 bg-gray-50">
+        <div className="container mx-auto px-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-light text-gray-900 mb-4">
+                See Kind in action
+              </h2>
+              <p className="text-lg text-gray-600">
+                Actually talk it out instead of typing
+              </p>
+            </div>
+
+            {/* Demo container */}
+            <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+              <div className="grid lg:grid-cols-2">
+                {/* Left side - Screenshot of talking homepage */}
+                <div className="p-8 lg:p-12 bg-gradient-to-br from-gray-50 to-white">
+                  <div className="max-w-md mx-auto">
+                    {/* Browser mockup */}
+                    <div className="bg-gray-100 rounded-lg overflow-hidden shadow-lg">
+                      {/* Browser header */}
+                      <div className="bg-gray-200 px-4 py-3 flex items-center gap-2">
+                        <div className="flex gap-2">
+                          <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                          <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                          <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                        </div>
+                        <div className="flex-1 text-center">
+                          <div className="bg-white rounded px-3 py-1 text-xs text-gray-600 max-w-48 mx-auto">
+                            kindtherapy.app
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* App screenshot area */}
+                      <div className="bg-white overflow-hidden">
+                        <Image
+                          src="/screenshot.png"
+                          alt="Kind AI voice interface screenshot"
+                          width={400}
+                          height={600}
+                          className="w-full h-auto object-cover"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right side - Feature highlights */}
+                <div className="p-8 lg:p-12 flex flex-col justify-center">
+                  <div className="space-y-8">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Headphones className="w-5 h-5 text-gray-700" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-gray-900 mb-2">Voice-First Therapy</h3>
+                        <p className="text-sm text-gray-600">
+                          Have natural, spoken conversations with AI that responds with human-like voice and empathy.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <BarChart3 className="w-5 h-5 text-gray-700" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-gray-900 mb-2">Goals & Insights</h3>
+                        <p className="text-sm text-gray-600">
+                          Kind incorporates your goals and insights directly into your conversations, creating a seamless therapy experience.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Shield className="w-5 h-5 text-gray-700" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-gray-900 mb-2">Complete Privacy</h3>
+                        <p className="text-sm text-gray-600">
+                          Your conversations are encrypted and private. No data sharing, no judgment - just confidential support.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-6">
+                      <button
+                        onClick={handleGetStarted}
+                        className="px-6 py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+                      >
+                        Try it yourself →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
 
            {/* --- Hidden Section --- */}
@@ -303,96 +531,95 @@ export default function AlphaLandingPageClone() {
         </div>
       </section>}
 
-      {/* --- Features & Video Section --- */}
-      <section className="py-16 md:py-20 bg-gray-50">
+      {/* --- Modern Page Break --- */}
+      <section className="py-20 bg-gradient-to-br from-indigo-50 via-white to-purple-50 overflow-hidden">
         <div className="container mx-auto px-6">
-          {/* YouTube Video with Custom Thumbnail */}
-          <div className="max-w-3xl mx-auto px-4 mb-16">
-            <div className="bg-white rounded-xl shadow-2xl p-3 md:p-4 transform transition-all hover:scale-[1.01] duration-500">
-              <div className="relative overflow-hidden rounded-lg aspect-video cursor-pointer group" onClick={() => setVideoLoaded(true)}>
-                {!videoLoaded ? (
-                  <>
-                    <img
-                      src="https://img.youtube.com/vi/QF2wIywvDhk/maxresdefault.jpg"
-                      alt="Kind AI Demo Video Thumbnail"
-                      className="w-full h-full object-cover"
-                    />
-                    {/* Play Button Overlay */}
-                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center group hover:bg-black/30 transition-colors">
-                      <div className="w-16 h-16 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                        <svg className="w-6 h-6 ml-1 text-gray-800" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z"/>
-                        </svg>
+          <div className="max-w-5xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              {/* Left side - Modern visual */}
+              <div className="relative">
+                <div className="aspect-square rounded-3xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 p-8">
+                  <div className="h-full flex flex-col justify-center space-y-6">
+                    {/* Floating cards representing therapy barriers */}
+                    <div className="space-y-4">
+                      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg transform rotate-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                            <span className="text-red-600 font-bold text-lg">$</span>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900">$200+ per session</div>
+                            <div className="text-xs text-gray-500">Traditional therapy cost</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg transform -rotate-1">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                            <CalendarX className="w-5 h-5 text-orange-600" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900">Skip the 2-hour process</div>
+                            <div className="text-xs text-gray-500">No waiting rooms or scheduling</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg transform rotate-1">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                            <span className="text-indigo-600 font-bold">✓</span>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900">Available 24/7</div>
+                            <div className="text-xs text-gray-500">Kind is always here</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </>
-                ) : (
-                  <iframe
-                    src="https://www.youtube.com/embed/QF2wIywvDhk?autoplay=1"
-                    title="Kind AI Demo Video"
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  />
-                )}
-              </div>
-            </div>
-          </div>
+                  </div>
+                </div>
 
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-12 tracking-tight">
-              Find Time To Work On You
-            </h2>
-            
-            {/* Social Proof Section */}
-            <div className="grid md:grid-cols-3 gap-3 mb-12 max-w-3xl mx-auto">
-              {/* Testimonial 1 */}
-              <div className="bg-white rounded-2xl px-4 py-3 shadow-sm text-left">
-                <div className="flex items-start">
-                  <img 
-                    src="https://i.pravatar.cc/24?img=44"
-                    alt="moonchild profile"
-                    className="w-6 h-6 min-w-[24px] rounded-full object-cover flex-shrink-0"
-                  />
-                  <div className="ml-2 text-left">
-                    <div className="font-medium text-gray-900 text-xs mb-1 text-left">moonchild</div>
-                    <p className="text-gray-600 text-xs leading-tight text-left">
-                      "ngl this AI actually gets it... been using for 2 weeks"
+                {/* Decorative elements */}
+                <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full opacity-20 blur-xl"></div>
+                <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full opacity-20 blur-xl"></div>
+              </div>
+
+              {/* Right side - Content */}
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-3xl md:text-4xl font-light text-gray-900 mb-6 leading-tight">
+                    Mental wellness shouldn't be a luxury
+                  </h2>
+                  <div className="text-lg text-gray-600 leading-relaxed">
+                    <p>
+                      Traditional therapy has barriers: cost, waitlists, scheduling. Kind removes them.
+                    </p>
+                    <p className="font-medium text-gray-900 mt-4">
+                      Talk whenever you need to. No appointments, no judgment.
                     </p>
                   </div>
                 </div>
-              </div>
 
-              {/* Testimonial 2 */}
-              <div className="bg-white rounded-2xl px-4 py-3 shadow-sm text-left">
-                <div className="flex items-start">
-                  <img 
-                    src="https://i.pravatar.cc/24?img=12"
-                    alt="dev_marcus profile"
-                    className="w-6 h-6 min-w-[24px] rounded-full object-cover flex-shrink-0"
-                  />
-                  <div className="ml-2 text-left">
-                    <div className="font-medium text-gray-900 text-xs mb-1 text-left">dev_marcus</div>
-                    <p className="text-gray-600 text-xs leading-tight text-left">
-                      "was skeptical af but it's lowkey helpful for work stress"
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Testimonial 3 */}
-              <div className="bg-white rounded-2xl px-4 py-3 shadow-sm text-left">
-                <div className="flex items-start">
-                  <img 
-                    src="https://i.pravatar.cc/24?img=68"
-                    alt="pixelwanderer profile"
-                    className="w-6 h-6 min-w-[24px] rounded-full object-cover flex-shrink-0"
-                  />
-                  <div className="ml-2 text-left">
-                    <div className="font-medium text-gray-900 text-xs mb-1 text-left">pixelwanderer</div>
-                    <p className="text-gray-600 text-xs leading-tight text-left">
-                      "better than paying $200/hr tbh... voice feels real too"
-                    </p>
+                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6">
+                  <div className="text-center space-y-4">
+                    <div>
+                      <div className="text-2xl font-light text-gray-900 mb-2">Available right now</div>
+                      <div className="text-sm text-gray-600">No waiting. No scheduling. Just start talking.</div>
+                    </div>
+                    <button
+                      onClick={handleGetStarted}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+                    >
+                      <svg className="w-5 h-5" viewBox="0 0 24 24">
+                        <path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#fbbc05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                      </svg>
+                      Start with Google
+                    </button>
                   </div>
                 </div>
               </div>
@@ -401,54 +628,142 @@ export default function AlphaLandingPageClone() {
         </div>
       </section>
 
-      {/* --- Enhanced Problem/Solution Section --- */}
-      <section id="why-section" className="py-16 md:py-20 bg-gray-100 overflow-hidden">
+      {/* --- Features Showcase Section --- */}
+      <section className="py-20 md:py-32 bg-white">
         <div className="container mx-auto px-6">
-          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16 xl:gap-20">
-            <div className="lg:w-5/12 xl:w-4/12 text-center mb-20 lg:text-left">
-              <div className="bg-white rounded-xl p-6 md:p-8 shadow-lg">
-                <div className="inline-block p-3 mb-5 bg-indigo-100/80 rounded-full shadow">
-                    <Zap className="w-9 h-9 text-indigo-600" strokeWidth={1.5} />
+          <div className="max-w-4xl mx-auto text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-light text-gray-900 mb-4 tracking-tight">
+              More than just talking
+            </h2>
+            <p className="text-lg text-gray-600">
+              Kind tracks your progress and helps you build lasting habits
+            </p>
+          </div>
+
+          {/* Photography Section - Different Layout */}
+          <div className="mb-20">
+            <div className="flex flex-col lg:flex-row items-center gap-12 max-w-6xl mx-auto">
+              {/* Large hero image */}
+              <div className="lg:w-1/2">
+                <div className="relative">
+                  <img
+                    src="https://images.unsplash.com/photo-1594751439417-df8aab2a0c11?w=600&h=700&fit=crop&crop=face"
+                    alt="Person in peaceful moment of reflection"
+                    className="w-full h-96 lg:h-[500px] object-cover rounded-3xl shadow-2xl"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-3xl"></div>
                 </div>
-                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 tracking-tight leading-tight">
-                  Why we built kind
-                </h2>
-                
-                <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-                Therapy is costly. Chat feels limited. Kind delivers a new type of support for the first steps in mental health.
-                </p>
-
-                <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-                Powered by Claude, it's the same AI you use everyday - just tuned to help your days get a bit better.
-                </p>
               </div>
-            </div>
 
-            <div className="lg:w-4/12 xl:w-6/12 w-full opacity-90">
-              <div className="grid grid-cols-2 gap-4 md:gap-5 lg:grid-cols-3 auto-rows-fr">
-                {mentalHealthTiles.map((tile) => (
-                  <div
-                    key={tile.id}
-                    className={`group relative rounded-xl md:rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300
-                                ${tile.gridSpanDesktop || 'lg:col-span-1 lg:row-span-1'} ${tile.aspectRatio || 'aspect-square'}`}
-                    style={{ minHeight: '150px' }}
-                  >
-                    <img
-                      src={tile.imageSrc}
-                      alt={tile.title}
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-75 group-hover:opacity-90 transition-opacity duration-300"></div>
-                    <div className={`absolute inset-0 p-4 md:p-5 flex ${getTextPositionClasses(tile.textPosition)}`}>
-                      <h3 className="text-white text-lg md:text-xl font-semibold tracking-tight drop-shadow-md">
-                        {tile.title}
-                      </h3>
+              {/* Text and smaller images */}
+              <div className="lg:w-1/2 space-y-8">
+                <div className="text-center lg:text-left">
+                  <h3 className="text-2xl font-light text-gray-900 mb-4">Real people, real progress</h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    Kind is helping thousands find clarity, process emotions, and build healthier thought patterns through natural conversation.
+                  </p>
+                </div>
+
+                {/* Join Discord community */}
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-lg">Join our community</h4>
+                        <p className="text-white/80 text-sm">500+ members</p>
+                      </div>
                     </div>
+                    <p className="text-white/90 text-sm leading-relaxed mb-4">
+                      Connect with others on their mental health journey. Share experiences, get support, and stay updated on new features.
+                    </p>
+                    <button className="bg-white text-indigo-600 px-4 py-2 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors">
+                      Join Discord →
+                    </button>
                   </div>
-                ))}
+
+                  <div className="bg-gray-50 rounded-2xl p-5 text-left border border-gray-100">
+                    <div className="flex items-start gap-3 mb-3">
+                      <img
+                        src="https://i.pravatar.cc/40?img=44"
+                        alt="moonchild profile"
+                        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                      />
+                      <div>
+                        <div className="font-semibold text-gray-900 text-sm mb-1">moonchild</div>
+                        <div className="flex text-yellow-400 text-xs">
+                          {"★".repeat(5)}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      "Finally found something that actually helps with my anxiety. It's like having a therapist who actually gets it."
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Features Grid */}
+          <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {/* Journaling Feature */}
+            <div className="bg-gray-50 rounded-2xl p-8 text-center">
+              <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.25-4.875v-.75a3.75 3.75 0 11-7.5 0v.75m7.5 0H18a2.25 2.25 0 012.25 2.25v10.125a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18.375V8.25A2.25 2.25 0 015.25 6h.75m13.5 0v5.25a2.25 2.25 0 01-2.25 2.25H9a2.25 2.25 0 01-2.25-2.25V8.25m13.5 0H9m4.5 11.25v-5.25" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">AI Journaling</h3>
+              <p className="text-gray-600 mb-4">
+                Your conversations automatically become journal entries with insights and reflections
+              </p>
+              <div className="bg-white rounded-lg p-4 text-left shadow-sm">
+                <div className="text-xs text-gray-500 mb-2">Today's reflection</div>
+                <p className="text-sm text-gray-700">"You mentioned feeling overwhelmed about work three times this week. Let's explore what specific triggers..."</p>
+              </div>
+            </div>
+
+            {/* Goals Feature */}
+            <div className="bg-gray-50 rounded-2xl p-8 text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Personal Goals</h3>
+              <p className="text-gray-600 mb-4">
+                Set meaningful goals and let Kind gently keep you accountable through natural conversation
+              </p>
+              <div className="bg-white rounded-lg p-4 text-left shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-gray-700">Practice mindfulness daily</span>
+                </div>
+                <div className="text-xs text-gray-500">3 days streak • Goal set 2 weeks ago</div>
+              </div>
+            </div>
+
+            {/* Insights Feature */}
+            <div className="bg-gray-50 rounded-2xl p-8 text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <BarChart3 className="w-8 h-8 text-purple-600" strokeWidth={1.5} />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Session Insights</h3>
+              <p className="text-gray-600 mb-4">
+                Get personalized insights about your patterns, progress, and breakthrough moments
+              </p>
+              <div className="bg-white rounded-lg p-4 text-left shadow-sm">
+                <div className="text-xs text-gray-500 mb-2">This week's insight</div>
+                <p className="text-sm text-gray-700">"Your stress levels tend to peak on Tuesdays. Consider scheduling self-care on Monday evenings."</p>
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
            
@@ -458,10 +773,13 @@ export default function AlphaLandingPageClone() {
       
 
       {/* --- FAQ Section --- */}
-      <section id="faq" className="py-16 md:py-24 bg-gray-50">
-        <div className="container mx-auto px-6 max-w-3xl">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-gray-900 tracking-tight">How Does This AI Work?</h2>
-          <div className="space-y-4">
+      <section id="faq" className="py-20 md:py-32 bg-gray-50">
+        <div className="container mx-auto px-6 max-w-4xl">
+          <div className="text-center mb-16">
+            <span className="text-sm font-medium text-gray-500 tracking-wide uppercase">How it works</span>
+            <h2 className="text-4xl md:text-5xl font-light text-gray-900 mt-4">Understanding Kind AI</h2>
+          </div>
+          <div className="space-y-6">
             {faqDataAlpha.map((faq, index) => (
               <FAQItem
                 key={index}
@@ -556,18 +874,18 @@ export default function AlphaLandingPageClone() {
 
 // --- Helper Components ---
 const FAQItem = ({ question, answer, isOpen, onClick }: { question: string, answer: string, isOpen: boolean, onClick: () => void }) => (
-  <div className="bg-white border border-gray-200/90 rounded-lg shadow-sm overflow-hidden transition-all hover:shadow-md">
+  <div className="border-b border-gray-200 last:border-b-0">
     <button
-      className="w-full text-left p-4 md:p-5 focus:outline-none flex justify-between items-center hover:bg-gray-50/70 "
+      className="w-full text-left py-6 focus:outline-none flex justify-between items-start group"
       onClick={onClick}
       aria-expanded={isOpen}
     >
-      <span className="font-medium text-md text-gray-800">{question}</span>
-      <ChevronDown className={`h-5 w-5 text-indigo-500 transition-transform duration-300 ${isOpen ? 'transform rotate-180' : ''}`} strokeWidth={2.5}/>
+      <span className="font-medium text-lg text-gray-900 pr-8 leading-relaxed group-hover:text-gray-700 transition-colors">{question}</span>
+      <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-300 flex-shrink-0 mt-1 ${isOpen ? 'transform rotate-180' : ''}`} strokeWidth={2}/>
     </button>
     {isOpen && (
-      <div className="p-4 md:p-5 pt-2 md:pt-3 border-t border-gray-200/90 bg-gray-50/30">
-        <p className="text-gray-600 leading-relaxed text-sm">{answer}</p>
+      <div className="pb-6 pr-8">
+        <p className="text-gray-600 leading-relaxed text-base">{answer}</p>
       </div>
     )}
   </div>
