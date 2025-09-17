@@ -63,7 +63,7 @@ const getCourseSize = (index: number): ModuleSize => {
 };
 
 // 4. Main component
-export default function TherapyLibraryFeed() {
+export default function TherapyLibraryFeed({ sidebarCollapsed = false }: { sidebarCollapsed?: boolean }) {
   const router = useRouter();
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -209,7 +209,7 @@ export default function TherapyLibraryFeed() {
 
   if (loading) {
     return (
-      <div className="w-full max-w-4xl mx-auto px-4 py-6 md:py-10 md:pl-10">
+      <div className={`w-full max-w-4xl ${sidebarCollapsed ? 'mx-auto' : 'ml-8 lg:ml-16'} px-4 py-6 md:py-10 md:pl-10`}>
         <div className="flex items-center justify-center min-h-[400px]">
           <LoadingDots className="text-lg" />
         </div>
@@ -219,7 +219,7 @@ export default function TherapyLibraryFeed() {
 
   if (error) {
     return (
-      <div className="w-full max-w-4xl mx-auto px-4 py-6 md:py-10 md:pl-10">
+      <div className={`w-full max-w-4xl ${sidebarCollapsed ? 'mx-auto' : 'ml-8 lg:ml-16'} px-4 py-6 md:py-10 md:pl-10`}>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <p className="text-red-600 mb-2">{error}</p>
@@ -236,7 +236,7 @@ export default function TherapyLibraryFeed() {
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-6 md:py-10 md:pl-10">
+    <div className={`w-full max-w-3xl ${sidebarCollapsed ? 'mx-auto' : 'ml-8 lg:ml-16'} px-4 py-6 md:py-10 md:pl-10`}>
       <div className="mb-8">
         <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3 md:mb-4">Therapy Library</h2>
 

@@ -42,7 +42,7 @@ interface UserCourseProgress {
   courses?: Course;
 }
 
-export default function UserCheckInConversation() {
+export default function UserCheckInConversation({ sidebarCollapsed = false }: { sidebarCollapsed?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<{ id: string; email: string, app_stage?: string } | null>(null);
@@ -866,7 +866,7 @@ export default function UserCheckInConversation() {
         <span className="text-xs md:text-sm font-medium">Personalize</span>
       </button>
 
-    <div className="w-full max-w-4xl h-screen mx-auto flex flex-col px-4 md:px-6 transition-all duration-300 relative">
+    <div className={`w-full max-w-4xl h-screen ${sidebarCollapsed ? 'mx-auto' : 'ml-8 lg:ml-16'} flex flex-col px-4 md:px-6 transition-all duration-300 relative`}>
 
       {/* Main AI Therapist Section - Moved Up */}
       <div className="flex flex-col items-center pt-20 md:pt-28 pb-6 md:pb-8">
@@ -988,7 +988,7 @@ export default function UserCheckInConversation() {
 
       {/* Microsoft Copilot-Style Activity Cards */}
       {!started && cardsDataLoaded && (
-        <div className="flex-1 flex flex-col items-center justify-start max-w-4xl mx-auto mt-6 md:mt-10">
+        <div className={`flex-1 flex flex-col items-center justify-start max-w-4xl ${sidebarCollapsed ? 'mx-auto' : 'ml-8 lg:ml-16'} mt-6 md:mt-10`}>
           <div className={`w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6 transition-all duration-400 ${!cardsVisible ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
             {/* Continue Course Cards - Show all in-progress courses */}
             {inProgressCourses.map((courseProgress, index) => (

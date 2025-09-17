@@ -74,7 +74,7 @@ interface Goal {
   is_active: boolean;
 }
 
-export default function ProgressView() {
+export default function ProgressView({ sidebarCollapsed = false }: { sidebarCollapsed?: boolean }) {
   const router = useRouter();
   const [moods, setMoods] = useState<Record<string, string>>({});
   const [journalEntries, setJournalEntries] = useState<Record<string, string>>({});
@@ -236,7 +236,7 @@ export default function ProgressView() {
   }, [currentMonth]);
 
   return (
-    <div className="max-w-4xl mt-2 mx-auto p-4 md:pl-20 space-y-2 bg-white min-h-[calc(100vh+200px)]">
+    <div className={`max-w-4xl mt-2 ${sidebarCollapsed ? 'mx-auto' : 'ml-8 lg:ml-16'} p-4 md:pl-20 space-y-2 bg-white min-h-[calc(100vh+200px)]`}>
       {/* Header */}
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-base md:text-lg font-semibold text-gray-800">Your Wellness Journey</h2>

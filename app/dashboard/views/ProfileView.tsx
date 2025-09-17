@@ -72,7 +72,7 @@ interface Goal {
   is_active: boolean;
 }
 
-export default function ProfileView() {
+export default function ProfileView({ sidebarCollapsed = false }: { sidebarCollapsed?: boolean }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const { conversationEnded, pollingStatus, setPollingStatus } = useConversationStatus();
@@ -305,7 +305,7 @@ export default function ProfileView() {
         }
       `}</style>
     <div className="min-h-screen bg-white">
-      <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 md:py-12 md:pl-12">
+      <div className={`max-w-4xl ${sidebarCollapsed ? 'mx-auto' : 'ml-8 lg:ml-16'} px-4 md:px-6 py-6 md:py-12 md:pl-12`}>
         <div className="flex items-start gap-3 md:gap-4 mb-6 md:mb-8">
           {profilePicSrc ? (
             <img src={profilePicSrc} alt={user.full_name || 'User'} className="w-12 md:w-16 h-12 md:h-16 rounded-full object-cover" />
