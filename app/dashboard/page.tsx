@@ -34,13 +34,8 @@ function DashboardInner() {
   >("home");
   const [visibleView, setVisibleView] = useState(activeView);
   const [viewVisible, setViewVisible] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sidebarOpen');
-      return saved ? JSON.parse(saved) : true;
-    }
-    return true;
-  });
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [isFromOnboarding, setIsFromOnboarding] = useState(false);
@@ -54,6 +49,15 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
   const sessionId = searchParams.get("sid");
 
   useEffect(() => {
+    // Handle hydration and load saved states from localStorage
+    setIsHydrated(true);
+
+    // Load sidebar state from localStorage
+    const savedSidebarState = localStorage.getItem('sidebarOpen');
+    if (savedSidebarState) {
+      setSidebarOpen(JSON.parse(savedSidebarState));
+    }
+
     // Load profile picture from localStorage first (TODO: move to database storage)
     const savedProfilePic = localStorage.getItem('profilePicUrl');
     if (savedProfilePic) {
@@ -72,9 +76,11 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
   }, []);
 
   useEffect(() => {
-    // Persist sidebar state
-    localStorage.setItem('sidebarOpen', JSON.stringify(sidebarOpen));
-  }, [sidebarOpen]);
+    // Persist sidebar state only after hydration
+    if (isHydrated) {
+      localStorage.setItem('sidebarOpen', JSON.stringify(sidebarOpen));
+    }
+  }, [sidebarOpen, isHydrated]);
 
   useEffect(() => {
     const tab = searchParams.get("tab");
