@@ -140,8 +140,8 @@ export default function AccountView({ sidebarCollapsed }: AccountViewProps) {
         </div>
 
         <div className="relative group cursor-pointer mb-12 max-w-lg mx-auto">
-          <div className="absolute -inset-4 bg-gradient-to-r from-violet-400/40 via-purple-400/35 to-blue-400/40 rounded-[2rem] blur-2xl opacity-30 group-hover:opacity-45 transition duration-700"></div>
-          <div className="relative bg-gradient-to-br from-white via-slate-50/50 to-stone-50/60 border border-slate-200/60 rounded-3xl p-7 hover:shadow-xl hover:shadow-slate-200/40 transition-shadow duration-300">
+          <div className="absolute -inset-6 bg-gradient-to-r from-violet-400/40 via-purple-400/35 to-blue-400/40 rounded-[3rem] blur-2xl opacity-30 group-hover:opacity-35 transition-all duration-500 will-change-transform"></div>
+          <div className="relative bg-gradient-to-br from-white via-slate-50/50 to-stone-50/60 border border-slate-200/60 rounded-3xl p-7 shadow-lg shadow-slate-200/20 group-hover:shadow-lg group-hover:shadow-slate-200/30 transition-all duration-500 will-change-transform">
 
             <div className="relative">
               <div className="flex items-center justify-between mb-6">
@@ -241,7 +241,9 @@ export default function AccountView({ sidebarCollapsed }: AccountViewProps) {
                   ) : (
                     <>
                       <span>Get Kind</span>
-                      <div className="w-1.5 h-1.5 bg-white/80 rounded-full animate-pulse"></div>
+                      <svg className="w-4 h-4 ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M7 17l9.2-9.2M17 17H7V7"/>
+                      </svg>
                     </>
                   )}
                 </div>
@@ -250,9 +252,15 @@ export default function AccountView({ sidebarCollapsed }: AccountViewProps) {
                 <div className="absolute inset-0" style={{ borderRadius: '4px' }}></div>
               </button>
 
-              <p className="text-xs text-center text-gray-500">
-                Cancel anytime • No long-term commitment
-              </p>
+              <div className="text-center space-y-1">
+                <p className="text-xs text-gray-500">
+                  Cancel anytime • No long-term commitment
+                </p>
+                <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
+                  Secure payment by
+                  <span className="font-medium text-blue-600">Stripe</span>
+                </p>
+              </div>
             </div>
           </div>
         </div>

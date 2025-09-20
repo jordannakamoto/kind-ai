@@ -1281,8 +1281,8 @@ export default function UserCheckInConversation({ sidebarCollapsed = false }: { 
                                 {/* Selection Indicator - Enhanced */}
                                 <div className={`w-1.5 h-10 rounded-full transition-all duration-150 ${
                                   voiceSettings.personality === personality.name
-                                    ? 'bg-gradient-to-b from-indigo-400 to-indigo-600 shadow-md shadow-indigo-200'
-                                    : 'bg-transparent group-hover:bg-indigo-200'
+                                    ? 'bg-indigo-200'
+                                    : 'bg-transparent group-hover:bg-indigo-100'
                                 }`}></div>
 
                                 <input

@@ -231,7 +231,7 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
           <div className="group flex items-center justify-between px-2 py-4 relative">
             <button
               onClick={() => window.location.reload()}
-              className="text-xl font-bold text-gray-800 hover:text-gray-600 transition-colors cursor-pointer"
+              className="text-xl font-bold text-gray-800 hover:text-gray-600 transition-colors cursor-pointer ml-1"
             >
               kind
             </button>
@@ -248,7 +248,7 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
               </button>
             )}
           </div>
-          
+
           {/* Sidebar content */}
             {/* Navigation */}
             <nav className="flex-1 p-2 overflow-visible">
@@ -378,7 +378,6 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
             </div>
         </aside>
       )}
-
 
       {/* Main Content */}
       <section
