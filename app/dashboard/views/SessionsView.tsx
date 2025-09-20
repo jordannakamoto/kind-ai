@@ -1,12 +1,67 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useState } from 'react'; // Fragment might still be useful for list structures
+import { Fragment, useEffect, useMemo, useState, memo } from 'react'; // Fragment might still be useful for list structures
 import { sessionCache, setSessionCache } from '@/app/contexts/sessionCache';
 
 import { supabase } from '@/supabase/client';
 import { useConversationStatus } from '@/app/contexts/ConversationContext';
 import { useRouter } from 'next/navigation';
 import LoadingDots from '@/components/LoadingDots';
+import { Lightbulb, AlertTriangle, ArrowRight, StickyNote, ListChecks } from 'lucide-react';
+
+const CACHE_VERSION = '1.0';
+const CACHE_EXPIRY_HOURS = 24;
+
+const generateHash = (data: string): string => {
+  let hash = 0;
+  for (let i = 0; i < data.length; i++) {
+    const char = data.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString();
+};
+
+const getCacheKey = (type: 'session' | 'feedback', id: string): string => {
+  return `session_${type}_${id}_${CACHE_VERSION}`;
+};
+
+function getCachedData<T>(key: string): T | null {
+  try {
+    const cached = localStorage.getItem(key);
+    if (!cached) return null;
+
+    const { data, timestamp, hash } = JSON.parse(cached);
+    const now = Date.now();
+    const expiryTime = CACHE_EXPIRY_HOURS * 60 * 60 * 1000;
+
+    if (now - timestamp > expiryTime) {
+      localStorage.removeItem(key);
+      return null;
+    }
+
+    const expectedHash = generateHash(JSON.stringify(data));
+    if (hash !== expectedHash) {
+      localStorage.removeItem(key);
+      return null;
+    }
+
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedData<T>(key: string, data: T): void {
+  try {
+    const dataStr = JSON.stringify(data);
+    const hash = generateHash(dataStr);
+    const cacheEntry = { data, timestamp: Date.now(), hash };
+    localStorage.setItem(key, JSON.stringify(cacheEntry));
+  } catch (error) {
+    console.warn('Failed to cache data:', error);
+  }
+}
 
 interface Session {
   id: string;
@@ -162,7 +217,11 @@ const formatDuration = (seconds: number | null): string => {
 };
 
 // --- Component ---
-export default function UserSessionHistory({ sidebarCollapsed = false }: { sidebarCollapsed?: boolean }) {
+export default function UserSessionHistory({
+  sidebarCollapsed = false
+}: {
+  sidebarCollapsed?: boolean;
+}) {
   const [allUserSessionsData, setAllUserSessionsData] = useState<Session[]>(() => sessionCache);
   const [loading, setLoading] = useState<boolean>(() => sessionCache.length === 0);  
   const [userId, setUserId] = useState<string | null>(null);
@@ -173,19 +232,305 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
   const [confirmDeleteSessionId, setConfirmDeleteSessionId] = useState<string | null>(null);
   const [isSelectMode, setIsSelectMode] = useState<boolean>(false);
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
+  const [expandedSessions, setExpandedSessions] = useState<{ [key: string]: boolean }>({});
+  const [sessionContentMode, setSessionContentMode] = useState<{ [key: string]: 'transcript' | 'summary' }>({});
+  const [viewType, setViewType] = useState<'list-with-timestamps' | 'list-without-timestamps'>('list-with-timestamps');
+
+  // Derive showTimestamps from viewType
+  const showTimestamps = viewType === 'list-with-timestamps';
 
   const { conversationEnded, pollingStatus, setPollingStatus } = useConversationStatus();
   const router = useRouter();
 
   const handleSelectSession = (id: string) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('sid', id);
-    router.replace(url.toString());
+    if (isSelectMode) {
+      toggleSessionSelection(id);
+    } else {
+      toggleSessionExpansion(id);
+    }
+  };
+
+  const toggleSessionExpansion = (sessionId: string) => {
+    setExpandedSessions(prev => ({
+      ...prev,
+      [sessionId]: !prev[sessionId]
+    }));
+
+    // Initialize content mode to summary if not set
+    if (!sessionContentMode[sessionId]) {
+      setSessionContentMode(prev => ({
+        ...prev,
+        [sessionId]: 'summary'
+      }));
+    }
+  };
+
+  const toggleSessionContentMode = (sessionId: string) => {
+    setSessionContentMode(prev => ({
+      ...prev,
+      [sessionId]: prev[sessionId] === 'transcript' ? 'summary' : 'transcript'
+    }));
   };
 
   const toggleExpandedDay = (dayDateISO: string) => {
     setExpandedDays(prev => ({ ...prev, [dayDateISO]: !prev[dayDateISO] }));
   };
+
+  const ExpandedSessionContent = memo(({ session }: { session: Session }) => {
+    const [currentMode, setCurrentMode] = useState<'transcript' | 'summary'>('summary');
+    const [therapistNotesMode, setTherapistNotesMode] = useState<'insights' | 'next_steps'>('insights');
+    // Initialize feedback with cached data if available
+    const initialFeedback = useMemo(() => {
+      if (!session?.transcript) return null;
+      const isPlaceholder = session.title === 'Recent Session' && session.summary === 'Summarizing...';
+      if (isPlaceholder) return null;
+
+      const transcriptHash = generateHash(session.transcript);
+      const cacheKey = getCacheKey('feedback', `${session.id}_${transcriptHash}`);
+      return getCachedData<{
+        next_steps: string;
+        insight: string;
+        challenge: string;
+      }>(cacheKey);
+    }, [session]);
+
+    const [feedback, setFeedback] = useState<{
+      next_steps: string;
+      insight: string;
+      challenge: string;
+    } | null>(initialFeedback);
+
+    // Initialize feedbackLoading to true if we have a transcript that will trigger a fetch, unless cached data exists
+    const shouldFetchFeedback = useMemo(() => {
+      if (!session?.transcript) return false;
+      const isPlaceholder = session.title === 'Recent Session' && session.summary === 'Summarizing...';
+      if (isPlaceholder) return false;
+
+      return !initialFeedback; // Only show loading if no cached data
+    }, [session, initialFeedback]);
+
+    const [feedbackLoading, setFeedbackLoading] = useState(shouldFetchFeedback);
+
+    const toggleContentMode = () => {
+      setCurrentMode(prev => prev === 'transcript' ? 'summary' : 'transcript');
+    };
+
+    const toggleTherapistNotesMode = () => {
+      setTherapistNotesMode(prev => prev === 'insights' ? 'next_steps' : 'insights');
+    };
+
+    // Memoize transcript parsing to prevent re-renders
+    const messages = useMemo(() => {
+      if (!session.transcript) return [];
+
+      return session.transcript
+        .split('\n')
+        .filter((line) => line.trim() !== '')
+        .map((line, index) => {
+          const isUser = line.toLowerCase().startsWith('you:');
+          const content = line.replace(/^(you|therapist):/i, '').trim();
+          return { isUser, content, index };
+        });
+    }, [session.transcript]);
+
+    // Fetch feedback when session expands
+    useEffect(() => {
+      const fetchFeedback = async () => {
+        if (!session?.transcript) return;
+
+        const transcriptHash = generateHash(session.transcript);
+        const cacheKey = getCacheKey('feedback', `${session.id}_${transcriptHash}`);
+        const cachedFeedback = getCachedData<typeof feedback>(cacheKey);
+
+        if (cachedFeedback) {
+          console.log('📦 Using cached feedback for:', session.id);
+          setFeedback(cachedFeedback);
+          return;
+        }
+
+        setFeedbackLoading(true);
+        try {
+          const res = await fetch('/api/session-feedback', {
+            method: 'POST',
+            body: JSON.stringify({ transcript: session.transcript }),
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const json = await res.json();
+          setFeedback(json);
+          setCachedData(cacheKey, json);
+        } catch (error) {
+          console.error('Failed to fetch feedback:', error);
+        } finally {
+          setFeedbackLoading(false);
+        }
+      };
+
+      const isPlaceholder = session.title === 'Recent Session' && session.summary === 'Summarizing...';
+      if (session?.transcript && !isPlaceholder) {
+        fetchFeedback();
+      }
+    }, [session]);
+
+    return (
+      <>
+        {/* Therapist Analysis */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-5">
+            <StickyNote className="w-4 h-4 text-indigo-600" />
+            <h4 className="text-sm font-semibold text-slate-800">Therapist Notes</h4>
+          </div>
+
+          {feedbackLoading && (
+            <div className="flex items-center gap-2 text-sm text-slate-500 italic py-4">
+              <div className="w-4 h-4 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600"></div>
+              Analyzing session for insights...
+            </div>
+          )}
+
+          {feedback ? (
+            <div className="space-y-7">
+              {/* Key Insight */}
+              <div className="space-y-3 animate-fade-in-up" style={{animationDelay: '0.1s', animationFillMode: 'both'}}>
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="w-4 h-4 text-slate-600" />
+                  <h5 className="text-sm font-semibold text-slate-800">Key Insight</h5>
+                </div>
+                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line pl-6">
+                  {feedback.insight.replace(/^[-•*]\s*/, '')}
+                </p>
+              </div>
+
+              {/* Challenge Identified */}
+              <div className="space-y-3 animate-fade-in-up" style={{animationDelay: '0.2s', animationFillMode: 'both'}}>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-slate-600" />
+                  <h5 className="text-sm font-semibold text-slate-800">Challenge Identified</h5>
+                </div>
+                <div className="flex items-start justify-between">
+                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line pl-6 flex-1">
+                    {feedback.challenge.replace(/^[-•*]\s*/, '')}
+                  </p>
+                  <button
+                    onClick={toggleTherapistNotesMode}
+                    className="p-1 ml-3 hover:bg-slate-50 rounded-md transition-all duration-200 group flex-shrink-0"
+                  >
+                    <ListChecks className={`w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-all duration-300 ${
+                      therapistNotesMode === 'next_steps' ? 'text-slate-600' : ''
+                    }`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Next Steps - Collapsible */}
+              <div className="space-y-3">
+                <div className={`overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                  therapistNotesMode === 'next_steps'
+                    ? 'max-h-96 opacity-100'
+                    : 'max-h-0 opacity-0'
+                }`}>
+                  <div className="pl-6 space-y-2 pt-1">
+                    {feedback.next_steps.split('\n').map((step, index) => {
+                      const trimmedStep = step.trim();
+                      if (!trimmedStep) return null;
+
+                      // Remove leading dashes, bullets, or asterisks
+                      const cleanedStep = trimmedStep.replace(/^[-•*]\s*/, '');
+
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-start gap-3 animate-fade-in-up"
+                          style={{
+                            animationDelay: `${0.1 + (index * 0.1)}s`,
+                            animationFillMode: 'both'
+                          }}
+                        >
+                          <div className="w-5 h-5 bg-slate-200 text-slate-700 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 mt-0.5">
+                            {index + 1}
+                          </div>
+                          <span className="text-sm text-slate-700 leading-relaxed">{cleanedStep}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : !feedbackLoading && (
+            <div className="text-center py-8 text-slate-500">
+              <StickyNote className="w-8 h-8 mx-auto mb-3 opacity-50" />
+              <p className="text-sm italic">No therapist analysis available for this session.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Content Toggle */}
+        <div className="border-t border-slate-200 pt-5 animate-fade-in-up" style={{animationDelay: '0.3s', animationFillMode: 'both'}}>
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-sm font-semibold text-slate-800">Session Content</h4>
+            <button
+              onClick={toggleContentMode}
+              className="px-3 py-1.5 text-xs font-medium bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+            >
+              {currentMode === 'transcript' ? 'Show Summary' : 'Show Transcript'}
+            </button>
+          </div>
+
+          <div className={`bg-slate-50 rounded-lg p-4 overflow-y-auto relative transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+            currentMode === 'transcript'
+              ? 'max-h-[36rem] min-h-[300px]'
+              : 'max-h-80 min-h-[160px]'
+          }`}>
+            {/* Summary View */}
+            <div className={`absolute inset-4 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+              currentMode === 'summary'
+                ? 'opacity-100 pointer-events-auto z-10 scale-100'
+                : 'opacity-0 pointer-events-none z-0 scale-95'
+            }`}>
+              <div className="text-sm text-slate-700 leading-relaxed">
+                {session.summary || 'Summary not available for this session.'}
+              </div>
+            </div>
+
+            {/* Transcript View */}
+            <div className={`absolute inset-4 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] overflow-y-auto ${
+              currentMode === 'transcript'
+                ? 'opacity-100 pointer-events-auto z-10 scale-100'
+                : 'opacity-0 pointer-events-none z-0 scale-95'
+            }`}>
+              <div className="flex flex-col space-y-3">
+                {messages.length > 0 ? (
+                  messages.map(({ isUser, content, index }) => (
+                    <div
+                      key={index}
+                      className={`max-w-xs md:max-w-sm px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                        isUser
+                          ? 'bg-indigo-100 text-indigo-800 self-end ml-auto'
+                          : 'bg-slate-200 text-slate-800 self-start mr-auto'
+                      }`}
+                    >
+                      {content}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500 italic">Transcript not available for this session.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Close Button */}
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={() => toggleSessionExpansion(session.id)}
+            className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-800 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </>
+    );
+  });
 
   const handleDeleteSession = async (sessionId: string) => {
     setDeletingSessionId(sessionId);
@@ -351,7 +696,7 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
   return (
     <div className="bg-white min-h-screen py-2 md:py-4 sm:py-6 w-full">
       
-      <div className={`hidden max-w-2xl ${sidebarCollapsed ? 'mx-auto' : 'ml-32 lg:ml-40'} px-4 sm:px-6 lg:px-8 mb-6`}> {/* Search Bar */}
+      <div className={`hidden max-w-3xl ${sidebarCollapsed ? 'mx-auto' : 'ml-20 lg:ml-24'} px-4 sm:px-6 lg:px-8 mb-6`}> {/* Search Bar */}
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
             <svg className="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" /></svg>
@@ -373,13 +718,29 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
           <p className="mt-1 md:mt-1.5 text-xs md:text-sm text-slate-500">{searchQuery ? 'Try different keywords or clear your search.' : 'Once you complete a session, it will appear here.'}</p>
         </div>
       ) : (
-        <div className={`max-w-2xl ${sidebarCollapsed ? 'mx-auto' : 'ml-32 lg:ml-40'} px-4 md:px-6 lg:px-8 mt-6`}>
+        <div className={`max-w-3xl ${sidebarCollapsed ? 'mx-auto' : 'ml-20 lg:ml-24'} px-4 md:px-6 lg:px-8 mt-6`}>
           {showSpecialMostRecentView && mostRecentSessionActual && ( /* Most Recent Session View */
             <section className="mb-4" aria-labelledby="most-recent-session-title">
               <div className="flex items-center justify-between mb-1 px-1">
                 <h2 id="most-recent-session-title" className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-wider">Latest Session</h2>
                 {!showInitialLoading && !showEmptyMessage && (
                   <div className="flex items-center gap-2">
+                    {/* View Type Selector */}
+                    <div className="relative">
+                      <select
+                        value={viewType}
+                        onChange={(e) => setViewType(e.target.value as 'list-with-timestamps' | 'list-without-timestamps')}
+                        className="appearance-none bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent pr-8"
+                      >
+                        <option value="list-with-timestamps">List with Timestamps</option>
+                        <option value="list-without-timestamps">List without Timestamps</option>
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
                     {isSelectMode && selectedSessions.size > 0 && (
                       <button
                         onClick={() => setConfirmDeleteSessionId('bulk')}
@@ -407,7 +768,7 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
                   </div>
                 )}
               </div>
-              <div className="relative group">
+              <div className="relative group" data-session-id={mostRecentSessionActual.id}>
                 {isSelectMode && !isMostRecentActualPlaceholder && (
                   <div className="absolute top-4 left-4 z-10">
                     <button
@@ -426,34 +787,66 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
                     </button>
                   </div>
                 )}
-                <button 
+                <button
                   onClick={() => {
-                    if (isSelectMode && !isMostRecentActualPlaceholder) {
-                      toggleSessionSelection(mostRecentSessionActual.id);
-                    } else if (!isMostRecentActualPlaceholder) {
+                    if (!isMostRecentActualPlaceholder) {
                       handleSelectSession(mostRecentSessionActual.id);
                     }
                   }}
                   disabled={isMostRecentActualPlaceholder}
                   aria-label={`${isSelectMode ? 'Select' : 'View'} latest session: ${mostRecentSessionActual.title || 'Untitled Session'}`}
-                  className={`w-full text-left bg-white p-4 md:p-5 sm:p-6 rounded-xl shadow-lg border border-slate-200 transition-all duration-200 ease-in-out ${
-                    isMostRecentActualPlaceholder 
-                      ? 'opacity-70 animate-pulse cursor-default' 
-                      : isSelectMode
-                        ? selectedSessions.has(mostRecentSessionActual.id)
-                          ? 'ring-2 ring-indigo-200 bg-indigo-50'
-                          : 'hover:ring-2 hover:ring-slate-200 hover:bg-slate-50'
-                        : 'hover:shadow-xl hover:border-indigo-300 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'
+                  className={`w-full text-left bg-white p-4 md:p-5 sm:p-6 rounded-xl border-2 transition-all duration-200 ease-in-out ${
+                    isMostRecentActualPlaceholder
+                      ? 'opacity-70 animate-pulse cursor-default border-slate-200'
+                      : expandedSessions[mostRecentSessionActual.id]
+                        ? 'border-indigo-200 bg-indigo-50'
+                        : isSelectMode
+                          ? selectedSessions.has(mostRecentSessionActual.id)
+                            ? 'ring-2 ring-indigo-200 bg-indigo-50 border-transparent'
+                            : 'hover:ring-2 hover:ring-slate-200 hover:bg-slate-50 border-transparent'
+                          : 'hover:border-indigo-300 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none border-transparent'
                   }`}>
                 {isMostRecentActualPlaceholder ? (<> {/* Placeholder for most recent */}
                   <div className="h-5 bg-slate-300 rounded w-3/5 mb-3"></div> <div className="space-y-2"><div className="h-3 bg-slate-300/80 rounded w-full"></div><div className="h-3 bg-slate-300/80 rounded w-full"></div><div className="h-3 bg-slate-300/80 rounded w-3/4"></div></div> <div className="h-4 bg-slate-300 rounded w-1/3 mt-4"></div>
                 </>) : (<>
                   <h3 className="text-base md:text-lg sm:text-xl font-bold text-slate-800 group-hover:text-indigo-700 mb-0.5 md:mb-1 transition-colors">{mostRecentSessionActual.title || 'Untitled Session'}</h3>
-                  <p className="text-[10px] md:text-xs text-slate-500 mb-1 md:mb-2">{formatDetailedTimestamp(mostRecentSessionActual.created_at)}{mostRecentSessionActual.duration !== null && ` • ${formatDuration(mostRecentSessionActual.duration)}`}</p>
+                  {showTimestamps && (
+                    <p className="text-[10px] md:text-xs text-slate-500 mb-1 md:mb-2">{formatDetailedTimestamp(mostRecentSessionActual.created_at)}{mostRecentSessionActual.duration !== null && ` • ${formatDuration(mostRecentSessionActual.duration)}`}</p>
+                  )}
                   {mostRecentSessionActual.summary && (<p className="text-xs md:text-sm text-slate-600 leading-relaxed line-clamp-3 group-hover:text-slate-700">{truncateSummary(mostRecentSessionActual.summary, 3)}</p>)}
-                  <div className="mt-2 md:mt-3 flex justify-end"><span className="text-[10px] md:text-xs font-medium text-indigo-600 group-hover:text-indigo-700">View Details →</span></div>
+                  <div className="mt-2 md:mt-3 flex justify-end">
+                    <span className="text-[10px] md:text-xs font-medium text-indigo-600 group-hover:text-indigo-700 flex items-center gap-1">
+                      {expandedSessions[mostRecentSessionActual.id] ? 'Hide Details' : 'View Details'}
+                      <svg
+                        className={`w-3 h-3 transition-transform duration-200 ${expandedSessions[mostRecentSessionActual.id] ? 'rotate-90' : ''}`}
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                      </svg>
+                    </span>
+                  </div>
                 </>)}
                 </button>
+                {!isMostRecentActualPlaceholder && (
+                  <div className={`overflow-hidden transition-all duration-200 ease-out ${
+                    expandedSessions[mostRecentSessionActual.id]
+                      ? 'max-h-[1000px]'
+                      : 'max-h-0'
+                  }`}>
+                    <div className={`mt-3 bg-white rounded-xl border border-slate-200 transition-transform duration-200 ease-out origin-top ${
+                      expandedSessions[mostRecentSessionActual.id] ? 'scale-y-100' : 'scale-y-0'
+                    }`}>
+                      <div className={`p-4 transition-all duration-150 delay-200 ${
+                        expandedSessions[mostRecentSessionActual.id]
+                          ? 'opacity-100 blur-0'
+                          : 'opacity-0 blur-[1px]'
+                      }`}>
+                        <ExpandedSessionContent session={mostRecentSessionActual} />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           )}
@@ -470,7 +863,7 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
                         const isListItemPlaceholder = session.title === 'Recent Session' && session.summary === 'Summarizing...';
                         return (
                           <li key={session.id}>
-                            <div className="relative group">
+                            <div className="relative group" data-session-id={session.id}>
                               {isSelectMode && !isListItemPlaceholder && (
                                 <div className="absolute top-3 left-3 z-10">
                                   <button
@@ -489,38 +882,61 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
                                   </button>
                                 </div>
                               )}
-                              <button 
+                              <button
                                 onClick={() => {
-                                  if (isSelectMode && !isListItemPlaceholder) {
-                                    toggleSessionSelection(session.id);
-                                  } else if (!isListItemPlaceholder) {
+                                  if (!isListItemPlaceholder) {
                                     handleSelectSession(session.id);
                                   }
                                 }}
                                 disabled={isListItemPlaceholder}
                                 aria-label={`${isSelectMode ? 'Select' : 'View'} session: ${session.title || 'Untitled Session'}`}
-                                className={`w-full flex items-center bg-white p-3 md:p-3.5 sm:p-4 rounded-xl shadow transition-all duration-200 ease-in-out ${
-                                  isListItemPlaceholder 
-                                    ? 'opacity-60 animate-pulse cursor-default' 
-                                    : isSelectMode
-                                      ? selectedSessions.has(session.id)
-                                        ? 'ring-2 ring-indigo-200 bg-indigo-50'
-                                        : 'hover:ring-2 hover:ring-slate-200 hover:bg-slate-50'
-                                      : 'hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'
+                                className={`w-full flex items-center bg-white p-3 md:p-3.5 sm:p-4 rounded-xl border-2 transition-all duration-200 ease-in-out ${
+                                  isListItemPlaceholder
+                                    ? 'opacity-60 animate-pulse cursor-default border-transparent'
+                                    : expandedSessions[session.id]
+                                      ? 'border-indigo-200 bg-indigo-50'
+                                      : isSelectMode
+                                        ? selectedSessions.has(session.id)
+                                          ? 'ring-2 ring-indigo-200 bg-indigo-50 border-transparent'
+                                          : 'hover:ring-2 hover:ring-slate-200 hover:bg-slate-50 border-transparent'
+                                        : 'hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none border-transparent'
                                 }`}>
                               {isListItemPlaceholder ? (<> {/* Placeholder for recent list item */}
                                 <div className="mr-4 text-center w-16 h-6 bg-slate-300/70 rounded-md flex-shrink-0"></div> <div className="flex-grow min-w-0"><div className="h-4 bg-slate-300 rounded w-3/4 mb-1.5"></div><div className="h-3 bg-slate-300 rounded w-1/2"></div></div> <div className="h-4 bg-slate-300 rounded w-10 ml-3"></div>
                               </>) : (<>
-                                <div className="mr-2 md:mr-3 sm:mr-4 text-center w-12 md:w-16 sm:w-20 flex-shrink-0 py-0.5 md:py-1 px-0.5 md:px-1">
-                                  <span className="text-[9px] md:text-[11px] sm:text-xs font-medium text-slate-500 group-hover:text-slate-600 bg-slate-200/70 group-hover:bg-slate-200 rounded px-1 md:px-1.5 py-0.5">{formatRelativeDateForRecent(session.created_at)}</span>
-                                </div>
+                                {showTimestamps && (
+                                  <div className="mr-2 md:mr-3 sm:mr-4 text-center w-12 md:w-16 sm:w-20 flex-shrink-0 py-0.5 md:py-1 px-0.5 md:px-1">
+                                    <span className="text-[9px] md:text-[11px] sm:text-xs font-medium text-slate-500 group-hover:text-slate-600 bg-slate-200/70 group-hover:bg-slate-200 rounded px-1 md:px-1.5 py-0.5">{formatRelativeDateForRecent(session.created_at)}</span>
+                                  </div>
+                                )}
                                 <div className="flex-grow min-w-0">
                                   <h3 className="text-xs md:text-sm sm:text-base font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">{session.title || 'Untitled Session'}</h3>
-                                  <p className="text-[10px] md:text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">{formatDuration(session.duration)}</p>
+                                  {showTimestamps && (
+                                    <p className="text-[10px] md:text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">{formatDuration(session.duration)}</p>
+                                  )}
                                 </div>
-                                <svg className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 ml-3 flex-shrink-0 transition-colors" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
+                                <svg className={`w-5 h-5 text-slate-400 group-hover:text-indigo-600 ml-3 flex-shrink-0 transition-all duration-200 ${expandedSessions[session.id] ? 'rotate-90 text-indigo-600' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
                               </>)}
                             </button>
+                            {!isListItemPlaceholder && (
+                              <div className={`overflow-hidden transition-all duration-200 ease-out ${
+                                expandedSessions[session.id]
+                                  ? 'max-h-[1000px]'
+                                  : 'max-h-0'
+                              }`}>
+                                <div className={`mt-3 bg-white rounded-xl border border-slate-200 transition-transform duration-200 ease-out origin-top ${
+                                  expandedSessions[session.id] ? 'scale-y-100' : 'scale-y-0'
+                                }`}>
+                                  <div className={`p-4 transition-all duration-150 delay-200 ${
+                                    expandedSessions[session.id]
+                                      ? 'opacity-100 blur-0'
+                                      : 'opacity-0 blur-[1px]'
+                                  }`}>
+                                    <ExpandedSessionContent session={session} />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                             </div>
                           </li>
                         );
@@ -537,143 +953,193 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
               dailyGroups.length > 0 && (
                 <section key={periodGroup.title} className="mb-4 last:mb-0" aria-labelledby={`section-title-${periodGroup.title.replace(/\s+/g, '-').toLowerCase()}`}>
                   <h2 id={`section-title-${periodGroup.title.replace(/\s+/g, '-').toLowerCase()}`} className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 px-1">{periodGroup.title}</h2>
-                  <ul className="space-y-1">
+                  <ul className="space-y-0">
                     {dailyGroups.map((dayGroup) => {
                       const { dayOfWeek, dayOfMonth, fullDate } = formatListDateParts(dayGroup.date);
                       const isDayPlaceholder = dayGroup.sessions.some(s => s.title === 'Recent Session' && s.summary === 'Summarizing...');
                       const isExpanded = expandedDays[dayGroup.date] || false;
 
                       if (dayGroup.sessions.length === 1 && !isDayPlaceholder) {
-                        // Single session day - render as individual tile
+                        // Single session day - render with date key like multiple sessions
                         const session = dayGroup.sessions[0];
                         return (
                           <li key={session.id}>
-                            <div className="relative group">
-                              {isSelectMode && (
-                                <div className="absolute top-3 left-3 z-10">
-                                  <button
-                                    onClick={() => toggleSessionSelection(session.id)}
-                                    className={`w-4 h-4 rounded border-2 transition-all duration-200 flex items-center justify-center ${
-                                      selectedSessions.has(session.id)
-                                        ? 'bg-indigo-50 border-indigo-200'
-                                        : 'bg-white border-slate-200 hover:border-slate-300'
-                                    }`}
-                                  >
-                                    {selectedSessions.has(session.id) && (
-                                      <svg className="w-2.5 h-2.5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                      </svg>
+                            <div data-session-id={session.id}>
+                              {/* Session row */}
+                              <div className="flex">
+                                {showTimestamps && (
+                                  <div className="mr-4 text-center w-10 flex-shrink-0 mt-2" aria-hidden="true">
+                                    <div className="text-[10px] text-gray-400 tracking-wide">{dayOfWeek}</div>
+                                    <div className="text-sm font-bold text-slate-700">{dayOfMonth}</div>
+                                  </div>
+                                )}
+                                <div className={`flex-1 bg-slate-50/50 pl-4 py-2 ${showTimestamps ? 'border-l-2 border-indigo-200 rounded-r-md' : 'rounded-md'}`}>
+                                  <div className="relative group flex items-center">
+                                    {isSelectMode && (
+                                      <div className="flex-shrink-0 mr-2">
+                                        <button
+                                          onClick={() => toggleSessionSelection(session.id)}
+                                          className={`w-3.5 h-3.5 rounded border-2 transition-all duration-200 flex items-center justify-center ${
+                                            selectedSessions.has(session.id)
+                                              ? 'bg-indigo-50 border-indigo-200'
+                                              : 'bg-white border-slate-200 hover:border-slate-300'
+                                          }`}
+                                        >
+                                          {selectedSessions.has(session.id) && (
+                                            <svg className="w-2 h-2 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                          )}
+                                        </button>
+                                      </div>
                                     )}
-                                  </button>
+                                    <button
+                                      onClick={() => handleSelectSession(session.id)}
+                                      aria-label={`${isSelectMode ? 'Select' : 'View'} session: ${session.title || 'Untitled Session'} from ${fullDate}`}
+                                      className={`flex-1 flex items-center text-left bg-white p-3 md:p-3.5 sm:p-4 rounded-xl border-2 transition-all duration-200 ease-in-out ${
+                                        expandedSessions[session.id]
+                                          ? 'border-indigo-200 bg-indigo-50'
+                                          : isSelectMode
+                                            ? selectedSessions.has(session.id)
+                                              ? 'ring-2 ring-indigo-200 bg-indigo-50 border-transparent'
+                                              : 'hover:ring-2 hover:ring-slate-200 hover:bg-slate-50 border-transparent'
+                                            : 'hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none border-transparent'
+                                      }`}>
+                                      {showTimestamps && (
+                                        <div className="mr-2 md:mr-3 sm:mr-4 text-center w-12 md:w-16 sm:w-20 flex-shrink-0 py-0.5 md:py-1 px-0.5 md:px-1">
+                                          <span className="text-[9px] md:text-[11px] sm:text-xs font-medium text-slate-500 group-hover:text-slate-600 bg-slate-200/70 group-hover:bg-slate-200 rounded px-1 md:px-1.5 py-0.5">
+                                            {new Date(session.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                          </span>
+                                        </div>
+                                      )}
+                                      <div className="flex-grow min-w-0">
+                                        <h3 className="text-xs md:text-sm sm:text-base font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">{session.title || 'Untitled Session'}</h3>
+                                        {showTimestamps && (
+                                          <p className="text-[10px] md:text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">{formatDuration(session.duration)}</p>
+                                        )}
+                                      </div>
+                                      <svg className={`w-5 h-5 text-slate-400 group-hover:text-indigo-600 ml-3 flex-shrink-0 transition-all duration-200 ${expandedSessions[session.id] ? 'rotate-90 text-indigo-600' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
+                                    </button>
+                                  </div>
                                 </div>
-                              )}
-                              <button 
-                                onClick={() => {
-                                  if (isSelectMode) {
-                                    toggleSessionSelection(session.id);
-                                  } else {
-                                    handleSelectSession(session.id);
-                                  }
-                                }}
-                                aria-label={`${isSelectMode ? 'Select' : 'View'} session: ${session.title || 'Untitled Session'} from ${fullDate}`}
-                                className={`w-full flex items-center bg-white p-3.5 sm:p-4 rounded-xl shadow transition-all duration-200 ease-in-out group ${
-                                  isSelectMode
-                                    ? selectedSessions.has(session.id)
-                                      ? 'ring-2 ring-indigo-200 bg-indigo-50'
-                                      : 'hover:ring-2 hover:ring-slate-200 hover:bg-slate-50'
-                                    : 'hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'
+                              </div>
+                              {/* Expansion content outside the blue-bordered container */}
+                              <div className={`overflow-hidden transition-all duration-200 ease-out ${
+                                expandedSessions[session.id]
+                                  ? 'max-h-[1000px]'
+                                  : 'max-h-0'
+                              }`}>
+                                <div className={`mt-3 bg-white rounded-xl border border-slate-200 transition-transform duration-200 ease-out origin-top ${
+                                  expandedSessions[session.id] ? 'scale-y-100' : 'scale-y-0'
                                 }`}>
-                                <div className="mr-2 sm:mr-3 text-center w-10 flex-shrink-0" aria-hidden="true">
-                                  <div className="text-[10px] text-gray-400 tracking-wide">{dayOfWeek}</div>
-                                  <div className="text-sm font-bold text-slate-700 group-hover:text-slate-800">{dayOfMonth}</div>
+                                  <div className={`p-4 transition-all duration-150 delay-200 ${
+                                    expandedSessions[session.id]
+                                      ? 'opacity-100 blur-0'
+                                      : 'opacity-0 blur-[1px]'
+                                  }`}>
+                                    <ExpandedSessionContent session={session} />
+                                  </div>
                                 </div>
-                                <div className="flex-grow min-w-0">
-                                  <h3 className="text-xs md:text-sm sm:text-base font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">{session.title || 'Untitled Session'}</h3>
-                                  <p className="text-[10px] md:text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">{formatDuration(session.duration)}</p>
-                                </div>
-                                <svg className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 ml-3 flex-shrink-0 transition-colors" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
-                              </button>
+                              </div>
                             </div>
                           </li>
                         );
                       } else {
-                        // Multiple sessions day (or placeholder) - render as expandable group
+                        // Multiple sessions day (or placeholder) - render with date key and sessions
                         return (
                           <li key={dayGroup.date}>
-                            <button onClick={() => !isDayPlaceholder && toggleExpandedDay(dayGroup.date)} disabled={isDayPlaceholder}
-                              aria-expanded={isExpanded} aria-controls={`sessions-for-${dayGroup.date}`}
-                              aria-label={`${isExpanded ? 'Collapse' : 'Expand'} sessions from ${fullDate}`}
-                              className={`w-full flex items-center bg-white p-3.5 sm:p-4 rounded-xl shadow transition-all duration-200 ease-in-out group ${isDayPlaceholder ? 'opacity-60 animate-pulse cursor-default' : 'hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'}`}>
-                              {isDayPlaceholder ? (<> {/* Placeholder for day group tile */}
-                                <div className="mr-4 text-center w-12 h-10 bg-slate-300/70 rounded-md flex-shrink-0"></div> <div className="flex-grow min-w-0"><div className="h-4 bg-slate-300 rounded w-3/4 mb-1.5"></div><div className="h-3 bg-slate-300 rounded w-1/2"></div></div> <div className="h-4 bg-slate-300 rounded w-10 ml-3"></div>
-                              </>) : (<>
-                                <div className="mr-2 sm:mr-3 text-center w-10 flex-shrink-0" aria-hidden="true">
-                                  <div className="text-[10px] text-gray-400 tracking-wide">{dayOfWeek}</div>
-                                  <div className="text-sm font-bold text-slate-700 group-hover:text-slate-800">{dayOfMonth}</div>
-                                </div>
-                                <div className="flex-grow min-w-0">
-                                  <h3 className="text-xs sm:text-sm font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">
-                                    {dayGroup.sessions.length} {dayGroup.sessions.length === 1 ? 'session' : 'sessions'}
-                                  </h3>
-                                </div>
-                                <svg className={`w-5 h-5 text-slate-400 group-hover:text-indigo-600 ml-3 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
-                              </>)}
-                            </button>
-                            {!isDayPlaceholder && (
-                               <div id={`sessions-for-${dayGroup.date}`} className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100 mt-1.5' : 'max-h-0 opacity-0'}`}>
-                                <ul className="pl-4 pr-1 py-1 space-y-1.5 bg-slate-50/50 border-l-2 border-indigo-200 ml-[calc(0.75rem+3rem+0.25rem)] rounded-r-md"> {/* Adjust ml based on date block width */}
-                                    {dayGroup.sessions.map(session => (
-                                    <li key={session.id}>
-                                        <div className="relative group flex items-center">
-                                        {isSelectMode && (
-                                          <div className="flex-shrink-0 mr-2">
+                            {isDayPlaceholder ? (
+                              <div className="opacity-60 animate-pulse">
+                                <div className="mr-4 text-center w-12 h-10 bg-slate-300/70 rounded-md flex-shrink-0"></div>
+                              </div>
+                            ) : (
+                              <div>
+                                {dayGroup.sessions.map((session, sessionIndex) => (
+                                  <div key={session.id} data-session-id={session.id}>
+                                    {/* Session row */}
+                                    <div className="flex">
+                                      {showTimestamps && (
+                                        <div className="mr-4 text-center w-10 flex-shrink-0 mt-2" aria-hidden="true">
+                                          {sessionIndex === 0 && (
+                                            <>
+                                              <div className="text-[10px] text-gray-400 tracking-wide">{dayOfWeek}</div>
+                                              <div className="text-sm font-bold text-slate-700">{dayOfMonth}</div>
+                                            </>
+                                          )}
+                                        </div>
+                                      )}
+                                      <div className={`flex-1 bg-slate-50/50 pl-4 py-2 ${showTimestamps ? 'border-l-2 border-indigo-200 rounded-r-md' : 'rounded-md'}`}>
+                                        <div className={`relative group ${sessionIndex > 0 ? 'mt-1' : ''}`}>
+                                          <div className="flex items-center">
+                                            {isSelectMode && (
+                                              <div className="flex-shrink-0 mr-2">
+                                                <button
+                                                  onClick={() => toggleSessionSelection(session.id)}
+                                                  className={`w-3.5 h-3.5 rounded border-2 transition-all duration-200 flex items-center justify-center ${
+                                                    selectedSessions.has(session.id)
+                                                      ? 'bg-indigo-50 border-indigo-200'
+                                                      : 'bg-white border-slate-200 hover:border-slate-300'
+                                                  }`}
+                                                >
+                                                  {selectedSessions.has(session.id) && (
+                                                    <svg className="w-2 h-2 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                    </svg>
+                                                  )}
+                                                </button>
+                                              </div>
+                                            )}
                                             <button
-                                              onClick={() => toggleSessionSelection(session.id)}
-                                              className={`w-3.5 h-3.5 rounded border-2 transition-all duration-200 flex items-center justify-center ${
-                                                selectedSessions.has(session.id)
-                                                  ? 'bg-indigo-50 border-indigo-200'
-                                                  : 'bg-white border-slate-200 hover:border-slate-300'
-                                              }`}
-                                            >
-                                              {selectedSessions.has(session.id) && (
-                                                <svg className="w-2 h-2 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
-                                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                </svg>
+                                              onClick={() => handleSelectSession(session.id)}
+                                              className={`flex-1 flex items-center text-left bg-slate-50/50 p-3 rounded-xl border-2 transition-colors group focus-visible:outline-none focus-visible:ring-1 ${
+                                                expandedSessions[session.id]
+                                                  ? 'border-indigo-200 bg-indigo-50'
+                                                  : isSelectMode
+                                                    ? selectedSessions.has(session.id)
+                                                      ? 'bg-indigo-50 hover:bg-indigo-100 focus-visible:ring-indigo-400 border-transparent'
+                                                      : 'hover:bg-slate-50 focus-visible:ring-slate-400 border-transparent'
+                                                    : 'hover:bg-slate-100 focus-visible:ring-indigo-400 border-transparent'
+                                              }`}>
+                                              {showTimestamps && (
+                                                <div className="flex-shrink-0 mr-3 w-16">
+                                                  <p className="text-xs text-slate-500 group-hover:text-indigo-600">
+                                                    {new Date(session.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                                  </p>
+                                                </div>
                                               )}
+                                              <div className="flex-grow min-w-0">
+                                                <p className="text-sm font-medium text-slate-700 group-hover:text-indigo-700 truncate">{session.title || 'Untitled Session'}</p>
+                                                {showTimestamps && (
+                                                  <p className="text-xs text-slate-500">{formatDuration(session.duration)}</p>
+                                                )}
+                                              </div>
+                                              <svg className={`w-4 h-4 text-slate-400 group-hover:text-indigo-500 ml-2 flex-shrink-0 opacity-70 group-hover:opacity-100 transition-all duration-200 ${expandedSessions[session.id] ? 'rotate-90 text-indigo-500 opacity-100' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
                                             </button>
                                           </div>
-                                        )}
-                                        <button 
-                                          onClick={() => {
-                                            if (isSelectMode) {
-                                              toggleSessionSelection(session.id);
-                                            } else {
-                                              handleSelectSession(session.id);
-                                            }
-                                          }}
-                                          className={`flex-1 flex items-center text-left p-2 rounded-md transition-colors group focus-visible:outline-none focus-visible:ring-1 ${
-                                            isSelectMode
-                                              ? selectedSessions.has(session.id)
-                                                ? 'bg-indigo-100 hover:bg-indigo-100 focus-visible:ring-indigo-400'
-                                                : 'hover:bg-slate-100 focus-visible:ring-slate-400'
-                                              : 'hover:bg-slate-200/60 focus-visible:ring-indigo-400'
-                                          }`}>
-                                        <div className="flex-shrink-0 mr-2 w-16">
-                                            <p className="text-xs text-slate-500 group-hover:text-indigo-600">
-                                            {new Date(session.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                                            </p>
                                         </div>
-                                        <div className="flex-grow min-w-0">
-                                            <p className="text-sm font-medium text-slate-700 group-hover:text-indigo-700 truncate">{session.title || 'Untitled Session'}</p>
-                                            <p className="text-xs text-slate-500">{formatDuration(session.duration)}</p>
+                                      </div>
+                                    </div>
+                                    {/* Expansion content directly below this specific session */}
+                                    <div className={`overflow-hidden transition-all duration-200 ease-out ${
+                                      expandedSessions[session.id]
+                                        ? 'max-h-[1000px]'
+                                        : 'max-h-0'
+                                    }`}>
+                                      <div className={`mt-3 bg-white rounded-xl border border-slate-200 transition-transform duration-200 ease-out origin-top ${
+                                        expandedSessions[session.id] ? 'scale-y-100' : 'scale-y-0'
+                                      }`}>
+                                        <div className={`p-4 transition-all duration-150 delay-200 ${
+                                          expandedSessions[session.id]
+                                            ? 'opacity-100 blur-0'
+                                            : 'opacity-0 blur-[1px]'
+                                        }`}>
+                                          <ExpandedSessionContent session={session} />
                                         </div>
-                                        <svg className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 ml-2 flex-shrink-0 opacity-70 group-hover:opacity-100" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
-                                        </button>
-                                        </div>
-                                    </li>
-                                    ))}
-                                </ul>
-                                </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </li>
                         );

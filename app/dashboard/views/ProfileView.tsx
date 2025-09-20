@@ -1,10 +1,13 @@
 'use client';
 
-import { AlertTriangle, ChevronRight, Plus, Circle, CheckCircle2, List, LayoutGrid } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Plus, Circle, CheckCircle2, List, LayoutGrid, Minus, Settings, Archive, Target, Hash } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/supabase/client';
 import { useConversationStatus } from '@/app/contexts/ConversationContext';
 import LoadingDots from '@/components/LoadingDots';
+import GoalItem from '@/app/dashboard/components/GoalItem';
+import CleanupDropdown from '@/app/dashboard/components/CleanupDropdown';
+import GoalSettingsTooltip from '@/app/dashboard/components/GoalSettingsTooltip';
 
 const CACHE_VERSION = '1.0';
 
@@ -63,6 +66,13 @@ interface UserProfile {
   banner_url?: string;
 }
 
+interface ListItem {
+  id: string;
+  value: string;
+  timestamp: string;
+  notes?: string;
+}
+
 interface Goal {
   id: string;
   title: string;
@@ -70,6 +80,12 @@ interface Goal {
   completed_at?: string | null;
   created_at: string;
   is_active: boolean;
+  goal_type: 'basic' | 'counter' | 'progress' | 'list';
+  current_value: number;
+  target_value?: number | null;
+  list_items?: ListItem[];
+  archived_at?: string | null;
+  archived_reason?: string | null;
 }
 
 export default function ProfileView({ sidebarCollapsed = false }: { sidebarCollapsed?: boolean }) {
@@ -95,8 +111,15 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
   const [showProfilePicModal, setShowProfilePicModal] = useState(false);
   const [profilePicModalVisible, setProfilePicModalVisible] = useState(false);
   const [tempProfilePicUrl, setTempProfilePicUrl] = useState<string>("");
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [settingsTooltip, setSettingsTooltip] = useState<{
+    isOpen: boolean;
+    goal: Goal | null;
+    position: { x: number; y: number };
+  }>({ isOpen: false, goal: null, position: { x: 0, y: 0 } });
   const previousGoals = useRef<Goal[]>([]);
   const previousThemes = useRef<string[]>([]);
+  const dummyRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     // Load profile picture from localStorage first (TODO: move to database storage)
@@ -142,7 +165,7 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
       
       const { data: goalsData, error: goalsError } = await supabase
         .from('goals')
-        .select('id, title, description, completed_at, created_at, is_active')
+        .select('id, title, description, completed_at, created_at, is_active, goal_type, current_value, target_value, list_items')
         .eq('user_id', authUser.id)
         .eq('is_active', true)
         .order('created_at', { ascending: true });
@@ -196,7 +219,7 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
       
       const [userResponse, goalsResponse] = await Promise.all([
         supabase.from('users').select('full_name, avatar_url, bio, goals, therapy_summary, themes, banner_url').eq('id', authUser.id).single(),
-        supabase.from('goals').select('id, title, description, completed_at, created_at, is_active').eq('user_id', authUser.id).eq('is_active', true).order('created_at', { ascending: true })
+        supabase.from('goals').select('id, title, description, completed_at, created_at, is_active, goal_type, current_value, target_value, list_items').eq('user_id', authUser.id).eq('is_active', true).order('created_at', { ascending: true })
       ]);
       
       if (userResponse.error || !userResponse.data) return;
@@ -275,7 +298,13 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
   const addGoal = async () => {
     if (!userId || !newGoalTitle.trim()) return;
 
-    const { data, error } = await supabase.from('goals').insert({ user_id: userId, title: newGoalTitle.trim(), is_active: true }).select().single();
+    const { data, error } = await supabase.from('goals').insert({
+      user_id: userId,
+      title: newGoalTitle.trim(),
+      is_active: true,
+      goal_type: 'basic',
+      current_value: 0
+    }).select().single();
 
     if (!error && data) {
       const updatedGoals = [...goals, data];
@@ -294,6 +323,300 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
   const handleGoalsViewModeChange = (mode: 'list' | 'kanban') => {
     setGoalsViewMode(mode);
     localStorage.setItem('goalsViewMode', mode);
+  };
+
+  const updateGoalProgress = async (goalId: string, increment: number) => {
+    if (!userId) return;
+
+    try {
+      const response = await fetch('/api/goals/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_progress',
+          goalId,
+          userId,
+          increment
+        })
+      });
+
+      if (response.ok) {
+        const { goal } = await response.json();
+        const updatedGoals = goals.map(g => g.id === goalId ? goal : g);
+        setGoals(updatedGoals);
+        if (userId) {
+          const goalsCacheKey = getProfileCacheKey('goals', userId);
+          setCachedData(goalsCacheKey, updatedGoals);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating goal progress:', error);
+    }
+  };
+
+  const archiveGoal = async (goalId: string, reason: string = 'completed') => {
+    if (!userId) return;
+
+    try {
+      const response = await fetch('/api/goals/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'archive_goal',
+          goalId,
+          userId,
+          reason
+        })
+      });
+
+      if (response.ok) {
+        const updatedGoals = goals.filter(g => g.id !== goalId);
+        setGoals(updatedGoals);
+        if (userId) {
+          const goalsCacheKey = getProfileCacheKey('goals', userId);
+          setCachedData(goalsCacheKey, updatedGoals);
+        }
+      }
+    } catch (error) {
+      console.error('Error archiving goal:', error);
+    }
+  };
+
+  const cleanupCompletedGoals = async () => {
+    if (!userId || isCleaningUp) return;
+
+    setIsCleaningUp(true);
+    try {
+      console.log('🧹 Starting cleanup process...');
+      const response = await fetch('/api/goals/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'cleanup_completed',
+          userId
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('🧹 Cleanup result:', result);
+
+        // Show user feedback
+        if (result.archivedCount > 0) {
+          // Optionally show a toast notification
+          console.log(`✅ Archived ${result.archivedCount} completed goals`);
+        } else {
+          console.log('ℹ️ No completed goals to archive');
+        }
+
+        // Refresh goals list
+        const { data: goalsData } = await supabase
+          .from('goals')
+          .select('id, title, description, completed_at, created_at, is_active, goal_type, current_value, target_value, list_items')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .order('created_at', { ascending: true });
+
+        if (goalsData) {
+          setGoals(goalsData);
+          const goalsCacheKey = getProfileCacheKey('goals', userId);
+          setCachedData(goalsCacheKey, goalsData);
+        }
+      } else {
+        const errorText = await response.text();
+        console.error('🧹 Cleanup failed:', response.status, errorText);
+      }
+    } catch (error) {
+      console.error('🧹 Error cleaning up goals:', error);
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
+  const deleteAllCompletedGoals = async () => {
+    if (!userId || isCleaningUp) return;
+
+    setIsCleaningUp(true);
+    try {
+      console.log('🗑️ Deleting all completed goals...');
+
+      // Find all completed goals
+      const completedGoals = goals.filter(goal => {
+        if (goal.goal_type === 'basic') {
+          return !!goal.completed_at;
+        }
+        if (goal.goal_type === 'progress' && goal.target_value) {
+          return goal.current_value >= goal.target_value;
+        }
+        return false;
+      });
+
+      if (completedGoals.length === 0) {
+        console.log('ℹ️ No completed goals to delete');
+        return;
+      }
+
+      // Delete each completed goal
+      for (const goal of completedGoals) {
+        await fetch('/api/goals/manage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'archive_goal',
+            goalId: goal.id,
+            userId,
+            reason: 'completed'
+          })
+        });
+      }
+
+      console.log(`✅ Deleted ${completedGoals.length} completed goals`);
+
+      // Refresh goals list
+      const { data: goalsData } = await supabase
+        .from('goals')
+        .select('id, title, description, completed_at, created_at, is_active, goal_type, current_value, target_value, list_items')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: true });
+
+      if (goalsData) {
+        setGoals(goalsData);
+        const goalsCacheKey = getProfileCacheKey('goals', userId);
+        setCachedData(goalsCacheKey, goalsData);
+      }
+    } catch (error) {
+      console.error('🗑️ Error deleting completed goals:', error);
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
+  const getProgressPercentage = (goal: Goal): number => {
+    if (goal.goal_type === 'progress' && goal.target_value && goal.target_value > 0) {
+      return Math.min(100, Math.round((goal.current_value / goal.target_value) * 100));
+    }
+    return 0;
+  };
+
+  const isGoalCompleted = (goal: Goal): boolean => {
+    if (goal.goal_type === 'basic') {
+      return !!goal.completed_at;
+    }
+    if (goal.goal_type === 'progress' && goal.target_value) {
+      return goal.current_value >= goal.target_value;
+    }
+    return false;
+  };
+
+  const updateGoalType = async (goalId: string, updates: {
+    goalType: 'basic' | 'counter' | 'progress' | 'list';
+    currentValue?: number;
+    targetValue?: number;
+  }) => {
+    if (!userId) return;
+
+    try {
+      const response = await fetch('/api/goals/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_goal_type',
+          goalId,
+          userId,
+          goalType: updates.goalType,
+          currentValue: updates.currentValue,
+          targetValue: updates.targetValue
+        })
+      });
+
+      if (response.ok) {
+        const { goal } = await response.json();
+        const updatedGoals = goals.map(g => g.id === goalId ? goal : g);
+        setGoals(updatedGoals);
+        if (userId) {
+          const goalsCacheKey = getProfileCacheKey('goals', userId);
+          setCachedData(goalsCacheKey, updatedGoals);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating goal type:', error);
+    }
+  };
+
+  const addListItem = async (goalId: string, value: string, notes?: string) => {
+    if (!userId) return;
+
+    try {
+      const response = await fetch('/api/goals/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_list_item',
+          goalId,
+          userId,
+          value,
+          notes
+        })
+      });
+
+      if (response.ok) {
+        const { goal } = await response.json();
+        const updatedGoals = goals.map(g => g.id === goalId ? goal : g);
+        setGoals(updatedGoals);
+        if (userId) {
+          const goalsCacheKey = getProfileCacheKey('goals', userId);
+          setCachedData(goalsCacheKey, updatedGoals);
+        }
+      }
+    } catch (error) {
+      console.error('Error adding list item:', error);
+    }
+  };
+
+  const removeListItem = async (goalId: string, itemId: string) => {
+    if (!userId) return;
+
+    try {
+      const response = await fetch('/api/goals/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'remove_list_item',
+          goalId,
+          userId,
+          itemId
+        })
+      });
+
+      if (response.ok) {
+        const { goal } = await response.json();
+        const updatedGoals = goals.map(g => g.id === goalId ? goal : g);
+        setGoals(updatedGoals);
+        if (userId) {
+          const goalsCacheKey = getProfileCacheKey('goals', userId);
+          setCachedData(goalsCacheKey, updatedGoals);
+        }
+      }
+    } catch (error) {
+      console.error('Error removing list item:', error);
+    }
+  };
+
+  const handleShowSettings = (goal: Goal, triggerElement: HTMLElement) => {
+    const rect = triggerElement.getBoundingClientRect();
+    setSettingsTooltip({
+      isOpen: true,
+      goal,
+      position: {
+        x: rect.right + 8, // Position to the right of the button with 8px gap
+        y: rect.top
+      }
+    });
+  };
+
+  const handleCloseSettings = () => {
+    setSettingsTooltip({ isOpen: false, goal: null, position: { x: 0, y: 0 } });
   };
 
   const updateProfilePicture = (url: string) => {
@@ -387,8 +710,14 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
           <section>
             <div className="flex items-center justify-between mb-4 md:mb-6">
               <h2 className="text-base md:text-lg font-semibold text-gray-900">Goals</h2>
-              <div className="flex items-center bg-gray-50/60 rounded-2xl p-1">
-                <button
+              <div className="flex items-center gap-2">
+                <CleanupDropdown
+                  onCleanupCompleted={cleanupCompletedGoals}
+                  onDeleteAllCompleted={deleteAllCompletedGoals}
+                  isLoading={isCleaningUp}
+                />
+                <div className="flex items-center bg-gray-50/60 rounded-2xl p-1">
+                  <button
                   onClick={() => handleGoalsViewModeChange('list')}
                   className={`px-3 py-2 rounded-xl transition-all duration-300 ${
                     goalsViewMode === 'list'
@@ -410,24 +739,26 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
                 >
                   <LayoutGrid className="w-4.5 h-4.5" strokeWidth={1.4} />
                 </button>
+                </div>
               </div>
             </div>
             {goals.length > 0 ? (
               goalsViewMode === 'list' ? (
                 <div className="space-y-2">
                   {goals.map((goal) => (
-                    <div key={goal.id} className={`flex items-start gap-2 md:gap-3 group cursor-pointer transition-all duration-500 hover:bg-gray-50 rounded-lg p-1 ${newGoalIds.has(goal.id) ? 'animate-fadeSlideIn' : ''}`} onClick={() => toggleGoalCompletion(goal.id)}>
-                      <div className="mt-1">
-                        {goal.completed_at ? (
-                          <CheckCircle2 className="w-3.5 md:w-4 h-3.5 md:h-4 text-green-500 group-hover:text-green-600 transition-colors" />
-                        ) : (
-                          <Circle className="w-3.5 md:w-4 h-3.5 md:h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                        )}
-                      </div>
-                      <span className={`text-xs md:text-sm leading-relaxed flex-1 transition-all ${goal.completed_at ? 'text-gray-400 line-through' : 'text-gray-700 group-hover:text-gray-900'}`}>
-                        {goal.title}
-                      </span>
-                    </div>
+                    <GoalItem
+                      key={goal.id}
+                      goal={goal}
+                      isNew={newGoalIds.has(goal.id)}
+                      onToggleComplete={toggleGoalCompletion}
+                      onUpdateProgress={updateGoalProgress}
+                      onArchive={archiveGoal}
+                      onUpdateGoalType={updateGoalType}
+                      onAddListItem={addListItem}
+                      onRemoveListItem={removeListItem}
+                      onShowSettings={handleShowSettings}
+                      viewMode="list"
+                    />
                   ))}
                   {showAddGoal ? (
                     <div className="flex items-center gap-2 mt-2">
@@ -447,37 +778,19 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
                   {/* Grid/Tile View */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {goals.map((goal) => (
-                      <div
+                      <GoalItem
                         key={goal.id}
-                        onClick={() => toggleGoalCompletion(goal.id)}
-                        className={`p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
-                          goal.completed_at
-                            ? 'bg-green-50 border-green-200 hover:border-green-300'
-                            : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'
-                        } ${newGoalIds.has(goal.id) ? 'animate-fadeSlideIn' : ''}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          {goal.completed_at ? (
-                            <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                          ) : (
-                            <Circle className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                          )}
-                          <div className="flex-1">
-                            <p className={`text-sm font-medium ${
-                              goal.completed_at ? 'text-gray-600 line-through' : 'text-gray-800'
-                            }`}>
-                              {goal.title}
-                            </p>
-                            {goal.description && (
-                              <p className={`text-xs text-gray-500 mt-1 ${
-                                goal.completed_at ? 'line-through' : ''
-                              }`}>
-                                {goal.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+                        goal={goal}
+                        isNew={newGoalIds.has(goal.id)}
+                        onToggleComplete={toggleGoalCompletion}
+                        onUpdateProgress={updateGoalProgress}
+                        onArchive={archiveGoal}
+                        onUpdateGoalType={updateGoalType}
+                        onAddListItem={addListItem}
+                        onRemoveListItem={removeListItem}
+                        onShowSettings={handleShowSettings}
+                        viewMode="kanban"
+                      />
                     ))}
 
                     {/* Add New Goal Card */}
@@ -695,6 +1008,26 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
             </div>
           </div>
         </>
+      )}
+
+      {/* Global Settings Tooltip */}
+      {settingsTooltip.isOpen && settingsTooltip.goal && (
+        <div
+          className="fixed z-50"
+          style={{
+            left: `${settingsTooltip.position.x}px`,
+            top: `${settingsTooltip.position.y}px`
+          }}
+        >
+          <GoalSettingsTooltip
+            goal={settingsTooltip.goal}
+            isOpen={settingsTooltip.isOpen}
+            onClose={handleCloseSettings}
+            onSave={updateGoalType}
+            onArchive={archiveGoal}
+            triggerRef={dummyRef}
+          />
+        </div>
       )}
     </div>
     </>

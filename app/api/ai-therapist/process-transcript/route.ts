@@ -26,10 +26,33 @@ function parseTherapyInsights(raw: string): ParsedTherapyInsights {
 
   const parseListItems = (text: string) => {
     // Handle both newline-separated and comma-separated items
-    return text
-      .split(/[\n,]/) // Split by newlines OR commas
-      .map((item) => item.replace(/^[-•*]\s*/, '').trim()) // Remove bullets and trim
-      .filter(item => item.length > 0 && !item.match(/^[-•*]\s*$/)); // Filter empty or bullet-only items
+    // But be smart about commas - only split on commas that separate items, not internal commas
+
+    // First, try splitting by newlines (most reliable)
+    const lineItems = text.split('\n')
+      .map((item) => item.replace(/^[-•*]\s*/, '').trim())
+      .filter(item => item.length > 0 && !item.match(/^[-•*]\s*$/));
+
+    // If we got multiple items from newlines, use those
+    if (lineItems.length > 1) {
+      return lineItems;
+    }
+
+    // Otherwise, check if it looks like a comma-separated list
+    // Only split on commas if there are no newlines and multiple distinct phrases
+    const commaItems = text.split(',')
+      .map((item) => item.replace(/^[-•*]\s*/, '').trim())
+      .filter(item => item.length > 0);
+
+    // Use comma split only if we get multiple reasonable-length items
+    // Avoid splitting items that are clearly single phrases with internal commas
+    if (commaItems.length > 1 && commaItems.every(item => item.length > 5)) {
+      return commaItems;
+    }
+
+    // Fallback: return as single item
+    const singleItem = text.replace(/^[-•*]\s*/, '').trim();
+    return singleItem.length > 0 ? [singleItem] : [];
   };
 
   return {

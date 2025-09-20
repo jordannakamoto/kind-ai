@@ -43,7 +43,7 @@ interface UserCourseProgress {
   courses?: Course;
 }
 
-export default function UserCheckInConversation({ sidebarCollapsed = false }: { sidebarCollapsed?: boolean }) {
+export default function UserCheckInConversation({ sidebarCollapsed = false, isViewActive = true }: { sidebarCollapsed?: boolean; isViewActive?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<{ id: string; email: string, app_stage?: string } | null>(null);
@@ -78,6 +78,7 @@ export default function UserCheckInConversation({ sidebarCollapsed = false }: { 
     accentColor: '#f59e0b' // Default accent color (amber)
   });
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null);
+  const [greetingAnimation, setGreetingAnimation] = useState(false);
   
   const { setSessionActive, updateSessionData, endSession: endActiveSession, setToggleMute } = useActiveSession();
 
@@ -332,6 +333,19 @@ export default function UserCheckInConversation({ sidebarCollapsed = false }: { 
     // startSound.current = new Audio('/path/to/start-sound.mp3');
     // endSound.current = new Audio('/path/to/end-sound.mp3');
   }, []);
+
+  // Trigger greeting animation when view becomes active
+  useEffect(() => {
+    if (isViewActive && !started) {
+      const greetingTimer = setTimeout(() => {
+        setGreetingAnimation(true);
+        // Reset animation after it completes
+        setTimeout(() => setGreetingAnimation(false), 800);
+      }, 300);
+
+      return () => clearTimeout(greetingTimer);
+    }
+  }, [isViewActive, started]);
 
   useEffect(() => {
     if (autoStartWelcome && !loadingVars && !started) {
@@ -896,7 +910,7 @@ export default function UserCheckInConversation({ sidebarCollapsed = false }: { 
         </div>
 
         <div
-          className="relative flex items-center justify-center mb-4 md:mb-6 transition-opacity duration-300"
+          className={`relative flex items-center justify-center mb-4 md:mb-6 transition-all duration-300 ${greetingAnimation ? 'animate-gentle-greeting' : ''}`}
           style={{ width: "160px", height: "160px" }}
         >
           <div
@@ -1488,6 +1502,21 @@ export default function UserCheckInConversation({ sidebarCollapsed = false }: { 
           }
         }
 
+        @keyframes gentle-greeting {
+          0% {
+            transform: translateY(0px);
+          }
+          40% {
+            transform: translateY(-8px);
+          }
+          70% {
+            transform: translateY(-4px);
+          }
+          100% {
+            transform: translateY(0px);
+          }
+        }
+
         .animate-fade-in {
           animation: fade-in 0.6s ease-out forwards;
         }
@@ -1502,6 +1531,10 @@ export default function UserCheckInConversation({ sidebarCollapsed = false }: { 
 
         .animate-pulse-gentle {
           animation: pulse-gentle 1.5s ease-in-out infinite;
+        }
+
+        .animate-gentle-greeting {
+          animation: gentle-greeting 0.8s ease-out;
         }
       `}</style>
     </div>

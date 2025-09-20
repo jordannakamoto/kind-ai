@@ -408,7 +408,7 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
               } ${view === "home" ? (activeView !== "home" || !viewVisible ? "hide-orb" : "show-orb-delayed") : ""}`}
             >
                <div className="w-full h-full overflow-y-auto">
-              {view === "home" && <HomeView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
+              {view === "home" && <HomeView sidebarCollapsed={isSmallScreen || !sidebarOpen} isViewActive={activeView === "home"} />}
               {view === "discover" && <DiscoverView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
               {view === "bio" && <ProfileView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
               {view === "sessions" && !sessionId && <SessionsView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}

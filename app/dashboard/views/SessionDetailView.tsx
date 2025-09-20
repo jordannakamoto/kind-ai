@@ -1,3 +1,5 @@
+// TODO: DELETE THIS FILE - SessionDetailView is being replaced by inline expansion in SessionsView
+// This component is deprecated and should be removed after the inline expansion feature is fully deployed
 'use client';
 
 import { Flag, StickyNote, ArrowLeft } from 'lucide-react';

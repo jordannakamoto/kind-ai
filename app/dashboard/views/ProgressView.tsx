@@ -5,45 +5,58 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, FileText, Star } from "lucide-react";
 import { supabase } from "@/supabase/client";
 import { useRouter } from "next/navigation";
+import MoodSelector from "@/app/dashboard/components/MoodSelector";
+import MoodCustomizer, { MoodOption } from "@/app/dashboard/components/MoodCustomizer";
 
-const moodOptions = [
-  { 
-    label: "😊", 
-    value: "happy", 
-    color: "bg-gradient-to-br from-emerald-50 to-green-100", 
-    borderColor: "border-emerald-300", 
+// Default mood options as fallback
+const defaultMoodOptions: MoodOption[] = [
+  {
+    id: "default_happy",
+    emoji: "😊",
+    label: "Happy",
+    value: "happy",
+    color: "bg-gradient-to-br from-emerald-50 to-green-100",
+    borderColor: "border-emerald-300",
     dotColor: "bg-gradient-to-r from-emerald-400 to-green-500",
     shadowColor: "shadow-emerald-200/60"
   },
-  { 
-    label: "😐", 
-    value: "neutral", 
-    color: "bg-gradient-to-br from-amber-50 to-yellow-100", 
-    borderColor: "border-amber-300", 
+  {
+    id: "default_neutral",
+    emoji: "😐",
+    label: "Neutral",
+    value: "neutral",
+    color: "bg-gradient-to-br from-amber-50 to-yellow-100",
+    borderColor: "border-amber-300",
     dotColor: "bg-gradient-to-r from-amber-400 to-orange-400",
     shadowColor: "shadow-amber-200/60"
   },
-  { 
-    label: "😢", 
-    value: "sad", 
-    color: "bg-gradient-to-br from-sky-50 to-blue-100", 
-    borderColor: "border-sky-300", 
+  {
+    id: "default_sad",
+    emoji: "😢",
+    label: "Sad",
+    value: "sad",
+    color: "bg-gradient-to-br from-sky-50 to-blue-100",
+    borderColor: "border-sky-300",
     dotColor: "bg-gradient-to-r from-sky-400 to-blue-500",
     shadowColor: "shadow-sky-200/60"
   },
-  { 
-    label: "😡", 
-    value: "angry", 
-    color: "bg-gradient-to-br from-rose-50 to-red-100", 
-    borderColor: "border-rose-300", 
+  {
+    id: "default_angry",
+    emoji: "😡",
+    label: "Angry",
+    value: "angry",
+    color: "bg-gradient-to-br from-rose-50 to-red-100",
+    borderColor: "border-rose-300",
     dotColor: "bg-gradient-to-r from-rose-400 to-red-500",
     shadowColor: "shadow-rose-200/60"
   },
-  { 
-    label: "😴", 
-    value: "tired", 
-    color: "bg-gradient-to-br from-violet-50 to-purple-100", 
-    borderColor: "border-violet-300", 
+  {
+    id: "default_tired",
+    emoji: "😴",
+    label: "Tired",
+    value: "tired",
+    color: "bg-gradient-to-br from-violet-50 to-purple-100",
+    borderColor: "border-violet-300",
     dotColor: "bg-gradient-to-r from-violet-400 to-purple-500",
     shadowColor: "shadow-violet-200/60"
   },
@@ -82,6 +95,9 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [sessions, setSessions] = useState<Record<string, Session[]>>({});
   const [goalCompletions, setGoalCompletions] = useState<Record<string, Goal[]>>({});
+  const [moodOptions, setMoodOptions] = useState<MoodOption[]>(defaultMoodOptions);
+  const [showMoodCustomizer, setShowMoodCustomizer] = useState(false);
+  const [moodOptionsLoading, setMoodOptionsLoading] = useState(true);
 
   // Generate calendar grid including days from previous/next month
   const monthStart = startOfMonth(currentMonth);
@@ -119,6 +135,47 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
       return newMonth;
     });
   };
+
+  // Fetch user's mood options (default + custom)
+  const fetchMoodOptions = async () => {
+    setMoodOptionsLoading(true);
+    try {
+      const response = await fetch('/api/moods');
+      if (response.ok) {
+        const { moods: userMoods } = await response.json();
+        setMoodOptions(userMoods.length > 0 ? userMoods : defaultMoodOptions);
+      } else {
+        console.error('Failed to fetch mood options');
+        setMoodOptions(defaultMoodOptions);
+      }
+    } catch (error) {
+      console.error('Error fetching mood options:', error);
+      setMoodOptions(defaultMoodOptions);
+    } finally {
+      setMoodOptionsLoading(false);
+    }
+  };
+
+  // Handle mood options update from customizer
+  const handleMoodOptionsUpdate = async (updatedMoods: MoodOption[]) => {
+    setMoodOptions(updatedMoods);
+
+    // Save custom moods to database
+    try {
+      const customMoods = updatedMoods.filter(mood => mood.isCustom);
+
+      // Here you would typically send the updated moods to your API
+      // For now, we'll just update the local state
+      console.log('Updated mood options:', updatedMoods);
+    } catch (error) {
+      console.error('Error saving mood options:', error);
+    }
+  };
+
+  // Fetch mood options on component mount
+  useEffect(() => {
+    fetchMoodOptions();
+  }, []);
 
   // Fetch sessions and goals for the current month
   useEffect(() => {
@@ -314,7 +371,7 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
                     {format(date, "d")}
                   </span>
                   {mood && (
-                    <span className="text-sm drop-shadow-sm">{moodOption?.label}</span>
+                    <span className="text-sm drop-shadow-sm">{moodOption?.emoji}</span>
                   )}
                 </div>
                 
@@ -346,29 +403,24 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
 
       {/* Mood Selector */}
       <div className="mt-4">
-        <div className="mb-3 ml-2">
-          <h3 className="text-base md:text-lg font-semibold text-gray-800">Today's Mood</h3>
-        </div>
-        <div className="flex items-center space-x-3">
-          {moodOptions.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => handleMoodSelect(selectedDate, option.value)}
-              className={`
-                flex flex-col items-center space-y-1 px-4 py-3 transition-all duration-200 transform hover:scale-105
-                ${moods[format(selectedDate, "yyyy-MM-dd")] === option.value 
-                  ? "font-semibold" 
-                  : ""}
-              `}
-            >
-              <div className="flex items-center space-x-2">
-                <span className="text-lg md:text-xl">{option.label}</span>
-                <span className="text-xs md:text-sm capitalize font-medium">{option.value}</span>
-              </div>
-              <div className={`w-12 h-0.5 rounded-full transition-opacity duration-300 ${option.dotColor.replace('bg-gradient-to-r', 'bg-gradient-to-r')} ${moods[format(selectedDate, "yyyy-MM-dd")] === option.value ? 'opacity-100' : 'opacity-0'}`} />
-            </button>
-          ))}
-        </div>
+        {moodOptionsLoading ? (
+          <div className="animate-pulse">
+            <div className="h-6 bg-gray-200 rounded w-32 mb-3"></div>
+            <div className="flex space-x-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-16 w-20 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <MoodSelector
+            moods={moodOptions}
+            selectedMood={moods[format(selectedDate, "yyyy-MM-dd")]}
+            selectedDate={selectedDate}
+            onMoodSelect={handleMoodSelect}
+            onCustomizeClick={() => setShowMoodCustomizer(true)}
+          />
+        )}
       </div>
 
       {/* Journal Entry */}
@@ -439,6 +491,15 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
             </div>
           </div>
         </div>
+      )}
+
+      {/* Mood Customizer Modal */}
+      {showMoodCustomizer && (
+        <MoodCustomizer
+          currentMoods={moodOptions}
+          onMoodsUpdate={handleMoodOptionsUpdate}
+          onClose={() => setShowMoodCustomizer(false)}
+        />
       )}
 
     </div>
