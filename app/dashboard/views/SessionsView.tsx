@@ -351,7 +351,7 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
   return (
     <div className="bg-white min-h-screen py-4 md:py-8 sm:py-12 w-full">
       
-      <div className={`hidden max-w-2xl ${sidebarCollapsed ? 'mx-auto' : 'ml-16 lg:ml-24'} px-4 sm:px-6 lg:px-8 mb-10`}> {/* Search Bar */}
+      <div className={`hidden max-w-2xl ${sidebarCollapsed ? 'mx-auto' : 'ml-32 lg:ml-40'} px-4 sm:px-6 lg:px-8 mb-10`}> {/* Search Bar */}
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
             <svg className="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" /></svg>
@@ -367,13 +367,13 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
           <LoadingDots text="Loading your sessions" className="text-sm font-medium text-slate-600" />
         </div>
       ) : showEmptyMessage ? ( /* Empty State */
-        <div className={`text-center py-6 md:py-10 px-4 max-w-md ${sidebarCollapsed ? 'mx-auto' : 'ml-16 lg:ml-24'}`}>
+        <div className={`text-center py-6 md:py-10 px-4 max-w-md ${sidebarCollapsed ? 'mx-auto' : 'ml-32 lg:ml-40'}`}>
           <svg className="mx-auto h-12 w-12 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 10.5v3.75m-9.303 3.376C1.82 19.513 3.252 21 5.006 21h13.988c1.754 0 3.186-1.487 2.31-3.374L13.949 4.878c-.875-1.887-3.021-1.887-3.896 0L2.697 17.626ZM12 17.25h.007v.008H12v-.008Z" /></svg>
           <h3 className="mt-3 md:mt-4 text-base md:text-lg font-semibold text-slate-700">{searchQuery ? 'No Sessions Found' : 'Your Session History is Empty'}</h3>
           <p className="mt-1 md:mt-1.5 text-xs md:text-sm text-slate-500">{searchQuery ? 'Try different keywords or clear your search.' : 'Once you complete a session, it will appear here.'}</p>
         </div>
       ) : (
-        <div className={`max-w-2xl ${sidebarCollapsed ? 'mx-auto' : 'ml-16 lg:ml-24'} px-4 md:px-6 lg:px-8`}>
+        <div className={`max-w-2xl ${sidebarCollapsed ? 'mx-auto' : 'ml-32 lg:ml-40'} px-4 md:px-6 lg:px-8`}>
           {showSpecialMostRecentView && mostRecentSessionActual && ( /* Most Recent Session View */
             <section className="mb-6" aria-labelledby="most-recent-session-title">
               <div className="flex items-center justify-between mb-2 px-1">

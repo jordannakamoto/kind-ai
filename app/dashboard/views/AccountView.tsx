@@ -165,7 +165,7 @@ export default function AccountView({ sidebarCollapsed }: AccountViewProps) {
               <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-5 mb-5 border border-slate-200/50 shadow-lg">
                 <div className="text-center space-y-2">
                   <div className="flex items-baseline justify-center gap-1.5">
-                    <span className="text-2xl font-semibold text-gray-900">$19.99</span>
+                    <span className="text-2xl font-semibold text-gray-900">$8.99</span>
                     <span className="text-sm text-gray-500">/month</span>
                   </div>
                   <p className="text-xs text-gray-600 leading-relaxed max-w-xs mx-auto">
@@ -178,11 +178,48 @@ export default function AccountView({ sidebarCollapsed }: AccountViewProps) {
               </div>
 
               <button
-                onClick={() => {
-                  // Add upgrade functionality here
-                  console.log("Upgrade clicked");
+                onClick={async () => {
+                  try {
+                    setUpdating(true);
+
+                    // Create checkout session
+                    const response = await fetch('/api/create-checkout-session', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1234567890', // Fallback for testing
+                      }),
+                    });
+
+                    const { sessionId } = await response.json();
+
+                    // Check if we have the Stripe publishable key
+                    const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+
+                    if (!stripePublishableKey) {
+                      throw new Error('Stripe publishable key is not configured');
+                    }
+
+                    // Redirect to Stripe Checkout
+                    const { loadStripe } = await import('@stripe/stripe-js');
+                    const stripeInstance = await loadStripe(stripePublishableKey);
+
+                    if (stripeInstance) {
+                      await stripeInstance.redirectToCheckout({ sessionId });
+                    } else {
+                      throw new Error('Failed to initialize Stripe');
+                    }
+                  } catch (error) {
+                    console.error('Error:', error);
+                    setMessage({ type: "error", text: "Failed to start checkout process" });
+                  } finally {
+                    setUpdating(false);
+                  }
                 }}
-                className="w-full relative overflow-hidden group/btn mb-4"
+                disabled={updating}
+                className="w-full relative overflow-hidden group/btn mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ borderRadius: '4px' }}
               >
                 {/* Animated background gradient */}
@@ -196,8 +233,17 @@ export default function AccountView({ sidebarCollapsed }: AccountViewProps) {
 
                 {/* Button content */}
                 <div className="relative px-6 py-3 text-white font-medium text-sm tracking-wide flex items-center justify-center gap-2">
-                  <span>Get Kind</span>
-                  <div className="w-1.5 h-1.5 bg-white/80 rounded-full animate-pulse"></div>
+                  {updating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Get Kind</span>
+                      <div className="w-1.5 h-1.5 bg-white/80 rounded-full animate-pulse"></div>
+                    </>
+                  )}
                 </div>
 
                 {/* Rounded corners */}

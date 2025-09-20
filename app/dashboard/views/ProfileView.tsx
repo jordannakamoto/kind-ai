@@ -85,11 +85,35 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
   const [newGoalTitle, setNewGoalTitle] = useState('');
   const [newGoalIds, setNewGoalIds] = useState<Set<string>>(new Set());
   const [newThemes, setNewThemes] = useState<Set<string>>(new Set());
-  const [goalsViewMode, setGoalsViewMode] = useState<'list' | 'kanban'>('list');
+  const [goalsViewMode, setGoalsViewMode] = useState<'list' | 'kanban'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('goalsViewMode');
+      return (saved as 'list' | 'kanban') || 'kanban';
+    }
+    return 'kanban';
+  });
+  const [showProfilePicModal, setShowProfilePicModal] = useState(false);
+  const [profilePicModalVisible, setProfilePicModalVisible] = useState(false);
+  const [tempProfilePicUrl, setTempProfilePicUrl] = useState<string>("");
   const previousGoals = useRef<Goal[]>([]);
   const previousThemes = useRef<string[]>([]);
 
   useEffect(() => {
+    // Load profile picture from localStorage first (TODO: move to database storage)
+    const savedProfilePic = localStorage.getItem('profilePicUrl');
+    if (savedProfilePic) {
+      setProfilePicSrc(savedProfilePic);
+    }
+
+    // Listen for storage changes to sync profile pic updates
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'profilePicUrl') {
+        setProfilePicSrc(e.newValue || '');
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
     const fetchUser = async () => {
       setLoading(true);
       const result = await supabase.auth.getUser();
@@ -107,7 +131,8 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
       if (!error && data) {
         setUser(data);
         setInitialBio(data.bio);
-        if (data.avatar_url) setProfilePicSrc(data.avatar_url);
+        // Only use database avatar if no localStorage version exists
+        if (data.avatar_url && !savedProfilePic) setProfilePicSrc(data.avatar_url);
       } else {
         console.error("Error fetching user profile:", error?.message);
       }
@@ -158,6 +183,8 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
       setLoading(false);
     };
     fetchUser();
+
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   useEffect(() => {
@@ -264,6 +291,23 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
     }
   };
 
+  const handleGoalsViewModeChange = (mode: 'list' | 'kanban') => {
+    setGoalsViewMode(mode);
+    localStorage.setItem('goalsViewMode', mode);
+  };
+
+  const updateProfilePicture = (url: string) => {
+    setProfilePicSrc(url);
+    // TODO: Save to database instead of localStorage
+    localStorage.setItem('profilePicUrl', url);
+    // Dispatch storage event to sync with sidebar
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'profilePicUrl',
+      newValue: url,
+      url: window.location.href
+    }));
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen bg-white text-slate-700 p-4 md:p-6">
@@ -307,14 +351,23 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
       `}</style>
     <div className="min-h-screen bg-white">
       <div className={`max-w-4xl ${sidebarCollapsed ? 'mx-auto' : 'ml-8 lg:ml-16'} px-4 md:px-6 py-6 md:py-12 md:pl-12`}>
-        <div className="flex items-start gap-3 md:gap-4 mb-6 md:mb-8">
-          {profilePicSrc ? (
-            <img src={profilePicSrc} alt={user.full_name || 'User'} className="w-12 md:w-16 h-12 md:h-16 rounded-full object-cover" />
-          ) : (
-            <div className="w-12 md:w-16 h-12 md:h-16 rounded-full bg-gray-100 flex items-center justify-center">
-              <span className="text-lg md:text-xl font-medium text-gray-600">{avatarInitial}</span>
-            </div>
-          )}
+        <div className="flex items-start gap-3 md:gap-4 mb-6 md:mb-8 relative">
+          <div
+            className="cursor-pointer rounded-full transition-all duration-200 relative"
+            onClick={() => {
+              setTempProfilePicUrl(profilePicSrc || "");
+              setShowProfilePicModal(true);
+              requestAnimationFrame(() => setProfilePicModalVisible(true));
+            }}
+          >
+            {profilePicSrc ? (
+              <img src={profilePicSrc} alt={user.full_name || 'User'} className="w-12 md:w-16 h-12 md:h-16 rounded-full object-cover" />
+            ) : (
+              <div className="w-12 md:w-16 h-12 md:h-16 rounded-full bg-gray-100 flex items-center justify-center">
+                <span className="text-lg md:text-xl font-medium text-gray-600">{avatarInitial}</span>
+              </div>
+            )}
+          </div>
           <div className="flex-1">
             <h1 className="text-lg md:text-xl font-bold text-gray-900 mb-1">{user.full_name}</h1>
             {user.bio && (
@@ -336,7 +389,7 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
               <h2 className="text-base md:text-lg font-semibold text-gray-900">Goals</h2>
               <div className="flex items-center bg-gray-50/60 rounded-2xl p-1">
                 <button
-                  onClick={() => setGoalsViewMode('list')}
+                  onClick={() => handleGoalsViewModeChange('list')}
                   className={`px-3 py-2 rounded-xl transition-all duration-300 ${
                     goalsViewMode === 'list'
                       ? 'bg-white shadow-sm text-gray-500'
@@ -347,7 +400,7 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
                   <List className="w-4.5 h-4.5" strokeWidth={1.4} />
                 </button>
                 <button
-                  onClick={() => setGoalsViewMode('kanban')}
+                  onClick={() => handleGoalsViewModeChange('kanban')}
                   className={`px-3 py-2 rounded-xl transition-all duration-300 ${
                     goalsViewMode === 'kanban'
                       ? 'bg-white shadow-sm text-gray-500'
@@ -576,6 +629,73 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
           </section>
         </div>
       </div>
+
+      {/* Profile Picture Tooltip */}
+      {showProfilePicModal && (
+        <>
+          <div
+            className={`fixed inset-0 z-40 transition-opacity duration-200 ${
+              profilePicModalVisible ? 'opacity-100' : 'opacity-0'
+            }`}
+            onClick={() => {
+              setProfilePicModalVisible(false);
+              setTimeout(() => setShowProfilePicModal(false), 200);
+            }}
+          />
+          <div className={`absolute left-0 top-20 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-80 z-50 transition-all duration-200 ${
+            profilePicModalVisible
+              ? 'opacity-100 scale-100 translate-y-0'
+              : 'opacity-0 scale-95 translate-y-2'
+          }`}
+          >
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Update Profile Picture</h3>
+            <div className="space-y-3">
+              <input
+                type="url"
+                value={tempProfilePicUrl}
+                onChange={(e) => setTempProfilePicUrl(e.target.value)}
+                placeholder="https://example.com/your-photo.jpg"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                autoFocus
+              />
+              {tempProfilePicUrl && (
+                <div className="flex justify-center">
+                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                    <img
+                      src={tempProfilePicUrl}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                      onError={() => setTempProfilePicUrl("")}
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setTempProfilePicUrl("");
+                    setProfilePicModalVisible(false);
+                    setTimeout(() => setShowProfilePicModal(false), 200);
+                  }}
+                  className="flex-1 px-3 py-1.5 text-xs text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    updateProfilePicture(tempProfilePicUrl);
+                    setProfilePicModalVisible(false);
+                    setTimeout(() => setShowProfilePicModal(false), 200);
+                  }}
+                  className="flex-1 px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
     </>
   );

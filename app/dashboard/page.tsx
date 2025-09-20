@@ -34,15 +34,47 @@ function DashboardInner() {
   >("home");
   const [visibleView, setVisibleView] = useState(activeView);
   const [viewVisible, setViewVisible] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebarOpen');
+      return saved ? JSON.parse(saved) : true;
+    }
+    return true;
+  });
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [isFromOnboarding, setIsFromOnboarding] = useState(false);
 const [shouldAnimate, setShouldAnimate] = useState(false);
+  const [profilePicUrl, setProfilePicUrl] = useState<string>("");
+  const [showProfilePicModal, setShowProfilePicModal] = useState(false);
+  const [profilePicModalVisible, setProfilePicModalVisible] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const sessionId = searchParams.get("sid");
+
+  useEffect(() => {
+    // Load profile picture from localStorage first (TODO: move to database storage)
+    const savedProfilePic = localStorage.getItem('profilePicUrl');
+    if (savedProfilePic) {
+      setProfilePicUrl(savedProfilePic);
+    }
+
+    // Listen for storage changes to sync profile pic updates
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'profilePicUrl') {
+        setProfilePicUrl(e.newValue || '');
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  useEffect(() => {
+    // Persist sidebar state
+    localStorage.setItem('sidebarOpen', JSON.stringify(sidebarOpen));
+  }, [sidebarOpen]);
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -228,8 +260,8 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
                           : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                       }`}
                     >
-                      <span className="flex-shrink-0 group-hover:scale-105 transition-transform duration-200">{viewIcons[view]}</span>
-                      <span className={`ml-2 group-hover:scale-[1.02] transition-all duration-200 ${isSmallScreen || !sidebarOpen ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
+                      <span className="flex-shrink-0 transition-all duration-200 group-hover:drop-shadow-md">{viewIcons[view]}</span>
+                      <span className={`ml-2 transition-all duration-200 ${isSmallScreen || !sidebarOpen ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
                         {view.charAt(0).toUpperCase() + view.slice(1)}
                       </span>
                       {(isSmallScreen || !sidebarOpen) && (
@@ -243,7 +275,7 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
               </div>
             </nav>
             {/* Footer */}
-            <div className="mt-auto border-t border-gray-100 p-2 transition-all duration-200">
+            <div className="mt-auto border-t border-gray-100 p-2 transition-all duration-200 relative">
               {/* User Profile */}
               <button
                 onClick={() => handleSidebarNav("account")}
@@ -255,17 +287,44 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
                     : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                 }`}
               >
-                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-medium flex-shrink-0">
-                  {user?.email?.charAt(0).toUpperCase() || "U"}
+                <div
+                  className={`w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-sm font-medium flex-shrink-0 transition-all duration-200 relative ${
+                    !isSmallScreen && sidebarOpen ? "cursor-pointer" : ""
+                  }`}
+                  onClick={(e) => {
+                    if (!isSmallScreen && sidebarOpen) {
+                      e.stopPropagation();
+                      setShowProfilePicModal(true);
+                      requestAnimationFrame(() => setProfilePicModalVisible(true));
+                    }
+                  }}
+                >
+                  {profilePicUrl ? (
+                    <img
+                      src={profilePicUrl}
+                      alt="Profile"
+                      className="w-full h-full rounded-full object-cover"
+                      onError={() => setProfilePicUrl("")}
+                    />
+                  ) : (
+                    user?.email?.charAt(0).toUpperCase() || "U"
+                  )}
                 </div>
                 {!isSmallScreen && sidebarOpen && (
-                  <div className="min-w-0 text-left group-hover:scale-[1.02] transition-transform duration-200">
+                  <div className="min-w-0 text-left transition-all duration-200 flex-1">
                     <p className="text-sm font-medium text-gray-800 truncate">
                       {user?.email || "User"}
                     </p>
                     <p className="text-xs text-gray-500">
                       3/3 sessions
                     </p>
+                  </div>
+                )}
+                {!isSmallScreen && sidebarOpen && (
+                  <div className="opacity-0 group-hover:opacity-30 transition-opacity duration-300">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                    </svg>
                   </div>
                 )}
                 {(isSmallScreen || !sidebarOpen) && (
@@ -296,13 +355,13 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="flex-shrink-0 group-hover:scale-105 transition-transform duration-200"
+                    className="flex-shrink-0 transition-all duration-200 group-hover:drop-shadow-md"
                   >
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                     <polyline points="16 17 21 12 16 7"></polyline>
                     <line x1="21" y1="12" x2="9" y2="12"></line>
                   </svg>
-                  {!isSmallScreen && sidebarOpen && <span className="text-sm group-hover:scale-[1.02] transition-transform duration-200">Sign Out</span>}
+                  {!isSmallScreen && sidebarOpen && <span className="text-sm transition-transform duration-200">Sign Out</span>}
                   {(isSmallScreen || !sidebarOpen) && (
                     <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-3 py-2 bg-white text-gray-900 text-sm font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap z-[9999] shadow-2xl border border-gray-200 pointer-events-none">
                       Sign Out
@@ -366,10 +425,84 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
       {isSessionActive && activeView !== 'home' && <MiniSessionPlayer />}
       
       {/* Mobile Bottom Navigation */}
-      <MobileBottomNav 
-        activeView={activeView} 
+      <MobileBottomNav
+        activeView={activeView}
         onViewChange={(view) => handleSidebarNav(view as any)}
       />
+
+      {/* Profile Picture Tooltip */}
+      {showProfilePicModal && (
+        <>
+          <div
+            className={`fixed inset-0 z-40 transition-opacity duration-200 ${
+              profilePicModalVisible ? 'opacity-100' : 'opacity-0'
+            }`}
+            onClick={() => {
+              setProfilePicModalVisible(false);
+              setTimeout(() => setShowProfilePicModal(false), 200);
+            }}
+          />
+          <div className={`absolute left-0 bottom-16 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-80 z-50 transition-all duration-200 ${
+            profilePicModalVisible
+              ? 'opacity-100 scale-100 translate-y-0'
+              : 'opacity-0 scale-95 translate-y-2'
+          }`}
+          >
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Update Profile Picture</h3>
+            <div className="space-y-3">
+              <input
+                type="url"
+                value={profilePicUrl}
+                onChange={(e) => setProfilePicUrl(e.target.value)}
+                placeholder="https://example.com/your-photo.jpg"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                autoFocus
+              />
+              {profilePicUrl && (
+                <div className="flex justify-center">
+                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                    <img
+                      src={profilePicUrl}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                      onError={() => setProfilePicUrl("")}
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setProfilePicUrl("");
+                    setProfilePicModalVisible(false);
+                    setTimeout(() => setShowProfilePicModal(false), 200);
+                  }}
+                  className="flex-1 px-3 py-1.5 text-xs text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    // TODO: Save to database instead of localStorage
+                    localStorage.setItem('profilePicUrl', profilePicUrl);
+                    // Dispatch storage event to sync with ProfileView
+                    window.dispatchEvent(new StorageEvent('storage', {
+                      key: 'profilePicUrl',
+                      newValue: profilePicUrl,
+                      url: window.location.href
+                    }));
+                    setProfilePicModalVisible(false);
+                    setTimeout(() => setShowProfilePicModal(false), 200);
+                  }}
+                  className="flex-1 px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </main>
     </>
   );
