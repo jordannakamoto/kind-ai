@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, ChevronRight, Plus, Circle, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Plus, Circle, CheckCircle2, List, LayoutGrid } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/supabase/client';
 import { useConversationStatus } from '@/app/contexts/ConversationContext';
@@ -85,6 +85,7 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
   const [newGoalTitle, setNewGoalTitle] = useState('');
   const [newGoalIds, setNewGoalIds] = useState<Set<string>>(new Set());
   const [newThemes, setNewThemes] = useState<Set<string>>(new Set());
+  const [goalsViewMode, setGoalsViewMode] = useState<'list' | 'kanban'>('list');
   const previousGoals = useRef<Goal[]>([]);
   const previousThemes = useRef<string[]>([]);
 
@@ -331,51 +332,202 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
 
         <div className="space-y-16">
           <section>
-            <div className="flex items-center gap-2 mb-4 md:mb-6">
+            <div className="flex items-center justify-between mb-4 md:mb-6">
               <h2 className="text-base md:text-lg font-semibold text-gray-900">Goals</h2>
+              <div className="flex items-center bg-gray-50/60 rounded-2xl p-1">
+                <button
+                  onClick={() => setGoalsViewMode('list')}
+                  className={`px-3 py-2 rounded-xl transition-all duration-300 ${
+                    goalsViewMode === 'list'
+                      ? 'bg-white shadow-sm text-gray-500'
+                      : 'text-gray-350 hover:text-gray-450 hover:bg-white/40'
+                  }`}
+                  title="List view"
+                >
+                  <List className="w-4.5 h-4.5" strokeWidth={1.4} />
+                </button>
+                <button
+                  onClick={() => setGoalsViewMode('kanban')}
+                  className={`px-3 py-2 rounded-xl transition-all duration-300 ${
+                    goalsViewMode === 'kanban'
+                      ? 'bg-white shadow-sm text-gray-500'
+                      : 'text-gray-350 hover:text-gray-450 hover:bg-white/40'
+                  }`}
+                  title="Grid view"
+                >
+                  <LayoutGrid className="w-4.5 h-4.5" strokeWidth={1.4} />
+                </button>
+              </div>
             </div>
             {goals.length > 0 ? (
-              <div className="space-y-2">
-                {goals.map((goal) => (
-                  <div key={goal.id} className={`flex items-start gap-2 md:gap-3 group cursor-pointer transition-all duration-500 hover:bg-gray-50 rounded-lg p-1 ${newGoalIds.has(goal.id) ? 'animate-fadeSlideIn' : ''}`} onClick={() => toggleGoalCompletion(goal.id)}>
-                    <div className="mt-1">
-                      {goal.completed_at ? (
-                        <CheckCircle2 className="w-3.5 md:w-4 h-3.5 md:h-4 text-green-500 group-hover:text-green-600 transition-colors" />
-                      ) : (
-                        <Circle className="w-3.5 md:w-4 h-3.5 md:h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                      )}
+              goalsViewMode === 'list' ? (
+                <div className="space-y-2">
+                  {goals.map((goal) => (
+                    <div key={goal.id} className={`flex items-start gap-2 md:gap-3 group cursor-pointer transition-all duration-500 hover:bg-gray-50 rounded-lg p-1 ${newGoalIds.has(goal.id) ? 'animate-fadeSlideIn' : ''}`} onClick={() => toggleGoalCompletion(goal.id)}>
+                      <div className="mt-1">
+                        {goal.completed_at ? (
+                          <CheckCircle2 className="w-3.5 md:w-4 h-3.5 md:h-4 text-green-500 group-hover:text-green-600 transition-colors" />
+                        ) : (
+                          <Circle className="w-3.5 md:w-4 h-3.5 md:h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                        )}
+                      </div>
+                      <span className={`text-xs md:text-sm leading-relaxed flex-1 transition-all ${goal.completed_at ? 'text-gray-400 line-through' : 'text-gray-700 group-hover:text-gray-900'}`}>
+                        {goal.title}
+                      </span>
                     </div>
-                    <span className={`text-xs md:text-sm leading-relaxed flex-1 transition-all ${goal.completed_at ? 'text-gray-400 line-through' : 'text-gray-700 group-hover:text-gray-900'}`}>
-                      {goal.title}
-                    </span>
+                  ))}
+                  {showAddGoal ? (
+                    <div className="flex items-center gap-2 mt-2">
+                      <input type="text" value={newGoalTitle} onChange={(e) => setNewGoalTitle(e.target.value)} placeholder="Enter goal title..." className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autoFocus onKeyPress={(e) => e.key === 'Enter' && addGoal()} />
+                      <button onClick={addGoal} className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">Add</button>
+                      <button onClick={() => { setShowAddGoal(false); setNewGoalTitle(''); }} className="px-3 py-2 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setShowAddGoal(true)} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors mt-2">
+                      <Plus className="w-4 h-4" />
+                      <span className="text-xs">Add a goal</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  {/* Grid/Tile View */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {goals.map((goal) => (
+                      <div
+                        key={goal.id}
+                        onClick={() => toggleGoalCompletion(goal.id)}
+                        className={`p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
+                          goal.completed_at
+                            ? 'bg-green-50 border-green-200 hover:border-green-300'
+                            : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'
+                        } ${newGoalIds.has(goal.id) ? 'animate-fadeSlideIn' : ''}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {goal.completed_at ? (
+                            <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          ) : (
+                            <Circle className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                          )}
+                          <div className="flex-1">
+                            <p className={`text-sm font-medium ${
+                              goal.completed_at ? 'text-gray-600 line-through' : 'text-gray-800'
+                            }`}>
+                              {goal.title}
+                            </p>
+                            {goal.description && (
+                              <p className={`text-xs text-gray-500 mt-1 ${
+                                goal.completed_at ? 'line-through' : ''
+                              }`}>
+                                {goal.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Add New Goal Card */}
+                    {showAddGoal ? (
+                      <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            value={newGoalTitle}
+                            onChange={(e) => setNewGoalTitle(e.target.value)}
+                            placeholder="Enter goal title..."
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            autoFocus
+                            onKeyPress={(e) => e.key === 'Enter' && addGoal()}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={addGoal}
+                              className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                              Add
+                            </button>
+                            <button
+                              onClick={() => { setShowAddGoal(false); setNewGoalTitle(''); }}
+                              className="flex-1 px-3 py-1.5 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowAddGoal(true)}
+                        className="p-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-all duration-200 flex items-center justify-center min-h-[100px]"
+                      >
+                        <div className="text-center">
+                          <Plus className="w-5 h-5 mx-auto mb-1" />
+                          <span className="text-sm">Add a goal</span>
+                        </div>
+                      </button>
+                    )}
                   </div>
-                ))}
-                {showAddGoal ? (
-                  <div className="flex items-center gap-2 mt-2">
-                    <input type="text" value={newGoalTitle} onChange={(e) => setNewGoalTitle(e.target.value)} placeholder="Enter goal title..." className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autoFocus onKeyPress={(e) => e.key === 'Enter' && addGoal()} />
-                    <button onClick={addGoal} className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">Add</button>
-                    <button onClick={() => { setShowAddGoal(false); setNewGoalTitle(''); }} className="px-3 py-2 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
-                  </div>
-                ) : (
-                  <button onClick={() => setShowAddGoal(true)} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors mt-2">
-                    <Plus className="w-4 h-4" />
-                    <span className="text-xs">Add a goal</span>
-                  </button>
-                )}
-              </div>
+                </div>
+              )
             ) : (
               <div className="py-6">
-                {showAddGoal ? (
-                  <div className="flex items-center gap-2">
-                    <input type="text" value={newGoalTitle} onChange={(e) => setNewGoalTitle(e.target.value)} placeholder="Enter goal title..." className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autoFocus onKeyPress={(e) => e.key === 'Enter' && addGoal()} />
-                    <button onClick={addGoal} className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">Add</button>
-                    <button onClick={() => { setShowAddGoal(false); setNewGoalTitle(''); }} className="px-3 py-2 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
-                  </div>
+                {goalsViewMode === 'list' ? (
+                  showAddGoal ? (
+                    <div className="flex items-center gap-2">
+                      <input type="text" value={newGoalTitle} onChange={(e) => setNewGoalTitle(e.target.value)} placeholder="Enter goal title..." className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autoFocus onKeyPress={(e) => e.key === 'Enter' && addGoal()} />
+                      <button onClick={addGoal} className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">Add</button>
+                      <button onClick={() => { setShowAddGoal(false); setNewGoalTitle(''); }} className="px-3 py-2 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setShowAddGoal(true)} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
+                      <Plus className="w-4 h-4" />
+                      <span className="text-xs">Add a goal</span>
+                    </button>
+                  )
                 ) : (
-                  <button onClick={() => setShowAddGoal(true)} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
-                    <Plus className="w-4 h-4" />
-                    <span className="text-xs">Add a goal</span>
-                  </button>
+                  /* Grid view empty state */
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {showAddGoal ? (
+                      <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            value={newGoalTitle}
+                            onChange={(e) => setNewGoalTitle(e.target.value)}
+                            placeholder="Enter goal title..."
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            autoFocus
+                            onKeyPress={(e) => e.key === 'Enter' && addGoal()}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={addGoal}
+                              className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                              Add
+                            </button>
+                            <button
+                              onClick={() => { setShowAddGoal(false); setNewGoalTitle(''); }}
+                              className="flex-1 px-3 py-1.5 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowAddGoal(true)}
+                        className="p-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-all duration-200 flex items-center justify-center min-h-[100px]"
+                      >
+                        <div className="text-center">
+                          <Plus className="w-5 h-5 mx-auto mb-1" />
+                          <span className="text-sm">Add your first goal</span>
+                        </div>
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}

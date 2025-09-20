@@ -17,6 +17,7 @@ import HomeView from "./views/HomeView";
 import MiniSessionPlayer from "./components/MiniSessionPlayer";
 import MobileBottomNav from "./components/MobileBottomNav";
 import ProfileView from "./views/ProfileView";
+import AccountView from "./views/AccountView";
 import ProgressView from "./views/ProgressView";
 import type { ReactElement } from "react";
 import SessionDetailView from "./views/SessionDetailView";
@@ -29,7 +30,7 @@ function DashboardInner() {
   const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
   const [activeView, setActiveView] = useState<
-    "home" | "discover" | "bio" | "sessions" | "progress"
+    "home" | "discover" | "bio" | "sessions" | "progress" | "account"
   >("home");
   const [visibleView, setVisibleView] = useState(activeView);
   const [viewVisible, setViewVisible] = useState(false);
@@ -50,7 +51,8 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
       tab === "discover" ||
       tab === "bio" ||
       tab === "sessions" ||
-      tab === "progress"
+      tab === "progress" ||
+      tab === "account"
     ) {
       setActiveView(tab);
     } else {
@@ -199,7 +201,7 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
             {!isSmallScreen && (
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className={`p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-200 ${
+                className={`p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 hover:shadow-md transition-all duration-200 ${
                   sidebarOpen ? 'opacity-0 group-hover:opacity-100' : 'opacity-0 group-hover:opacity-100'
                 }`}
                 aria-label="Toggle sidebar"
@@ -218,16 +220,16 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
                     <button
                       key={view}
                       onClick={() => handleSidebarNav(view as any)}
-                      className={`w-full flex items-center text-left rounded-lg transition-all duration-200 group relative py-2 px-2 ${
-                        isSmallScreen ? "" : "gap-3"
+                      className={`w-full flex items-center text-left rounded-lg transition-all duration-200 group relative py-2 px-3 ${
+                        isSmallScreen || !sidebarOpen ? "justify-center" : "gap-3"
                       } ${
                         activeView === view
                           ? "bg-indigo-50 text-indigo-700 font-medium"
-                          : "text-gray-700 hover:bg-gray-50"
+                          : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                       }`}
                     >
-                      <span className="flex-shrink-0">{viewIcons[view]}</span>
-                      <span className={`ml-2 ${isSmallScreen || !sidebarOpen ? "opacity-0 w-0 overflow-hidden" : "opacity-100"} transition-[opacity,width] duration-200`}>
+                      <span className="flex-shrink-0 group-hover:scale-105 transition-transform duration-200">{viewIcons[view]}</span>
+                      <span className={`ml-2 group-hover:scale-[1.02] transition-all duration-200 ${isSmallScreen || !sidebarOpen ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
                         {view.charAt(0).toUpperCase() + view.slice(1)}
                       </span>
                       {(isSmallScreen || !sidebarOpen) && (
@@ -243,12 +245,15 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
             {/* Footer */}
             <div className="mt-auto border-t border-gray-100 p-2 transition-all duration-200">
               {/* User Profile */}
-              <div className={`flex items-center mb-4 group relative ${isSmallScreen || !sidebarOpen ? "justify-center" : "gap-3"}`}>
+              <button
+                onClick={() => handleSidebarNav("account")}
+                className={`flex items-center mb-4 group relative w-full rounded-lg p-2 hover:bg-gray-100 transition-all duration-200 ${isSmallScreen || !sidebarOpen ? "justify-center" : "gap-3"}`}
+              >
                 <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-medium flex-shrink-0">
                   {user?.email?.charAt(0).toUpperCase() || "U"}
                 </div>
                 {!isSmallScreen && sidebarOpen && (
-                  <div className="min-w-0">
+                  <div className="min-w-0 text-left group-hover:scale-[1.02] transition-transform duration-200">
                     <p className="text-sm font-medium text-gray-800 truncate">
                       {user?.email || "User"}
                     </p>
@@ -259,10 +264,10 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
                 )}
                 {(isSmallScreen || !sidebarOpen) && (
                   <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-3 py-2 bg-white text-gray-900 text-sm font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap z-[9999] shadow-2xl border border-gray-200 pointer-events-none">
-                    {user?.email || "User"}
+                    Account Settings
                   </div>
                 )}
-              </div>
+              </button>
               {/* Sign Out */}
               <div className="space-y-2">
                 <button
@@ -270,7 +275,7 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
                     await supabase.auth.signOut();
                     router.push("/");
                   }}
-                  className={`w-full flex items-center rounded-lg text-gray-600 hover:bg-gray-50 transition-colors group relative py-2 ${
+                  className={`w-full flex items-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-800 transition-all duration-200 group relative py-2 ${
                     isSmallScreen || !sidebarOpen ? "justify-center px-1" : "gap-3 px-3"
                   }`}
                   title={isSmallScreen || !sidebarOpen ? "Sign Out" : undefined}
@@ -285,13 +290,13 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="flex-shrink-0"
+                    className="flex-shrink-0 group-hover:scale-105 transition-transform duration-200"
                   >
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                     <polyline points="16 17 21 12 16 7"></polyline>
                     <line x1="21" y1="12" x2="9" y2="12"></line>
                   </svg>
-                  {!isSmallScreen && sidebarOpen && <span className="text-sm">Sign Out</span>}
+                  {!isSmallScreen && sidebarOpen && <span className="text-sm group-hover:scale-[1.02] transition-transform duration-200">Sign Out</span>}
                   {(isSmallScreen || !sidebarOpen) && (
                     <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-3 py-2 bg-white text-gray-900 text-sm font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap z-[9999] shadow-2xl border border-gray-200 pointer-events-none">
                       Sign Out
@@ -315,7 +320,7 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
         }}
       >
         {/* View Transitions */}
-        {["home", "discover", "bio", "sessions", "progress"].map((view) => {
+        {["home", "discover", "bio", "sessions", "progress", "account"].map((view) => {
           const isVisible = view === visibleView && !sessionId;
           return (
             <div
@@ -332,6 +337,7 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
               {view === "bio" && <ProfileView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
               {view === "sessions" && !sessionId && <SessionsView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
               {view === "progress" && <ProgressView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
+              {view === "account" && <AccountView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
               </div>
             </div>
           );
