@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
 
     console.log('8a: Calling process-transcript...');
     try {
-      const processTranscriptResponse = await fetch(`https://kind-nine.vercel.app/api/ai-therapist/process-transcript`, {
+      const processTranscriptResponse = await fetch(`https://kindtherapy.app/api/ai-therapist/process-transcript`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
 
     console.log('8b: Calling synthesize-therapy-session...');
     try {
-      const synthesizeResponse = await fetch(`https://kind-nine.vercel.app/api/ai-therapist/synthesize-therapy-session`, {
+      const synthesizeResponse = await fetch(`https://kindtherapy.app/api/ai-therapist/synthesize-therapy-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
