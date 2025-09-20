@@ -247,7 +247,13 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
               {/* User Profile */}
               <button
                 onClick={() => handleSidebarNav("account")}
-                className={`flex items-center mb-4 group relative w-full rounded-lg p-2 hover:bg-gray-100 transition-all duration-200 ${isSmallScreen || !sidebarOpen ? "justify-center" : "gap-3"}`}
+                className={`flex items-center mb-4 group relative w-full rounded-lg p-2 transition-all duration-200 ${
+                  isSmallScreen || !sidebarOpen ? "justify-center" : "gap-3"
+                } ${
+                  activeView === "account"
+                    ? "bg-indigo-50 text-indigo-700 font-medium"
+                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                }`}
               >
                 <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-medium flex-shrink-0">
                   {user?.email?.charAt(0).toUpperCase() || "U"}

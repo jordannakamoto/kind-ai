@@ -115,14 +115,8 @@ export default function AccountView({ sidebarCollapsed }: AccountViewProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/20">
-      <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-gray-900">Account</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Manage your subscription and profile
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50/50 via-white to-stone-50/30">
+      <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
 
         {message.text && (
           <div className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
@@ -139,76 +133,110 @@ export default function AccountView({ sidebarCollapsed }: AccountViewProps) {
           </div>
         )}
 
-        {/* Subscription Card */}
-        <div className="relative overflow-hidden rounded-2xl mb-6">
-          {/* Subtle gradient */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-indigo-500/10"></div>
+        {/* Hero Premium Card */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-2">Enjoying Kind?</h1>
+          <p className="text-gray-500 text-base">Your free trial expires in 14 days</p>
+        </div>
 
-          <div className="relative bg-white/80 backdrop-blur-sm border border-white/60">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-50 rounded-xl">
-                    <CreditCard className="w-5 h-5 text-blue-600" />
+        <div className="relative group cursor-pointer mb-12 max-w-lg mx-auto">
+          <div className="absolute -inset-4 bg-gradient-to-r from-violet-400/40 via-purple-400/35 to-blue-400/40 rounded-[2rem] blur-2xl opacity-30 group-hover:opacity-45 transition duration-700"></div>
+          <div className="relative bg-gradient-to-br from-white via-slate-50/50 to-stone-50/60 border border-slate-200/60 rounded-3xl p-7 hover:shadow-xl hover:shadow-slate-200/40 transition-shadow duration-300">
+
+            <div className="relative">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-sm border border-blue-100">
+                    <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center relative">
+                      <div className="w-3 h-3 bg-white rounded-full"></div>
+                      <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full animate-pulse"></div>
+                    </div>
                   </div>
                   <div>
-                    <h2 className="text-lg font-medium text-gray-900">Subscription</h2>
-                    <p className="text-xs text-gray-500">Free Trial • 3 sessions remaining</p>
+                    <h2 className="text-gray-900 font-medium text-lg">Kind</h2>
+                    <p className="text-gray-500 text-xs">your journey, elevated</p>
                   </div>
                 </div>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  Active
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-5">
-                <div className="bg-white/70 rounded-xl p-4 border border-gray-100">
-                  <p className="text-xs text-gray-500 mb-1">Usage</p>
-                  <p className="text-sm font-semibold text-gray-900">0 / 3 sessions</p>
-                </div>
-                <div className="bg-white/70 rounded-xl p-4 border border-gray-100">
-                  <p className="text-xs text-gray-500 mb-1">Expires</p>
-                  <p className="text-sm font-semibold text-gray-900">14 days</p>
+                <div className="text-xs font-medium px-2.5 py-1 bg-gradient-to-r from-slate-100 to-stone-100 text-slate-600 rounded-full border border-slate-200">
+                  most popular
                 </div>
               </div>
 
-              <div className="relative group cursor-pointer">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-slate-200 to-gray-300 rounded-2xl blur-sm opacity-0 group-hover:opacity-30 transition duration-500"></div>
-                <div className="relative bg-gradient-to-br from-slate-50 to-gray-100 border border-gray-200/50 rounded-2xl p-5 hover:shadow-lg transition-all duration-300">
-
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2.5 bg-white rounded-xl shadow-sm border border-gray-100">
-                        <div className="w-5 h-5 bg-gradient-to-br from-gray-600 to-slate-700 rounded-full flex items-center justify-center">
-                          <div className="w-2 h-2 bg-white rounded-full"></div>
-                        </div>
-                      </div>
-                      <div>
-                        <h3 className="text-gray-900 font-medium text-base">Premium</h3>
-                        <p className="text-gray-500 text-xs">Unlimited sessions and insights</p>
-                      </div>
-                    </div>
-
-                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 mb-4 border border-gray-100/50 space-y-2">
-                      <div className="flex items-center justify-between text-gray-700">
-                        <span className="text-xs font-medium">Unlimited sessions</span>
-                        <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
-                      </div>
-                      <div className="flex items-center justify-between text-gray-700">
-                        <span className="text-xs font-medium">Priority support</span>
-                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
-                      </div>
-                      <div className="flex items-center justify-between text-gray-700">
-                        <span className="text-xs font-medium">Advanced insights</span>
-                        <div className="w-1.5 h-1.5 bg-amber-400 rounded-full"></div>
-                      </div>
-                    </div>
-
-                    <button className="w-full bg-gray-900 text-white font-medium py-3 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm">
-                      Upgrade
-                    </button>
+              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-5 mb-5 border border-slate-200/50 shadow-lg">
+                <div className="text-center space-y-2">
+                  <div className="flex items-baseline justify-center gap-1.5">
+                    <span className="text-2xl font-semibold text-gray-900">$19.99</span>
+                    <span className="text-sm text-gray-500">/month</span>
                   </div>
+                  <p className="text-xs text-gray-600 leading-relaxed max-w-xs mx-auto">
+                    3 hours of sessions monthly — perfect for regular check-ins + deeper exploration when you need it most
+                  </p>
+                  <p className="text-xs text-slate-500 font-medium">
+                    more plans available for extra usage
+                  </p>
                 </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  // Add upgrade functionality here
+                  console.log("Upgrade clicked");
+                }}
+                className="w-full relative overflow-hidden group/btn mb-4"
+                style={{ borderRadius: '4px' }}
+              >
+                {/* Animated background gradient */}
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 opacity-90 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
+
+                {/* Shimmer effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-out"></div>
+
+                {/* Glass overlay */}
+                <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+
+                {/* Button content */}
+                <div className="relative px-6 py-3 text-white font-medium text-sm tracking-wide flex items-center justify-center gap-2">
+                  <span>Get Kind</span>
+                  <div className="w-1.5 h-1.5 bg-white/80 rounded-full animate-pulse"></div>
+                </div>
+
+                {/* Rounded corners */}
+                <div className="absolute inset-0" style={{ borderRadius: '4px' }}></div>
+              </button>
+
+              <p className="text-xs text-center text-gray-500">
+                Cancel anytime • No long-term commitment
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Current Plan Summary */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/60 mb-8 max-w-lg mx-auto">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-50 rounded-xl">
+                  <CreditCard className="w-5 h-5 text-gray-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">Current Plan</h3>
+                  <p className="text-xs text-gray-500">Free Trial</p>
+                </div>
+              </div>
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Active
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-1">Usage</p>
+                <p className="text-sm font-semibold text-gray-900">0 / 3 sessions</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-1">Expires</p>
+                <p className="text-sm font-semibold text-gray-900">14 days</p>
               </div>
             </div>
           </div>
