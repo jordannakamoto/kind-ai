@@ -24,17 +24,19 @@ function parseTherapyInsights(raw: string): ParsedTherapyInsights {
     return match?.[1]?.trim() ?? '';
   };
 
+  const parseListItems = (text: string) => {
+    // Handle both newline-separated and comma-separated items
+    return text
+      .split(/[\n,]/) // Split by newlines OR commas
+      .map((item) => item.replace(/^[-•*]\s*/, '').trim()) // Remove bullets and trim
+      .filter(item => item.length > 0 && !item.match(/^[-•*]\s*$/)); // Filter empty or bullet-only items
+  };
+
   return {
     title: extract('Title'),
     summary: extract('Summary') || extract('TherapySummary'),
-    goals: extract('Goals')
-      .split('\n')
-      .map((g) => g.replace(/^[-•*]/, '').trim())
-      .filter(g => g.length > 0),
-    themes: extract('Themes')
-      .split('\n')
-      .map((t) => t.replace(/^[-•*]/, '').trim())
-      .filter(t => t.length > 0),
+    goals: parseListItems(extract('Goals')),
+    themes: parseListItems(extract('Themes')),
     bio: extract('Bio'),
   };
 }
@@ -241,45 +243,72 @@ export async function POST(req: NextRequest) {
       .eq('id', userId);
 
     // Handle goals separately - add new goals to the goals table if they don't already exist
-    console.log('🎯 [Process Transcript] Synthesized goals:', synthesized.goals);
-    
-    if (synthesized.goals.length > 0) {
+    console.log('🎯 [Process Transcript] Raw synthesized goals:', synthesized.goals);
+    console.log('🎯 [Process Transcript] Goals array length:', synthesized.goals?.length);
+    console.log('🎯 [Process Transcript] Goals array content:', JSON.stringify(synthesized.goals, null, 2));
+
+    if (synthesized.goals && synthesized.goals.length > 0) {
+      console.log('🎯 [Process Transcript] Processing goals for userId:', userId);
+
       // Get existing goals for this user
-      const { data: existingGoals } = await supabase
+      const { data: existingGoals, error: existingGoalsError } = await supabase
         .from('goals')
         .select('title')
         .eq('user_id', userId)
         .eq('is_active', true);
 
+      if (existingGoalsError) {
+        console.error('🎯 [Process Transcript] Error fetching existing goals:', existingGoalsError);
+      }
+
       const existingGoalTitles = existingGoals?.map(g => g.title.toLowerCase()) || [];
-      console.log('🎯 [Process Transcript] Existing goal titles:', existingGoalTitles);
-      
+      console.log('🎯 [Process Transcript] Existing goal titles (lowercase):', existingGoalTitles);
+
+      // Filter and clean new goals
+      const cleanedGoals = synthesized.goals
+        .filter(goal => goal && typeof goal === 'string' && goal.trim().length > 0);
+
+      console.log('🎯 [Process Transcript] Cleaned goals:', cleanedGoals);
+
       // Insert new goals that don't already exist
-      const newGoals = synthesized.goals
+      const newGoals = cleanedGoals
         .filter(goal => !existingGoalTitles.includes(goal.toLowerCase()))
         .map(goal => ({
           user_id: userId,
-          title: goal,
+          title: goal.trim(),
           is_active: true
         }));
 
       console.log('🎯 [Process Transcript] New goals to insert:', newGoals);
+      console.log('🎯 [Process Transcript] Number of new goals:', newGoals.length);
 
       if (newGoals.length > 0) {
         console.log('🎯 [Process Transcript] Attempting to insert goals:', JSON.stringify(newGoals, null, 2));
-        
-        const { data: insertedGoals, error: goalInsertError } = await supabase
-          .from('goals')
-          .insert(newGoals)
-          .select();
-        
-        if (goalInsertError) {
-          console.error('🎯 [Process Transcript] Error inserting goals:', goalInsertError);
+
+        // Validate user exists before inserting goals
+        const { data: userExists } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', userId)
+          .single();
+
+        if (!userExists) {
+          console.error('🎯 [Process Transcript] Cannot insert goals: User not found:', userId);
         } else {
-          console.log('✅ [Process Transcript] Successfully inserted', newGoals.length, 'new goals:', insertedGoals);
+          const { data: insertedGoals, error: goalInsertError } = await supabase
+            .from('goals')
+            .insert(newGoals)
+            .select();
+
+          if (goalInsertError) {
+            console.error('🎯 [Process Transcript] Error inserting goals:', goalInsertError);
+            console.error('🎯 [Process Transcript] Error details:', JSON.stringify(goalInsertError, null, 2));
+          } else {
+            console.log('✅ [Process Transcript] Successfully inserted', newGoals.length, 'new goals:', insertedGoals);
+          }
         }
       } else {
-        console.log('🎯 [Process Transcript] No new goals to insert (all already exist)');
+        console.log('🎯 [Process Transcript] No new goals to insert (all already exist or filtered out)');
       }
     } else {
       console.log('🎯 [Process Transcript] No goals extracted from session');
