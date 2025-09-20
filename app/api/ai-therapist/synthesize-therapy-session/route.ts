@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     `;
 
     const response = await client.responses.create({
-      model: 'gpt-4o',
+      model: "gpt-4.1",
       input,
     });
 

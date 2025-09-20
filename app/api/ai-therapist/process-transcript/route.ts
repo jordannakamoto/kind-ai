@@ -71,21 +71,12 @@ Transcript:
 ${transcript}
   `;
 
-  const response = await client.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are a therapy assistant helping summarize therapy sessions.',
-      },
-      {
-        role: 'user',
-        content: input,
-      },
-    ],
+  const response = await client.responses.create({
+    model: "gpt-4.1",
+    input,
   });
 
-  const content = response.choices[0]?.message?.content || '';
+  const content = response.output_text;
   return parseTherapyInsights(content.trim());
 }
 
@@ -166,21 +157,12 @@ Goals: ${newInsights.goals.join(', ')}
 Themes: ${newInsights.themes.join(', ')}
 `;
 
-  const response = await client.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are an assistant helping maintain a therapy profile.',
-      },
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
+  const response = await client.responses.create({
+    model: "gpt-4.1",
+    input: prompt,
   });
 
-  const content = response.choices[0]?.message?.content || '';
+  const content = response.output_text;
   return parseTherapyInsights(content.trim());
 }
 

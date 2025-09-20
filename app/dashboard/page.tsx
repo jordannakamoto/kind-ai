@@ -35,6 +35,7 @@ function DashboardInner() {
   const [visibleView, setVisibleView] = useState(activeView);
   const [viewVisible, setViewVisible] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [hideToggleButton, setHideToggleButton] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
@@ -228,17 +229,22 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
           : "translate-x-0"
       }`}>
           {/* Header */}
-          <div className="group flex items-center justify-between px-2 py-4 relative">
+          <div className="group flex items-center justify-between px-2 py-4">
             <button
               onClick={() => window.location.reload()}
               className="text-xl font-bold text-gray-800 hover:text-gray-600 transition-colors cursor-pointer ml-1"
             >
               kind
             </button>
-            {/* Toggle button - visible on hover when collapsed, on hover when expanded */}
-            {!isSmallScreen && (
+
+            {/* Toggle button */}
+            {!isSmallScreen && !hideToggleButton && (
               <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
+                onClick={() => {
+                  setSidebarOpen(!sidebarOpen);
+                  setHideToggleButton(true);
+                  setTimeout(() => setHideToggleButton(false), 250);
+                }}
                 className={`p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 hover:shadow-md transition-all duration-200 ${
                   sidebarOpen ? 'opacity-0 group-hover:opacity-100' : 'opacity-0 group-hover:opacity-100'
                 }`}

@@ -166,28 +166,48 @@ export async function POST(req: NextRequest) {
     console.log('✅ Step 7 complete: Session inserted into database');
 
     console.log('🚀 Step 8: Triggering background processes...');
-    
+
     console.log('8a: Calling process-transcript...');
-    await fetch(`https://kind-nine.vercel.app/api/ai-therapist/process-transcript`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        conversationId: conversation_id,
-        transcript: transcriptString,
-        duration: metadata?.call_duration_secs ?? null,
-      }),
-    });
-    console.log('✅ 8a complete: process-transcript called');
+    try {
+      const processTranscriptResponse = await fetch(`https://kind-nine.vercel.app/api/ai-therapist/process-transcript`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          conversationId: conversation_id,
+          transcript: transcriptString,
+          duration: metadata?.call_duration_secs ?? null,
+        }),
+      });
+
+      if (!processTranscriptResponse.ok) {
+        const errorText = await processTranscriptResponse.text();
+        console.error('❌ 8a FAILED: process-transcript error:', processTranscriptResponse.status, errorText);
+      } else {
+        console.log('✅ 8a complete: process-transcript called successfully');
+      }
+    } catch (err) {
+      console.error('❌ 8a FAILED: process-transcript exception:', err);
+    }
 
     console.log('8b: Calling synthesize-therapy-session...');
-    await fetch(`https://kind-nine.vercel.app/api/ai-therapist/synthesize-therapy-session`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId }),
-    });
-    console.log('✅ 8b complete: synthesize-therapy-session called');
-    console.log('✅ Step 8 complete: All background processes triggered');
+    try {
+      const synthesizeResponse = await fetch(`https://kind-nine.vercel.app/api/ai-therapist/synthesize-therapy-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!synthesizeResponse.ok) {
+        const errorText = await synthesizeResponse.text();
+        console.error('❌ 8b FAILED: synthesize-therapy-session error:', synthesizeResponse.status, errorText);
+      } else {
+        console.log('✅ 8b complete: synthesize-therapy-session called successfully');
+      }
+    } catch (err) {
+      console.error('❌ 8b FAILED: synthesize-therapy-session exception:', err);
+    }
+    console.log('✅ Step 8 complete: All background processes attempted');
 
     console.log('🎉 WEBHOOK SUCCESS: All steps completed');
     return NextResponse.json({ success: true });
