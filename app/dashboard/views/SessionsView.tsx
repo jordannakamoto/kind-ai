@@ -349,9 +349,9 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
   };
 
   return (
-    <div className="bg-white min-h-screen py-4 md:py-8 sm:py-12 w-full">
+    <div className="bg-white min-h-screen py-2 md:py-4 sm:py-6 w-full">
       
-      <div className={`hidden max-w-2xl ${sidebarCollapsed ? 'mx-auto' : 'ml-32 lg:ml-40'} px-4 sm:px-6 lg:px-8 mb-10`}> {/* Search Bar */}
+      <div className={`hidden max-w-2xl ${sidebarCollapsed ? 'mx-auto' : 'ml-32 lg:ml-40'} px-4 sm:px-6 lg:px-8 mb-6`}> {/* Search Bar */}
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
             <svg className="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" /></svg>
@@ -363,11 +363,11 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
       </div>
 
       {showInitialLoading ? ( /* Loading Spinner */
-        <div className="text-center py-6 md:py-10">
+        <div className="text-center py-4 md:py-6">
           <LoadingDots text="Loading your sessions" className="text-sm font-medium text-slate-600" />
         </div>
       ) : showEmptyMessage ? ( /* Empty State */
-        <div className={`text-center py-6 md:py-10 px-4 max-w-md ${sidebarCollapsed ? 'mx-auto' : 'ml-32 lg:ml-40'}`}>
+        <div className={`text-center py-4 md:py-6 px-4 max-w-md ${sidebarCollapsed ? 'mx-auto' : 'ml-32 lg:ml-40'}`}>
           <svg className="mx-auto h-12 w-12 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 10.5v3.75m-9.303 3.376C1.82 19.513 3.252 21 5.006 21h13.988c1.754 0 3.186-1.487 2.31-3.374L13.949 4.878c-.875-1.887-3.021-1.887-3.896 0L2.697 17.626ZM12 17.25h.007v.008H12v-.008Z" /></svg>
           <h3 className="mt-3 md:mt-4 text-base md:text-lg font-semibold text-slate-700">{searchQuery ? 'No Sessions Found' : 'Your Session History is Empty'}</h3>
           <p className="mt-1 md:mt-1.5 text-xs md:text-sm text-slate-500">{searchQuery ? 'Try different keywords or clear your search.' : 'Once you complete a session, it will appear here.'}</p>
@@ -375,8 +375,8 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
       ) : (
         <div className={`max-w-2xl ${sidebarCollapsed ? 'mx-auto' : 'ml-32 lg:ml-40'} px-4 md:px-6 lg:px-8`}>
           {showSpecialMostRecentView && mostRecentSessionActual && ( /* Most Recent Session View */
-            <section className="mb-6" aria-labelledby="most-recent-session-title">
-              <div className="flex items-center justify-between mb-2 px-1">
+            <section className="mb-4" aria-labelledby="most-recent-session-title">
+              <div className="flex items-center justify-between mb-1 px-1">
                 <h2 id="most-recent-session-title" className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-wider">Latest Session</h2>
                 {!showInitialLoading && !showEmptyMessage && (
                   <div className="flex items-center gap-2">
@@ -440,10 +440,10 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
                 {isMostRecentActualPlaceholder ? (<> {/* Placeholder for most recent */}
                   <div className="h-5 bg-slate-300 rounded w-3/5 mb-3"></div> <div className="space-y-2"><div className="h-3 bg-slate-300/80 rounded w-full"></div><div className="h-3 bg-slate-300/80 rounded w-full"></div><div className="h-3 bg-slate-300/80 rounded w-3/4"></div></div> <div className="h-4 bg-slate-300 rounded w-1/3 mt-4"></div>
                 </>) : (<>
-                  <h3 className="text-base md:text-lg sm:text-xl font-bold text-slate-800 group-hover:text-indigo-700 mb-1 md:mb-1.5 transition-colors">{mostRecentSessionActual.title || 'Untitled Session'}</h3>
-                  <p className="text-[10px] md:text-xs text-slate-500 mb-2 md:mb-3">{formatDetailedTimestamp(mostRecentSessionActual.created_at)}{mostRecentSessionActual.duration !== null && ` • ${formatDuration(mostRecentSessionActual.duration)}`}</p>
+                  <h3 className="text-base md:text-lg sm:text-xl font-bold text-slate-800 group-hover:text-indigo-700 mb-0.5 md:mb-1 transition-colors">{mostRecentSessionActual.title || 'Untitled Session'}</h3>
+                  <p className="text-[10px] md:text-xs text-slate-500 mb-1 md:mb-2">{formatDetailedTimestamp(mostRecentSessionActual.created_at)}{mostRecentSessionActual.duration !== null && ` • ${formatDuration(mostRecentSessionActual.duration)}`}</p>
                   {mostRecentSessionActual.summary && (<p className="text-xs md:text-sm text-slate-600 leading-relaxed line-clamp-3 group-hover:text-slate-700">{truncateSummary(mostRecentSessionActual.summary, 3)}</p>)}
-                  <div className="mt-3 md:mt-4 flex justify-end"><span className="text-[10px] md:text-xs font-medium text-indigo-600 group-hover:text-indigo-700">View Details →</span></div>
+                  <div className="mt-2 md:mt-3 flex justify-end"><span className="text-[10px] md:text-xs font-medium text-indigo-600 group-hover:text-indigo-700">View Details →</span></div>
                 </>)}
                 </button>
               </div>
@@ -455,9 +455,9 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
             if (periodGroup.title === 'Recent') {
               return (
                 periodGroup.sessions.length > 0 && (
-                  <section key={periodGroup.title} className="mb-6 last:mb-0" aria-labelledby={`section-title-recent`}>
-                    <h2 id="section-title-recent" className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 md:mb-2 px-1">{periodGroup.title}</h2>
-                    <ul className="space-y-2">
+                  <section key={periodGroup.title} className="mb-4 last:mb-0" aria-labelledby={`section-title-recent`}>
+                    <h2 id="section-title-recent" className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 md:mb-1.5 px-1">{periodGroup.title}</h2>
+                    <ul className="space-y-1">
                       {periodGroup.sessions.map((session) => {
                         const isListItemPlaceholder = session.title === 'Recent Session' && session.summary === 'Summarizing...';
                         return (
@@ -519,9 +519,9 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
             const dailyGroups = groupSessionsWithinPeriodByDay(periodGroup.sessions);
             return (
               dailyGroups.length > 0 && (
-                <section key={periodGroup.title} className="mb-6 last:mb-0" aria-labelledby={`section-title-${periodGroup.title.replace(/\s+/g, '-').toLowerCase()}`}>
-                  <h2 id={`section-title-${periodGroup.title.replace(/\s+/g, '-').toLowerCase()}`} className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">{periodGroup.title}</h2>
-                  <ul className="space-y-2">
+                <section key={periodGroup.title} className="mb-4 last:mb-0" aria-labelledby={`section-title-${periodGroup.title.replace(/\s+/g, '-').toLowerCase()}`}>
+                  <h2 id={`section-title-${periodGroup.title.replace(/\s+/g, '-').toLowerCase()}`} className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 px-1">{periodGroup.title}</h2>
+                  <ul className="space-y-1">
                     {dailyGroups.map((dayGroup) => {
                       const { dayOfWeek, dayOfMonth, fullDate } = formatListDateParts(dayGroup.date);
                       const isDayPlaceholder = dayGroup.sessions.some(s => s.title === 'Recent Session' && s.summary === 'Summarizing...');
@@ -559,9 +559,9 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
                                       : 'hover:ring-2 hover:ring-red-300 hover:bg-red-50'
                                     : 'hover:shadow-md hover:border-slate-300 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none'
                                 }`}>
-                                <div className="mr-3 sm:mr-4 text-center w-12 flex-shrink-0" aria-hidden="true">
-                                  <div className="text-xs text-gray-400 tracking-wide">{dayOfWeek}</div>
-                                  <div className="text-s font-bold text-slate-700 group-hover:text-slate-800">{dayOfMonth}</div>
+                                <div className="mr-2 sm:mr-3 text-center w-10 flex-shrink-0" aria-hidden="true">
+                                  <div className="text-[10px] text-gray-400 tracking-wide">{dayOfWeek}</div>
+                                  <div className="text-sm font-bold text-slate-700 group-hover:text-slate-800">{dayOfMonth}</div>
                                 </div>
                                 <div className="flex-grow min-w-0">
                                   <h3 className="text-xs md:text-sm sm:text-base font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">{session.title || 'Untitled Session'}</h3>
@@ -583,12 +583,12 @@ export default function UserSessionHistory({ sidebarCollapsed = false }: { sideb
                               {isDayPlaceholder ? (<> {/* Placeholder for day group tile */}
                                 <div className="mr-4 text-center w-12 h-10 bg-slate-300/70 rounded-md flex-shrink-0"></div> <div className="flex-grow min-w-0"><div className="h-4 bg-slate-300 rounded w-3/4 mb-1.5"></div><div className="h-3 bg-slate-300 rounded w-1/2"></div></div> <div className="h-4 bg-slate-300 rounded w-10 ml-3"></div>
                               </>) : (<>
-                                <div className="mr-3 sm:mr-4 text-center w-12 flex-shrink-0" aria-hidden="true">
-                                  <div className="text-xs text-gray-400 tracking-wide">{dayOfWeek}</div>
-                                  <div className="text-s font-bold text-slate-700 group-hover:text-slate-800">{dayOfMonth}</div>
+                                <div className="mr-2 sm:mr-3 text-center w-10 flex-shrink-0" aria-hidden="true">
+                                  <div className="text-[10px] text-gray-400 tracking-wide">{dayOfWeek}</div>
+                                  <div className="text-sm font-bold text-slate-700 group-hover:text-slate-800">{dayOfMonth}</div>
                                 </div>
                                 <div className="flex-grow min-w-0">
-                                  <h3 className="text-sm sm:text-base font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">
+                                  <h3 className="text-xs sm:text-sm font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">
                                     {dayGroup.sessions.length} {dayGroup.sessions.length === 1 ? 'session' : 'sessions'}
                                   </h3>
                                 </div>

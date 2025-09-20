@@ -1166,9 +1166,9 @@ export default function UserCheckInConversation({ sidebarCollapsed = false }: { 
                     { name: 'David', description: 'Deep & Calm', gradient: 'from-emerald-200 to-teal-300' }
                   ].map((voice) => (
                     <label key={voice.name} className="flex items-center cursor-pointer group">
-                      <div className={`w-full p-3 rounded-xl border transition-all duration-200 hover:shadow-md hover:bg-white ${
+                      <div className={`w-full p-3 rounded-xl border transition-all duration-200 hover:shadow-md hover:shadow-indigo-100/50 hover:bg-white ${
                         voiceSettings.voice === voice.name
-                          ? 'border-indigo-200 bg-indigo-50/50 shadow-md'
+                          ? 'border-indigo-200 bg-white shadow-md shadow-indigo-100/50'
                           : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}>
                         <input
@@ -1270,10 +1270,10 @@ export default function UserCheckInConversation({ sidebarCollapsed = false }: { 
                         }
                       ].map((personality) => (
                         <label key={personality.name} className="cursor-pointer group block">
-                          <div className={`flex items-center justify-between p-5 rounded-xl transition-all duration-150 hover:shadow-md ${
+                          <div className={`flex items-center justify-between p-5 rounded-xl transition-all duration-150 ${
                             voiceSettings.personality === personality.name
-                              ? 'bg-white border border-indigo-200 shadow-sm'
-                              : 'hover:bg-gray-50/50 border border-transparent hover:border-gray-200'
+                              ? 'bg-white'
+                              : 'hover:bg-gray-50/50'
                           }`}>
 
                             <div className="flex-1">
@@ -1282,7 +1282,7 @@ export default function UserCheckInConversation({ sidebarCollapsed = false }: { 
                                 <div className={`w-1.5 h-10 rounded-full transition-all duration-150 ${
                                   voiceSettings.personality === personality.name
                                     ? 'bg-gradient-to-b from-indigo-400 to-indigo-600 shadow-md shadow-indigo-200'
-                                    : 'bg-gray-200 group-hover:bg-indigo-200'
+                                    : 'bg-transparent group-hover:bg-indigo-200'
                                 }`}></div>
 
                                 <input

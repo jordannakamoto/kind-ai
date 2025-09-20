@@ -260,7 +260,7 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
                           : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                       }`}
                     >
-                      <span className="flex-shrink-0 transition-all duration-200 group-hover:drop-shadow-md">{viewIcons[view]}</span>
+                      <span className="flex-shrink-0 transition-all duration-200">{viewIcons[view]}</span>
                       <span className={`ml-2 transition-all duration-200 ${isSmallScreen || !sidebarOpen ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
                         {view.charAt(0).toUpperCase() + view.slice(1)}
                       </span>
@@ -355,7 +355,7 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="flex-shrink-0 transition-all duration-200 group-hover:drop-shadow-md"
+                    className="flex-shrink-0 transition-all duration-200"
                   >
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                     <polyline points="16 17 21 12 16 7"></polyline>
