@@ -3,6 +3,7 @@ import "./globals.css";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { ConversationProvider } from "./contexts/ConversationContext";
+import { GoalCompletionProvider } from "./contexts/GoalCompletionContext";
 import type { Metadata } from "next";
 
 const geistSans = Geist({
@@ -38,7 +39,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ConversationProvider>{children}</ConversationProvider>
+        <ConversationProvider>
+          <GoalCompletionProvider>
+            {children}
+          </GoalCompletionProvider>
+        </ConversationProvider>
       </body>
     </html>
   );

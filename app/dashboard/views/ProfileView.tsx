@@ -4,6 +4,7 @@ import { AlertTriangle, ChevronRight, Plus, Circle, CheckCircle2, List, LayoutGr
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/supabase/client';
 import { useConversationStatus } from '@/app/contexts/ConversationContext';
+import { useGoalCompletion } from '@/app/contexts/GoalCompletionContext';
 import LoadingDots from '@/components/LoadingDots';
 import GoalItem from '@/app/dashboard/components/GoalItem';
 import CleanupDropdown from '@/app/dashboard/components/CleanupDropdown';
@@ -92,6 +93,7 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const { conversationEnded, pollingStatus, setPollingStatus } = useConversationStatus();
+  const { triggerGoalCompletion, triggerGoalUncompletion } = useGoalCompletion();
   const [initialBio, setInitialBio] = useState<string | null>(null);
   const [profilePicSrc, setProfilePicSrc] = useState<string | null>(null);
   const [bioExpanded, setBioExpanded] = useState(false);
@@ -119,7 +121,7 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
   }>({ isOpen: false, goal: null, position: { x: 0, y: 0 } });
   const previousGoals = useRef<Goal[]>([]);
   const previousThemes = useRef<string[]>([]);
-  const dummyRef = useRef<HTMLElement>(null);
+  const dummyRef = useRef<HTMLElement>(null!);
 
   useEffect(() => {
     // Load profile picture from localStorage first (TODO: move to database storage)
@@ -235,12 +237,26 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
           const goalsCacheKey = getProfileCacheKey('goals', authUser.id);
           const cachedGoals = getCachedData<Goal[]>(goalsCacheKey);
           if (cachedGoals && cachedGoals.length > 0) {
+            // Check for new goals
             const newGoalsList = findNewItems(cachedGoals, goalsResponse.data);
             if (newGoalsList.length > 0) {
               console.log('🎯 New goals detected during polling:', newGoalsList.length);
               const newIds = new Set(newGoalsList.map((g: Goal) => g.id));
               setNewGoalIds(newIds);
               setTimeout(() => setNewGoalIds(new Set()), 3000);
+            }
+
+            // Check for newly completed goals
+            const newlyCompletedGoals = goalsResponse.data.filter((newGoal: Goal) => {
+              const oldGoal = cachedGoals.find(g => g.id === newGoal.id);
+              return oldGoal && !oldGoal.completed_at && newGoal.completed_at;
+            });
+
+            if (newlyCompletedGoals.length > 0) {
+              console.log('🎉 Newly completed goals detected during polling:', newlyCompletedGoals.length);
+              newlyCompletedGoals.forEach((goal: Goal) => {
+                triggerGoalCompletion(goal.id, goal.title);
+              });
             }
           }
           setGoals(goalsResponse.data);
@@ -291,6 +307,14 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
       if (userId) {
         const goalsCacheKey = getProfileCacheKey('goals', userId);
         setCachedData(goalsCacheKey, updatedGoals);
+      }
+
+      // Trigger client-side celebration if goal was just completed
+      if (!isCompleted) {
+        triggerGoalCompletion(goalId, goal.title);
+      } else {
+        // Handle goal un-completion (remove from client context)
+        triggerGoalUncompletion(goalId);
       }
     }
   };

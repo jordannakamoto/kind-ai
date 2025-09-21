@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Settings, X, Palette, Save, Smile } from 'lucide-react';
-import EmojiPicker from './EmojiPicker';
-import ColorPicker from './ColorPicker';
+import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Plus } from 'lucide-react';
+import './animations.css';
 
 export interface MoodOption {
   id: string;
@@ -20,7 +20,7 @@ export interface MoodOption {
 interface MoodCustomizerProps {
   currentMoods: MoodOption[];
   onMoodsUpdate: (moods: MoodOption[]) => void;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 const defaultColors = [
@@ -68,17 +68,71 @@ const defaultColors = [
   }
 ];
 
-const popularEmojis = [
-  '😊', '😢', '😡', '😴', '😐', '🤗', '😍', '🤔', '😅', '😎',
-  '🥳', '😌', '😤', '🙃', '😬', '🤯', '🥺', '😭', '🔥', '💪',
-  '❤️', '🌟', '✨', '🌈', '☀️', '🌙', '⭐', '💫', '🎉', '🎊'
-];
+// Comprehensive emoji categories
+const emojiCategories = {
+  'Smileys': [
+    '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃',
+    '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '☺️', '😚',
+    '😙', '🥲', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭',
+    '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄',
+    '😬', '🤥', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢',
+    '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '🥸',
+    '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲',
+    '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱',
+    '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠'
+  ],
+  'Animals': [
+    '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯',
+    '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🐣',
+    '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛',
+    '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷️', '🦂', '🐢', '🐍',
+    '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠',
+    '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍',
+    '🦧', '🐘', '🦣', '🦏', '🦛', '🐪', '🐫', '🦒', '🦘', '🐃'
+  ],
+  'Food': [
+    '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈',
+    '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦',
+    '🥬', '🥒', '🌶️', '🫑', '🌽', '🥕', '🫒', '🧄', '🧅', '🥔',
+    '🍠', '🥐', '🥖', '🍞', '🥨', '🥯', '🧀', '🥚', '🍳', '🧈',
+    '🥞', '🧇', '🥓', '🥩', '🍗', '🍖', '🌭', '🍔', '🍟', '🍕',
+    '🥪', '🥙', '🧆', '🌮', '🌯', '🫔', '🥗', '🥘', '🫕', '🍝',
+    '🍜', '🍲', '🍛', '🍣', '🍱', '🥟', '🦪', '🍤', '🍙', '🍚'
+  ],
+  'Nature': [
+    '🌱', '🌿', '🍀', '🍃', '🍂', '🍁', '🌾', '🌵', '🌲', '🌳',
+    '🌴', '🌊', '🌋', '🏔️', '⛰️', '🗻', '🏕️', '🏖️', '🏜️', '🏝️',
+    '🌅', '🌄', '🌠', '🎆', '🎇', '🌈', '☀️', '🌤️', '⛅', '🌦️',
+    '🌧️', '⛈️', '🌩️', '🌨️', '❄️', '☃️', '⛄', '🌬️', '💨', '🌪️',
+    '🌫️', '🌙', '🌛', '🌜', '🌚', '🌝', '🌞', '⭐', '🌟', '💫',
+    '✨', '☄️', '🪐', '🌍', '🌎', '🌏', '🌑', '🌒', '🌓', '🌔',
+    '🌕', '🌖', '🌗', '🌘', '🔥', '💧', '🌊'
+  ],
+  'Objects': [
+    '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱',
+    '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳',
+    '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛷', '⛸️',
+    '🥌', '🎿', '⛷️', '🏂', '🪂', '🏋️', '🤼', '🤸', '⛹️', '🤺',
+    '🏇', '🧘', '🏄', '🏊', '🤽', '🚣', '🧗', '🚵', '🚴', '🏆',
+    '🥇', '🥈', '🥉', '🏅', '🎖️', '🏵️', '🎗️', '🎫', '🎟️', '🎪',
+    '🤹', '🎭', '🩰', '🎨', '🎬', '🎤', '🎧', '🎼', '🎵', '🎶'
+  ],
+  'Hearts': [
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🤎', '🖤', '🤍', '💔',
+    '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '♥️'
+  ]
+};
 
 export default function MoodCustomizer({ currentMoods, onMoodsUpdate, onClose }: MoodCustomizerProps) {
   const [moods, setMoods] = useState<MoodOption[]>(currentMoods);
-  const [isAddingNew, setIsAddingNew] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [activeEmojiTab, setActiveEmojiTab] = useState('Smileys');
+  const [selectedHue, setSelectedHue] = useState(0);
+  const [selectedSaturation, setSelectedSaturation] = useState(50);
+  const [selectedLightness, setSelectedLightness] = useState(50);
+  const colorWheelRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
   const [newMood, setNewMood] = useState({
     emoji: '😊',
     label: '',
@@ -86,194 +140,309 @@ export default function MoodCustomizer({ currentMoods, onMoodsUpdate, onClose }:
     colorTheme: defaultColors[0]
   });
 
-  const handleAddMood = () => {
+  // Close pickers when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.emoji-picker-container')) {
+        setShowEmojiPicker(false);
+      }
+      if (!target.closest('.color-picker-container')) {
+        setShowColorPicker(false);
+      }
+    };
+
+    if (showEmojiPicker || showColorPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showEmojiPicker, showColorPicker]);
+
+  // Close mood customizer when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.mood-customizer-morphed') && !target.closest('.mood-morphing-container')) {
+        onClose?.();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  // Convert HSL to hex
+  const hslToHex = (h: number, s: number, l: number) => {
+    l /= 100;
+    const a = s * Math.min(l, 1 - l) / 100;
+    const f = (n: number) => {
+      const k = (n + h / 30) % 12;
+      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * color).toString(16).padStart(2, '0');
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+  };
+
+  // Handle color wheel interaction
+  const handleColorWheelInteraction = (event: React.MouseEvent | MouseEvent) => {
+    if (!colorWheelRef.current) return;
+
+    const rect = colorWheelRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const x = event.clientX - centerX;
+    const y = event.clientY - centerY;
+
+    const angle = Math.atan2(y, x) * 180 / Math.PI;
+    const distance = Math.sqrt(x * x + y * y);
+    const radius = rect.width / 2;
+
+    // Calculate hue from angle
+    const hue = ((angle + 90) % 360 + 360) % 360;
+
+    // Calculate saturation from distance (0 = center, 100 = edge)
+    const saturation = Math.min(100, (distance / radius) * 100);
+
+    setSelectedHue(hue);
+    setSelectedSaturation(saturation);
+
+    // Update color theme
+    const hexColor = hslToHex(hue, saturation, selectedLightness);
+    setNewMood({
+      ...newMood,
+      colorTheme: {
+        name: 'Custom',
+        color: `bg-gray-50`,
+        borderColor: `border-gray-300`,
+        dotColor: `bg-blue-500`,
+        shadowColor: `shadow-gray-200/60`
+      }
+    });
+  };
+
+  const handleAddMoodAndSave = () => {
     if (!newMood.label.trim()) return;
+
+    const customColor = hslToHex(selectedHue, selectedSaturation, selectedLightness);
 
     const newMoodOption: MoodOption = {
       id: `custom_${Date.now()}`,
       emoji: newMood.emoji,
       label: newMood.label.trim(),
       value: newMood.value.trim().toLowerCase(),
-      color: newMood.colorTheme.color,
-      borderColor: newMood.colorTheme.borderColor,
-      dotColor: newMood.colorTheme.dotColor,
-      shadowColor: newMood.colorTheme.shadowColor,
+      color: `bg-gray-50`,
+      borderColor: `border-gray-300`,
+      dotColor: `bg-gradient-to-r from-[${customColor}] to-[${customColor}]`,
+      shadowColor: `shadow-gray-200/60`,
       isCustom: true
     };
 
-    setMoods([...moods, newMoodOption]);
+    const updatedMoods = [...moods, newMoodOption];
+    setMoods(updatedMoods);
+    onMoodsUpdate(updatedMoods);
     setNewMood({ emoji: '😊', label: '', value: '', colorTheme: defaultColors[0] });
-    setIsAddingNew(false);
+    setSelectedHue(0);
+    setSelectedSaturation(50);
+    setSelectedLightness(50);
   };
 
-  const handleRemoveMood = (moodId: string) => {
-    setMoods(moods.filter(mood => mood.id !== moodId));
-  };
-
-  const handleSave = () => {
-    onMoodsUpdate(moods);
-    onClose();
-  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-slate-100 max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
-              <Palette className="w-4 h-4 text-slate-600" />
-            </div>
-            <h2 className="text-lg font-semibold text-slate-900">Customize Moods</h2>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-            <X className="w-4 h-4 text-slate-600" />
+    <div
+      className="mood-customizer-morphed flex-shrink-0"
+      style={{
+        animation: 'moodCustomizerMorph 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards'
+      }}
+    >
+      <div
+        className="flex gap-3 items-center"
+        style={{
+          opacity: 0,
+          animation: 'moodContentFadeIn 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
+          animationDelay: '0.15s'
+        }}
+      >
+        {/* Input */}
+        <input
+          type="text"
+          placeholder="Add new mood..."
+          value={newMood.label}
+          onChange={(e) => {
+            const label = e.target.value;
+            setNewMood({
+              ...newMood,
+              label,
+              value: label.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_')
+            });
+          }}
+          className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400/40 transition-all bg-white placeholder-gray-400 shadow-sm"
+        />
+
+        {/* Emoji Picker */}
+        <div className="relative emoji-picker-container">
+          <button
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className="w-10 h-10 text-lg border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all bg-white cursor-pointer flex items-center justify-center shadow-sm"
+          >
+            {newMood.emoji}
           </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-          {/* Current Moods */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-800">Your Moods <span className="text-slate-500 font-normal">({moods.length})</span></h3>
-              {!isAddingNew && (
-                <button
-                  onClick={() => setIsAddingNew(true)}
-                  className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Mood
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 gap-3">
-              {moods.map((mood) => (
-                <div key={mood.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors">
-                  <span className="text-2xl">{mood.emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm text-slate-900 truncate">{mood.label}</div>
-                    <div className="text-xs text-slate-500">{mood.value}</div>
-                  </div>
-                  <div className={`w-4 h-4 rounded-full ${mood.dotColor || 'bg-indigo-500'}`} />
-                  {mood.isCustom && (
-                    <button
-                      onClick={() => handleRemoveMood(mood.id)}
-                      className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors"
-                    >
-                      <X className="w-4 h-4 text-slate-400 hover:text-slate-600" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Add New Mood */}
-          {isAddingNew && (
-            <div className="mt-6 space-y-4 p-5 bg-slate-50 rounded-xl border border-slate-200">
-              <h3 className="text-sm font-semibold text-slate-800">Add New Mood</h3>
-
-              {/* Emoji and Input */}
-              <div className="flex gap-4 items-end">
-                <div>
-                  <label className="text-sm text-slate-600 font-medium">Emoji</label>
+          {showEmojiPicker && (
+            <div className="fixed bottom-20 right-4 z-[60] bg-white rounded-xl border border-gray-200 shadow-xl w-80">
+              {/* Tabs */}
+              <div className="flex border-b border-gray-100 p-3 gap-1">
+                {Object.keys(emojiCategories).map((category) => (
                   <button
-                    onClick={() => setShowEmojiPicker(true)}
-                    className="w-14 h-14 text-2xl border border-slate-300 rounded-xl hover:bg-slate-100 hover:border-slate-400 flex items-center justify-center transition-colors"
+                    key={category}
+                    onClick={() => setActiveEmojiTab(category)}
+                    className={`px-2 py-1 text-xs font-medium rounded-lg transition-colors ${
+                      activeEmojiTab === category
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
                   >
-                    {newMood.emoji}
+                    {category}
                   </button>
-                </div>
-                <div className="flex-1">
-                  <label className="text-sm text-slate-600 font-medium">Mood Name</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Excited, Calm, Focused"
-                    value={newMood.label}
-                    onChange={(e) => {
-                      const label = e.target.value;
-                      setNewMood({
-                        ...newMood,
-                        label,
-                        value: label.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_')
-                      });
-                    }}
-                    className="w-full px-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  />
-                </div>
+                ))}
               </div>
-
-              {/* Color */}
-              <div>
-                <label className="text-sm text-slate-600 font-medium">Color Theme</label>
-                <button
-                  onClick={() => setShowColorPicker(true)}
-                  className="w-full flex items-center gap-3 p-3 border border-slate-300 rounded-lg hover:bg-slate-100 hover:border-slate-400 transition-colors"
-                >
-                  <div className={`w-5 h-5 rounded-full ${newMood.colorTheme.dotColor}`} />
-                  <span className="text-sm text-slate-700 font-medium">{newMood.colorTheme.name}</span>
-                </button>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={handleAddMood}
-                  disabled={!newMood.label.trim()}
-                  className="flex-1 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Add Mood
-                </button>
-                <button
-                  onClick={() => {
-                    setIsAddingNew(false);
-                    setNewMood({ emoji: '😊', label: '', value: '', colorTheme: defaultColors[0] });
-                  }}
-                  className="px-4 py-2.5 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors"
-                >
-                  Cancel
-                </button>
+              {/* Emoji Grid */}
+              <div className="p-4 max-h-48 overflow-y-auto">
+                <div className="grid grid-cols-8 gap-1">
+                  {emojiCategories[activeEmojiTab as keyof typeof emojiCategories].map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => {
+                        setNewMood({ ...newMood, emoji });
+                        setShowEmojiPicker(false);
+                      }}
+                      className="w-8 h-8 text-lg hover:bg-gray-100/80 rounded-lg transition-colors flex items-center justify-center"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-3 p-6 border-t border-slate-200 bg-slate-50">
+        {/* Color Picker */}
+        <div className="relative color-picker-container">
           <button
-            onClick={onClose}
-            className="px-4 py-2.5 text-slate-700 text-sm font-medium hover:bg-slate-200 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <Save className="w-4 h-4" />
-            Save Changes
-          </button>
+            onClick={() => setShowColorPicker(!showColorPicker)}
+            className="w-10 h-10 border border-gray-200 rounded-xl hover:border-gray-300 transition-all cursor-pointer flex items-center justify-center shadow-sm"
+            style={{ backgroundColor: hslToHex(selectedHue, selectedSaturation, selectedLightness) }}
+          />
+          {showColorPicker && (
+            <div className="absolute bottom-12 right-0 z-[60] bg-white rounded-xl border border-gray-200 shadow-xl p-4">
+              <div className="flex items-center gap-3">
+                {/* Interactive HSV Color Wheel */}
+                <div
+                  ref={colorWheelRef}
+                  className="relative w-32 h-32 cursor-crosshair"
+                  onMouseDown={(e) => {
+                    isDragging.current = true;
+                    handleColorWheelInteraction(e);
+                  }}
+                  onMouseMove={(e) => {
+                    if (isDragging.current) {
+                      handleColorWheelInteraction(e);
+                    }
+                  }}
+                  onMouseUp={() => isDragging.current = false}
+                  onMouseLeave={() => isDragging.current = false}
+                >
+                  {/* HSV Color wheel background */}
+                  <div className="absolute inset-0 rounded-full" style={{
+                    background: `conic-gradient(
+                      from 0deg,
+                      hsl(0, 100%, 50%),
+                      hsl(60, 100%, 50%),
+                      hsl(120, 100%, 50%),
+                      hsl(180, 100%, 50%),
+                      hsl(240, 100%, 50%),
+                      hsl(300, 100%, 50%),
+                      hsl(360, 100%, 50%)
+                    )`
+                  }} />
+
+                  {/* Saturation gradient overlay */}
+                  <div className="absolute inset-0 rounded-full" style={{
+                    background: `radial-gradient(circle, white 0%, transparent 70%)`
+                  }} />
+
+                  {/* Color picker indicator */}
+                  <div
+                    className="absolute w-3 h-3 border-2 border-white rounded-full pointer-events-none transform -translate-x-1/2 -translate-y-1/2"
+                    style={{
+                      left: `calc(50% + ${Math.cos((selectedHue - 90) * Math.PI / 180) * (selectedSaturation / 100) * 64}px)`,
+                      top: `calc(50% + ${Math.sin((selectedHue - 90) * Math.PI / 180) * (selectedSaturation / 100) * 64}px)`,
+                      backgroundColor: hslToHex(selectedHue, selectedSaturation, selectedLightness)
+                    }}
+                  />
+                </div>
+
+                {/* Vertical Lightness slider */}
+                <div className="relative h-32 w-4">
+                  {/* Slider track with color gradient */}
+                  <div
+                    className="absolute inset-0 w-4 rounded-full"
+                    style={{
+                      background: `linear-gradient(to top,
+                        hsl(${selectedHue}, ${selectedSaturation}%, 0%),
+                        hsl(${selectedHue}, ${selectedSaturation}%, 50%),
+                        hsl(${selectedHue}, ${selectedSaturation}%, 100%))`
+                    }}
+                  />
+
+                  {/* Clickable area for slider */}
+                  <div
+                    className="absolute inset-0 w-4 h-32 cursor-pointer"
+                    onMouseDown={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const y = e.clientY - rect.top;
+                      const percentage = ((rect.height - y) / rect.height) * 100;
+                      setSelectedLightness(Math.max(0, Math.min(100, percentage)));
+
+                      const handleMouseMove = (moveEvent: MouseEvent) => {
+                        const newY = moveEvent.clientY - rect.top;
+                        const newPercentage = ((rect.height - newY) / rect.height) * 100;
+                        setSelectedLightness(Math.max(0, Math.min(100, newPercentage)));
+                      };
+
+                      const handleMouseUp = () => {
+                        document.removeEventListener('mousemove', handleMouseMove);
+                        document.removeEventListener('mouseup', handleMouseUp);
+                      };
+
+                      document.addEventListener('mousemove', handleMouseMove);
+                      document.addEventListener('mouseup', handleMouseUp);
+                    }}
+                  />
+
+                  {/* Slider thumb */}
+                  <div
+                    className="absolute w-4 h-2 border-2 border-white rounded-sm pointer-events-none shadow-sm"
+                    style={{
+                      top: `${100 - selectedLightness}%`,
+                      backgroundColor: hslToHex(selectedHue, selectedSaturation, selectedLightness),
+                      transform: 'translateY(-50%)'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Emoji Picker Modal */}
-        {showEmojiPicker && (
-          <EmojiPicker
-            selectedEmoji={newMood.emoji}
-            onEmojiSelect={(emoji) => setNewMood({ ...newMood, emoji })}
-            onClose={() => setShowEmojiPicker(false)}
-          />
-        )}
-
-        {/* Color Picker Modal */}
-        {showColorPicker && (
-          <ColorPicker
-            selectedTheme={newMood.colorTheme}
-            onColorSelect={(colorTheme) => setNewMood({ ...newMood, colorTheme })}
-            onClose={() => setShowColorPicker(false)}
-          />
-        )}
+        {/* Add Button */}
+        <button
+          onClick={handleAddMoodAndSave}
+          disabled={!newMood.label.trim()}
+          className="px-4 py-2.5 bg-blue-500 text-white text-sm font-medium rounded-xl hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 shadow-sm"
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );

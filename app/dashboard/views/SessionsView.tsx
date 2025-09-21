@@ -7,7 +7,7 @@ import { supabase } from '@/supabase/client';
 import { useConversationStatus } from '@/app/contexts/ConversationContext';
 import { useRouter } from 'next/navigation';
 import LoadingDots from '@/components/LoadingDots';
-import { Lightbulb, AlertTriangle, ArrowRight, StickyNote, ListChecks } from 'lucide-react';
+import { Lightbulb, AlertTriangle, ArrowRight, StickyNote, ListChecks, Clock, List } from 'lucide-react';
 
 const CACHE_VERSION = '1.0';
 const CACHE_EXPIRY_HOURS = 24;
@@ -725,21 +725,30 @@ export default function UserSessionHistory({
                 <h2 id="most-recent-session-title" className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-wider">Latest Session</h2>
                 {!showInitialLoading && !showEmptyMessage && (
                   <div className="flex items-center gap-2">
-                    {/* View Type Selector */}
-                    <div className="relative">
-                      <select
-                        value={viewType}
-                        onChange={(e) => setViewType(e.target.value as 'list-with-timestamps' | 'list-without-timestamps')}
-                        className="appearance-none bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent pr-8"
+                    {/* View Type Toggle */}
+                    <div className="flex items-center bg-slate-50/60 rounded-lg p-1">
+                      <button
+                        onClick={() => setViewType('list-with-timestamps')}
+                        className={`px-2 py-1.5 rounded text-xs transition-all duration-200 flex items-center gap-1.5 ${
+                          viewType === 'list-with-timestamps'
+                            ? 'bg-white shadow-sm text-slate-700 border border-slate-200'
+                            : 'text-slate-500 hover:text-slate-600 hover:bg-white/40'
+                        }`}
+                        title="Show timestamps"
                       >
-                        <option value="list-with-timestamps">List with Timestamps</option>
-                        <option value="list-without-timestamps">List without Timestamps</option>
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
+                        <Clock className="w-3.5 h-3.5" strokeWidth={1.5} />
+                      </button>
+                      <button
+                        onClick={() => setViewType('list-without-timestamps')}
+                        className={`px-2 py-1.5 rounded text-xs transition-all duration-200 flex items-center gap-1.5 ${
+                          viewType === 'list-without-timestamps'
+                            ? 'bg-white shadow-sm text-slate-700 border border-slate-200'
+                            : 'text-slate-500 hover:text-slate-600 hover:bg-white/40'
+                        }`}
+                        title="Hide timestamps"
+                      >
+                        <List className="w-3.5 h-3.5" strokeWidth={1.5} />
+                      </button>
                     </div>
                     {isSelectMode && selectedSessions.size > 0 && (
                       <button
@@ -996,29 +1005,29 @@ export default function UserSessionHistory({
                                     <button
                                       onClick={() => handleSelectSession(session.id)}
                                       aria-label={`${isSelectMode ? 'Select' : 'View'} session: ${session.title || 'Untitled Session'} from ${fullDate}`}
-                                      className={`flex-1 flex items-center text-left bg-white p-3 md:p-3.5 sm:p-4 rounded-xl border-2 transition-all duration-200 ease-in-out ${
+                                      className={`flex-1 flex items-center text-left bg-slate-50/50 p-3 rounded-xl border-2 transition-colors group focus-visible:outline-none focus-visible:ring-1 ${
                                         expandedSessions[session.id]
                                           ? 'border-indigo-200 bg-indigo-50'
                                           : isSelectMode
                                             ? selectedSessions.has(session.id)
-                                              ? 'ring-2 ring-indigo-200 bg-indigo-50 border-transparent'
-                                              : 'hover:ring-2 hover:ring-slate-200 hover:bg-slate-50 border-transparent'
-                                            : 'hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none border-transparent'
+                                              ? 'bg-indigo-50 hover:bg-indigo-100 focus-visible:ring-indigo-400 border-transparent'
+                                              : 'hover:bg-slate-50 focus-visible:ring-slate-400 border-transparent'
+                                            : 'hover:bg-slate-100 focus-visible:ring-indigo-400 border-transparent'
                                       }`}>
                                       {showTimestamps && (
-                                        <div className="mr-2 md:mr-3 sm:mr-4 text-center w-12 md:w-16 sm:w-20 flex-shrink-0 py-0.5 md:py-1 px-0.5 md:px-1">
-                                          <span className="text-[9px] md:text-[11px] sm:text-xs font-medium text-slate-500 group-hover:text-slate-600 bg-slate-200/70 group-hover:bg-slate-200 rounded px-1 md:px-1.5 py-0.5">
+                                        <div className="flex-shrink-0 mr-3 w-16">
+                                          <p className="text-xs text-slate-500 group-hover:text-indigo-600">
                                             {new Date(session.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                                          </span>
+                                          </p>
                                         </div>
                                       )}
                                       <div className="flex-grow min-w-0">
-                                        <h3 className="text-xs md:text-sm sm:text-base font-normal text-slate-800 group-hover:text-indigo-700 truncate transition-colors">{session.title || 'Untitled Session'}</h3>
+                                        <p className="text-sm font-medium text-slate-700 group-hover:text-indigo-700 truncate">{session.title || 'Untitled Session'}</p>
                                         {showTimestamps && (
-                                          <p className="text-[10px] md:text-xs text-slate-500 group-hover:text-slate-600 mt-0.5">{formatDuration(session.duration)}</p>
+                                          <p className="text-xs text-slate-500">{formatDuration(session.duration)}</p>
                                         )}
                                       </div>
-                                      <svg className={`w-5 h-5 text-slate-400 group-hover:text-indigo-600 ml-3 flex-shrink-0 transition-all duration-200 ${expandedSessions[session.id] ? 'rotate-90 text-indigo-600' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
+                                      <svg className={`w-4 h-4 text-slate-400 group-hover:text-indigo-500 ml-2 flex-shrink-0 opacity-70 group-hover:opacity-100 transition-all duration-200 ${expandedSessions[session.id] ? 'rotate-90 text-indigo-500 opacity-100' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
                                     </button>
                                   </div>
                                 </div>

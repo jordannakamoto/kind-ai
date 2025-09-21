@@ -1,12 +1,14 @@
 "use client";
 
 import { addDays, eachDayOfInterval, endOfMonth, format, startOfMonth, startOfWeek, endOfWeek, isToday, isSameMonth, isSameDay } from "date-fns";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ChevronLeft, ChevronRight, FileText, Star } from "lucide-react";
 import { supabase } from "@/supabase/client";
 import { useRouter } from "next/navigation";
 import MoodSelector from "@/app/dashboard/components/MoodSelector";
 import MoodCustomizer, { MoodOption } from "@/app/dashboard/components/MoodCustomizer";
+import { useGoalCompletion } from "@/app/contexts/GoalCompletionContext";
+import '@/app/dashboard/components/animations.css';
 
 // Default mood options as fallback
 const defaultMoodOptions: MoodOption[] = [
@@ -98,6 +100,9 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
   const [moodOptions, setMoodOptions] = useState<MoodOption[]>(defaultMoodOptions);
   const [showMoodCustomizer, setShowMoodCustomizer] = useState(false);
   const [moodOptionsLoading, setMoodOptionsLoading] = useState(true);
+  const [celebratingDates, setCelebratingDates] = useState<Set<string>>(new Set());
+  const celebrationTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const { newlyCompletedGoals, markGoalCelebrationViewed, getGoalsCompletedOnDate } = useGoalCompletion();
 
   // Generate calendar grid including days from previous/next month
   const monthStart = startOfMonth(currentMonth);
@@ -115,7 +120,15 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
 
   const handleMoodSelect = (date: Date, mood: string) => {
     const formattedDate = format(date, "yyyy-MM-dd");
-    setMoods((prev) => ({ ...prev, [formattedDate]: mood }));
+    const updatedMoods = { ...moods, [formattedDate]: mood };
+    setMoods(updatedMoods);
+
+    // Persist to localStorage
+    try {
+      localStorage.setItem('userMoods', JSON.stringify(updatedMoods));
+    } catch (error) {
+      console.warn('Failed to save moods to localStorage:', error);
+    }
   };
 
   const handleJournalChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -136,46 +149,73 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
     });
   };
 
-  // Fetch user's mood options (default + custom)
+  // Fetch user's mood options (default + custom) - disabled for now
   const fetchMoodOptions = async () => {
     setMoodOptionsLoading(true);
-    try {
-      const response = await fetch('/api/moods');
-      if (response.ok) {
-        const { moods: userMoods } = await response.json();
-        setMoodOptions(userMoods.length > 0 ? userMoods : defaultMoodOptions);
-      } else {
-        console.error('Failed to fetch mood options');
-        setMoodOptions(defaultMoodOptions);
-      }
-    } catch (error) {
-      console.error('Error fetching mood options:', error);
+    // Temporarily disabled backend loading - just use default moods
+    setTimeout(() => {
       setMoodOptions(defaultMoodOptions);
-    } finally {
       setMoodOptionsLoading(false);
-    }
+    }, 500);
   };
 
   // Handle mood options update from customizer
   const handleMoodOptionsUpdate = async (updatedMoods: MoodOption[]) => {
     setMoodOptions(updatedMoods);
-
-    // Save custom moods to database
-    try {
-      const customMoods = updatedMoods.filter(mood => mood.isCustom);
-
-      // Here you would typically send the updated moods to your API
-      // For now, we'll just update the local state
-      console.log('Updated mood options:', updatedMoods);
-    } catch (error) {
-      console.error('Error saving mood options:', error);
-    }
+    // Backend saving disabled for now - just update local state
+    console.log('Updated mood options:', updatedMoods);
   };
+
+  // Trigger celebration animation for a date
+  const triggerCelebration = (dateKey: string, goalId: string) => {
+    setCelebratingDates(prev => new Set([...prev, dateKey]));
+
+    // Clear existing timeout for this date if any
+    const existingTimeout = celebrationTimeouts.current.get(dateKey);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Set new timeout to clear celebration after animation
+    const timeout = setTimeout(() => {
+      setCelebratingDates(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(dateKey);
+        return newSet;
+      });
+      markGoalCelebrationViewed(goalId);
+      celebrationTimeouts.current.delete(dateKey);
+    }, 1500); // 1.5 seconds total celebration time
+
+    celebrationTimeouts.current.set(dateKey, timeout);
+  };
+
+  // Load saved moods from localStorage on component mount
+  useEffect(() => {
+    try {
+      const savedMoods = localStorage.getItem('userMoods');
+      if (savedMoods) {
+        setMoods(JSON.parse(savedMoods));
+      }
+    } catch (error) {
+      console.warn('Failed to load moods from localStorage:', error);
+    }
+  }, []);
 
   // Fetch mood options on component mount
   useEffect(() => {
     fetchMoodOptions();
   }, []);
+
+  // Listen for newly completed goals and trigger celebrations immediately
+  useEffect(() => {
+    newlyCompletedGoals.forEach(goalId => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      console.log('🎉 ProgressView: Triggering celebration for goal:', goalId, 'on date:', today);
+
+      triggerCelebration(today, goalId);
+    });
+  }, [newlyCompletedGoals]);
 
   // Fetch sessions and goals for the current month
   useEffect(() => {
@@ -245,7 +285,7 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
 
       const monthStart = startOfMonth(currentMonth);
       const monthEnd = endOfMonth(currentMonth);
-      
+
       // Fetch completed goals for the current month
       const { data: goalsData, error: goalsError } = await supabase
         .from('goals')
@@ -285,58 +325,60 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
+
+      // Clean up celebration timeouts
+      celebrationTimeouts.current.forEach(timeout => clearTimeout(timeout));
+      celebrationTimeouts.current.clear();
     };
   }, [currentMonth]);
 
   return (
     <div className={`max-w-4xl mt-2 ${sidebarCollapsed ? 'mx-auto' : 'ml-8 lg:ml-16'} p-4 md:pl-20 space-y-2 bg-white min-h-[calc(100vh+200px)]`}>
       {/* Header */}
-      <div className="flex justify-between items-center mb-2">
-        <h2 className="text-base md:text-lg font-semibold text-gray-800">Your Wellness Journey</h2>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setCurrentMonth(new Date())}
-            className="px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition"
-          >
-            Today
-          </button>
-          <div className="flex items-center space-x-1">
-            <button 
-              onClick={() => changeMonth('prev')} 
-              className="p-1.5 hover:bg-gray-100 rounded-lg transition"
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg md:text-xl font-semibold text-gray-800">{format(currentMonth, "MMMM yyyy")}</h2>
+          <div className="flex items-center bg-white/80 backdrop-blur-sm rounded-full border border-white/50">
+            <button
+              onClick={() => changeMonth('prev')}
+              className="p-1.5 hover:bg-white/60 rounded-full transition-colors m-1"
             >
               <ChevronLeft className="w-4 h-4 text-gray-600" />
             </button>
-            <span className="px-2 md:px-3 py-1 text-xs md:text-sm font-medium text-gray-700 min-w-[100px] md:min-w-[120px] text-center">
-              {format(currentMonth, "MMMM yyyy")}
-            </span>
-            <button 
-              onClick={() => changeMonth('next')} 
-              className="p-1.5 hover:bg-gray-100 rounded-lg transition"
+            <button
+              onClick={() => changeMonth('next')}
+              className="p-1.5 hover:bg-white/60 rounded-full transition-colors m-1"
             >
               <ChevronRight className="w-4 h-4 text-gray-600" />
             </button>
           </div>
         </div>
+        <button
+          onClick={() => setCurrentMonth(new Date())}
+          className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full transition-colors"
+        >
+          Today
+        </button>
       </div>
 
       {/* Calendar Grid */}
-      <div className="bg-gradient-to-br from-slate-50 to-blue-50/30 rounded-xl">
+      <div className="space-y-3">
         {/* Day Headers */}
-        <div className="grid grid-cols-7 border-b border-blue-100 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-t-xl">
+        <div className="grid grid-cols-7 bg-gray-50 rounded-lg">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="py-1.5 md:py-2 text-center text-[10px] md:text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <div key={day} className="py-1.5 text-center text-xs font-medium text-gray-600 uppercase tracking-wide">
               {day}
             </div>
           ))}
         </div>
-        
+
         {/* Calendar Days */}
-        <div className="grid grid-cols-7">
+        <div className="bg-white overflow-hidden">
+          <div className="grid grid-cols-7 border-l border-t border-gray-200">
           {calendarDays.map((date, index) => {
             const formattedDate = format(date, "yyyy-MM-dd");
             const mood = moods[formattedDate];
@@ -346,58 +388,95 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
             const isTodayDate = isToday(date);
             const moodOption = mood ? moodOptions.find(m => m.value === mood) : null;
             const daySessions = sessions[formattedDate] || [];
-            const dayGoals = goalCompletions[formattedDate] || [];
+            const serverGoals = goalCompletions[formattedDate] || [];
+            const contextGoals = getGoalsCompletedOnDate(formattedDate);
+
+            // Combine server goals with context goals, avoid duplicates
+            const allGoalIds = new Set([...serverGoals.map(g => g.id), ...contextGoals.map(g => g.goalId)]);
+            const dayGoals = [
+              ...serverGoals,
+              ...contextGoals
+                .filter(g => !serverGoals.some(sg => sg.id === g.goalId))
+                .map(g => ({ id: g.goalId, title: g.goalTitle, completed_at: g.completedAt }))
+            ];
+            const dayOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
+            const isCelebrating = celebratingDates.has(formattedDate);
+            const hasNewlyCompletedGoals = dayGoals.some(goal => newlyCompletedGoals.has(goal.id));
 
             return (
               <div
                 key={formattedDate}
                 onClick={() => changeDayFocus(date)}
                 className={`
-                  relative min-h-[60px] p-2 cursor-pointer transition-all duration-200
-                  ${isSelected 
-                    ? 'bg-gradient-to-br from-blue-100 to-indigo-100 border-2 border-blue-400' 
-                    : 'border-r border-b border-blue-100/50 ' + 
-                      (index % 7 === 0 ? 'border-l' : '') + ' ' +
-                      (index % 7 === 6 ? 'border-r' : '')
+                  relative min-h-[57px] md:min-h-[66px] p-1.5 cursor-pointer transition-all duration-200
+                  ${isSelected
+                    ? 'bg-blue-50 border-2 border-blue-500 z-10'
+                    : 'border-r border-b border-gray-200 hover:bg-gray-50'
                   }
-                  ${!isCurrentMonth ? 'bg-slate-50/50 text-gray-400' : 'bg-white/70 text-gray-900 hover:bg-blue-50/40'}
-                  ${isTodayDate ? 'font-bold' : ''}
+                  ${!isCurrentMonth
+                    ? 'bg-gray-50/50 text-gray-400'
+                    : !isSelected
+                    ? 'bg-white'
+                    : ''
+                  }
                 `}
               >
+                {/* Fountain stars celebration */}
+                {isCelebrating && (
+                  <>
+                    <Star className="fountain-star animate-star-fountain-1" size={8} />
+                    <Star className="fountain-star animate-star-fountain-2" size={8} />
+                    <Star className="fountain-star animate-star-fountain-3" size={8} />
+                    <Star className="fountain-star animate-star-fountain-4" size={8} />
+                    <Star className="fountain-star animate-star-fountain-5" size={8} />
+                    <Star className="fountain-star animate-star-fountain-6" size={8} />
+                  </>
+                )}
                 <div className="flex justify-between items-start">
                   <span className={`
-                    text-xs transition-all ${isTodayDate ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-2 py-1 rounded-full shadow-sm' : ''}
+                    text-sm font-medium
+                    ${isSelected
+                      ? 'text-blue-700 font-semibold'
+                      : isCurrentMonth
+                      ? 'text-gray-900'
+                      : 'text-gray-400'
+                    }
                   `}>
                     {format(date, "d")}
                   </span>
                   {mood && (
-                    <span className="text-sm drop-shadow-sm">{moodOption?.emoji}</span>
+                    <span className="text-base">
+                      {moodOption?.emoji}
+                    </span>
                   )}
                 </div>
-                
+
                 {/* Indicators */}
-                <div className="absolute bottom-1.5 left-2 right-2 flex gap-1">
-                  {mood && (
-                    <div className={`w-1.5 h-1.5 rounded-full ${moodOption?.dotColor} ${moodOption?.shadowColor} shadow-sm`} />
-                  )}
+                <div className="absolute bottom-2 left-2 right-2 flex items-center gap-1.5">
                   {hasJournal && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-indigo-400 to-purple-400 shadow-sm" />
+                    <div className="w-2 h-2 rounded-full bg-purple-400 opacity-70" />
                   )}
                   {daySessions.length > 0 && (
                     <div className="flex items-center gap-0.5">
-                      <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                      <FileText className="w-3 h-3 text-blue-500 opacity-70" />
                       {daySessions.length > 1 && (
-                        <span className="text-[10px] text-indigo-600 font-semibold">{daySessions.length}</span>
+                        <span className="text-[9px] font-semibold text-blue-600">{daySessions.length}</span>
                       )}
                     </div>
                   )}
                   {dayGoals.length > 0 && (
-                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                    <div className={`flex items-center gap-0.5 ${isCelebrating ? 'animate-star-bounce' : ''}`}>
+                      <Star className={`w-3 h-3 text-amber-500 fill-amber-400 ${isCelebrating ? 'opacity-100 animate-star-glow' : 'opacity-80'}`} />
+                      {dayGoals.length > 1 && (
+                        <span className={`text-[9px] font-semibold text-amber-600 ${isCelebrating ? 'animate-star-bounce' : ''}`}>{dayGoals.length}</span>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
             );
           })}
+          </div>
         </div>
       </div>
 
@@ -418,58 +497,70 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
             selectedMood={moods[format(selectedDate, "yyyy-MM-dd")]}
             selectedDate={selectedDate}
             onMoodSelect={handleMoodSelect}
-            onCustomizeClick={() => setShowMoodCustomizer(true)}
+            onCustomizeClick={() => setShowMoodCustomizer(!showMoodCustomizer)}
+            showMoodCustomizer={showMoodCustomizer}
+            onMoodsUpdate={(moods) => {
+              handleMoodOptionsUpdate(moods);
+              setShowMoodCustomizer(false);
+            }}
+            onCustomizeClose={() => setShowMoodCustomizer(false)}
           />
         )}
       </div>
 
       {/* Journal Entry */}
-      <div className="mt-4">
-        <div className="flex items-center justify-between mb-2">
-          {journalEntries[format(selectedDate, "yyyy-MM-dd")] && (
-            <span className="text-[10px] md:text-xs text-green-600 font-medium">Saved ✓</span>
-          )}
-        </div>
-        
-        <div className="relative bg-white p-6 rounded-lg border border-gray-100 shadow-sm min-h-[300px] overflow-visible">
-          <div className="mb-4 pb-2 border-b border-gray-100">
-            <h3 className="text-base font-medium text-gray-800">
-              Daily Reflection
-            </h3>
-            <p className="text-xs text-gray-500 mt-1">
-              {format(selectedDate, "EEEE, MMMM d, yyyy")}
-            </p>
+      <div className="mt-6">
+        <div className="relative bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-50 bg-gradient-to-r from-gray-50/50 to-transparent">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-gray-800">
+                  Daily Reflection
+                </h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {format(selectedDate, "EEEE, MMMM d, yyyy")}
+                </p>
+              </div>
+              {journalEntries[format(selectedDate, "yyyy-MM-dd")] && (
+                <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full">Saved ✓</span>
+              )}
+            </div>
           </div>
-          <textarea
-            className="
-              w-full px-0 py-0 border-0 bg-transparent
-              text-sm focus:outline-none 
-              resize-none min-h-[220px] 
-              placeholder:text-gray-400 placeholder:italic
-              leading-relaxed
-              text-gray-700
-              font-light
-            "
-            placeholder={prompt}
-            value={journalEntries[format(selectedDate, "yyyy-MM-dd")] || ""}
-            onChange={handleJournalChange}
-          />
+          <div className="p-6 min-h-[280px]">
+            <textarea
+              className="
+                w-full h-full px-0 py-0 border-0 bg-transparent
+                text-sm focus:outline-none
+                resize-none min-h-[240px]
+                placeholder:text-gray-400 placeholder:italic
+                leading-relaxed
+                text-gray-700
+                font-light
+              "
+              placeholder={prompt}
+              value={journalEntries[format(selectedDate, "yyyy-MM-dd")] || ""}
+              onChange={handleJournalChange}
+            />
+          </div>
         </div>
       </div>
 
       {/* Sessions for Selected Date */}
       {sessions[format(selectedDate, "yyyy-MM-dd")]?.length > 0 && (
-        <div className="mt-4 p-3 bg-indigo-50/30 rounded-lg border border-indigo-100">
-          <div className="flex items-start gap-2 text-sm text-gray-700">
-            <FileText className="w-3.5 h-3.5 text-indigo-500 mt-0.5" />
-            <div className="space-y-1">
+        <div className="mt-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100 shadow-sm">
+          <div className="flex items-start gap-3 text-sm">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <FileText className="w-4 h-4 text-blue-600" />
+            </div>
+            <div className="space-y-2 flex-1">
+              <h4 className="font-medium text-gray-800">Therapy Sessions</h4>
               {sessions[format(selectedDate, "yyyy-MM-dd")].map((session, index) => (
                 <button
                   key={session.id}
                   onClick={() => router.push(`/dashboard?tab=sessions&sid=${session.id}`)}
-                  className="block text-left font-medium text-gray-700 hover:text-gray-900 hover:underline transition-colors"
+                  className="block text-left text-gray-600 hover:text-blue-600 hover:underline transition-colors"
                 >
-                  {session.title || `Therapy Session ${index + 1}`}
+                  {session.title || `Session ${index + 1}`}
                 </button>
               ))}
             </div>
@@ -479,12 +570,15 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
 
       {/* Goals for Selected Date */}
       {goalCompletions[format(selectedDate, "yyyy-MM-dd")]?.length > 0 && (
-        <div className="mt-4 p-3 bg-amber-50/30 rounded-lg border border-amber-100">
-          <div className="flex items-start gap-2 text-sm text-gray-700">
-            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 mt-0.5" />
-            <div className="space-y-1">
+        <div className="mt-4 p-4 bg-amber-50/50 rounded-xl border border-amber-100 shadow-sm">
+          <div className="flex items-start gap-3 text-sm">
+            <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Star className="w-4 h-4 text-amber-600 fill-amber-500" />
+            </div>
+            <div className="space-y-2 flex-1">
+              <h4 className="font-medium text-gray-800">Completed Goals</h4>
               {goalCompletions[format(selectedDate, "yyyy-MM-dd")].map((goal) => (
-                <div key={goal.id} className="font-medium text-gray-700">
+                <div key={goal.id} className="text-gray-600">
                   {goal.title}
                 </div>
               ))}
@@ -493,14 +587,6 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
         </div>
       )}
 
-      {/* Mood Customizer Modal */}
-      {showMoodCustomizer && (
-        <MoodCustomizer
-          currentMoods={moodOptions}
-          onMoodsUpdate={handleMoodOptionsUpdate}
-          onClose={() => setShowMoodCustomizer(false)}
-        />
-      )}
 
     </div>
   );

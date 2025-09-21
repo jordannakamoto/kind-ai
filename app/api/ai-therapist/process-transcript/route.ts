@@ -142,7 +142,7 @@ CORRECT EXAMPLE: "You have continued to explore... You've acknowledged..."
 
 The final compiled therapy Summary should be very readable and at maximum 4 sentences, always in second-person voice.
 
-The **Goals** should move old goals down the list and prepend new ones to the top.
+CRITICAL FOR GOALS: You MUST preserve ALL existing old goals. Never remove or replace them. Only add 1-2 genuinely new goals to the TOP of the list if they are distinct from existing ones. If no new goals emerge from this session, return the existing goals unchanged. The maximum number of new goals to add per session is 2.
 
 The **Themes** should track therapy-relevant recurring themes over time.
 

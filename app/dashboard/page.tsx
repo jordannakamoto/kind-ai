@@ -245,7 +245,7 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
                   setHideToggleButton(true);
                   setTimeout(() => setHideToggleButton(false), 250);
                 }}
-                className={`p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 hover:shadow-md transition-all duration-200 ${
+                className={`p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-200 ${
                   sidebarOpen ? 'opacity-0 group-hover:opacity-100' : 'opacity-0 group-hover:opacity-100'
                 }`}
                 aria-label="Toggle sidebar"
