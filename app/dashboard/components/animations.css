@@ -352,3 +352,25 @@
   display: flex;
   align-items: center;
 }
+
+/* iOS-style wiggle animation for edit mode */
+@keyframes moodWiggle {
+  0% { transform: rotate(-2deg); }
+  25% { transform: rotate(2deg); }
+  50% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
+  100% { transform: rotate(-2deg); }
+}
+
+.mood-wiggle {
+  animation: moodWiggle 0.3s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+.mood-wiggle:nth-child(even) {
+  animation-delay: 0.1s;
+}
+
+.mood-wiggle:nth-child(3n) {
+  animation-delay: 0.2s;
+}

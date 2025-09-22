@@ -149,21 +149,175 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
     });
   };
 
-  // Fetch user's mood options (default + custom) - disabled for now
+  // Fetch user's mood options (default + custom) from database
   const fetchMoodOptions = async () => {
     setMoodOptionsLoading(true);
-    // Temporarily disabled backend loading - just use default moods
-    setTimeout(() => {
+
+    try {
+      const response = await fetch('/api/moods');
+
+      if (response.ok) {
+        const data = await response.json();
+        const moods = data.moods || [];
+
+        // Transform the database format to match our MoodOption interface
+        const transformedMoods = moods.map((mood: any) => ({
+          id: mood.id,
+          emoji: mood.emoji,
+          label: mood.label,
+          value: mood.value,
+          color: mood.color || 'bg-gradient-to-br from-gray-50 to-gray-100',
+          borderColor: mood.borderColor || 'border-gray-300',
+          dotColor: mood.dotColor || 'bg-gradient-to-r from-gray-400 to-gray-500',
+          shadowColor: mood.shadowColor || 'shadow-gray-200/60',
+          isCustom: mood.isCustom || false
+        }));
+
+        setMoodOptions(transformedMoods.length > 0 ? transformedMoods : defaultMoodOptions);
+      } else {
+        console.error('Failed to fetch moods, using defaults');
+        setMoodOptions(defaultMoodOptions);
+      }
+    } catch (error) {
+      console.error('Error fetching moods:', error);
       setMoodOptions(defaultMoodOptions);
+    } finally {
       setMoodOptionsLoading(false);
-    }, 500);
+    }
   };
 
-  // Handle mood options update from customizer
+  // Handle mood options update from customizer (includes reordering, deletions, and additions)
   const handleMoodOptionsUpdate = async (updatedMoods: MoodOption[]) => {
+    const previousMoods = moodOptions;
     setMoodOptions(updatedMoods);
-    // Backend saving disabled for now - just update local state
-    console.log('Updated mood options:', updatedMoods);
+
+    // Check if this is a deletion (mood count decreased)
+    if (updatedMoods.length < previousMoods.length) {
+      const deletedMood = previousMoods.find(
+        prev => !updatedMoods.some(curr => curr.id === prev.id)
+      );
+
+      if (deletedMood) {
+        if (deletedMood.isCustom) {
+          // Delete custom mood from database
+          try {
+            const response = await fetch('/api/moods', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                action: 'delete_custom_mood',
+                moodId: deletedMood.id
+              })
+            });
+
+            if (!response.ok) {
+              console.error('Failed to delete custom mood');
+            }
+          } catch (error) {
+            console.error('Error deleting custom mood:', error);
+          }
+        } else {
+          // For default moods, just save the new order (effectively hiding them)
+          const moodOrder = updatedMoods.map(m => m.id);
+          try {
+            const response = await fetch('/api/moods', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                action: 'update_mood_order',
+                moodOrder: moodOrder
+              })
+            });
+
+            if (!response.ok) {
+              console.error('Failed to update mood order');
+            }
+          } catch (error) {
+            console.error('Error updating mood order:', error);
+          }
+        }
+      }
+      return;
+    }
+
+    // Check if this is a reorder (same moods, different order)
+    if (updatedMoods.length === previousMoods.length) {
+      const moodOrder = updatedMoods.map(m => m.id);
+      console.log('Updating mood order:', moodOrder);
+
+      try {
+        const response = await fetch('/api/moods', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'update_mood_order',
+            moodOrder: moodOrder
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Failed to update mood order:', errorText);
+          console.error('Response status:', response.status);
+        } else {
+          console.log('Mood order updated successfully');
+        }
+      } catch (error) {
+        console.error('Error updating mood order:', error);
+      }
+      return;
+    }
+
+    // Otherwise, this is a new custom mood addition
+    const customMoods = updatedMoods.filter(mood => mood.isCustom);
+    const newCustomMood = customMoods[customMoods.length - 1];
+
+    if (newCustomMood) {
+      try {
+        const response = await fetch('/api/moods', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'create_custom_mood',
+            emoji: newCustomMood.emoji,
+            label: newCustomMood.label,
+            value: newCustomMood.value,
+            colorTheme: {
+              color: newCustomMood.color,
+              borderColor: newCustomMood.borderColor,
+              dotColor: newCustomMood.dotColor,
+              shadowColor: newCustomMood.shadowColor
+            }
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          let error;
+          try {
+            error = JSON.parse(errorText);
+          } catch {
+            error = { message: errorText };
+          }
+          console.error('Failed to save custom mood:', error);
+          console.error('Response status:', response.status);
+        } else {
+          console.log('Custom mood saved successfully');
+          // Refresh mood options to get the new mood with proper ID from database
+          fetchMoodOptions();
+        }
+      } catch (error) {
+        console.error('Error saving custom mood:', error);
+      }
+    }
   };
 
   // Trigger celebration animation for a date

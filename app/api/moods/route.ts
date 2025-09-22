@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/supabase/client';
+import { createClient } from '@/supabase/server';
 
 export async function GET(req: NextRequest) {
   try {
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -27,6 +28,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -37,13 +39,13 @@ export async function POST(req: NextRequest) {
 
     switch (action) {
       case 'create_custom_mood':
-        return await createCustomMood(user.id, data);
+        return await createCustomMood(supabase, user.id, data);
       case 'update_custom_mood':
-        return await updateCustomMood(user.id, data);
+        return await updateCustomMood(supabase, user.id, data);
       case 'delete_custom_mood':
-        return await deleteCustomMood(user.id, data);
+        return await deleteCustomMood(supabase, user.id, data);
       case 'update_mood_order':
-        return await updateMoodOrder(user.id, data);
+        return await updateMoodOrder(supabase, user.id, data);
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function createCustomMood(userId: string, data: any) {
+async function createCustomMood(supabase: any, userId: string, data: any) {
   const { emoji, label, value, colorTheme, sortOrder = 0 } = data;
 
   if (!emoji || !label || !value) {
@@ -94,7 +96,7 @@ async function createCustomMood(userId: string, data: any) {
   return NextResponse.json({ mood: newMood });
 }
 
-async function updateCustomMood(userId: string, data: any) {
+async function updateCustomMood(supabase: any, userId: string, data: any) {
   const { moodId, emoji, label, value, colorTheme, sortOrder } = data;
 
   if (!moodId) {
@@ -124,7 +126,7 @@ async function updateCustomMood(userId: string, data: any) {
   return NextResponse.json({ mood: updatedMood });
 }
 
-async function deleteCustomMood(userId: string, data: any) {
+async function deleteCustomMood(supabase: any, userId: string, data: any) {
   const { moodId } = data;
 
   if (!moodId) {
@@ -146,27 +148,73 @@ async function deleteCustomMood(userId: string, data: any) {
   return NextResponse.json({ success: true });
 }
 
-async function updateMoodOrder(userId: string, data: any) {
+async function updateMoodOrder(supabase: any, userId: string, data: any) {
   const { moodOrder } = data;
 
+  console.log('updateMoodOrder called with:', { userId, moodOrder });
+
   if (!Array.isArray(moodOrder)) {
+    console.error('Invalid mood order data:', moodOrder);
     return NextResponse.json({ error: 'Invalid mood order data' }, { status: 400 });
   }
 
-  // Update or create user preferences
-  const { error } = await supabase
-    .from('user_mood_preferences')
-    .upsert({
+  try {
+    // Simple update - just save the mood order for now
+    const updateData = {
       user_id: userId,
       mood_order: moodOrder
-    });
+    };
 
-  if (error) {
-    console.error('Error updating mood order:', error);
-    return NextResponse.json({ error: 'Failed to update mood order' }, { status: 500 });
+    console.log('Upserting data:', updateData);
+
+    // Try to update existing record first
+    const { data: existing } = await supabase
+      .from('user_mood_preferences')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    let result, error;
+
+    if (existing) {
+      // Update existing record
+      const updateResult = await supabase
+        .from('user_mood_preferences')
+        .update({ mood_order: moodOrder })
+        .eq('user_id', userId)
+        .select();
+
+      result = updateResult.data;
+      error = updateResult.error;
+    } else {
+      // Create new record
+      const insertResult = await supabase
+        .from('user_mood_preferences')
+        .insert(updateData)
+        .select();
+
+      result = insertResult.data;
+      error = insertResult.error;
+    }
+
+    if (error) {
+      console.error('Supabase error updating mood order:', error);
+      return NextResponse.json({
+        error: 'Failed to update mood order',
+        details: error.message
+      }, { status: 500 });
+    }
+
+    console.log('Update successful:', result);
+    return NextResponse.json({ success: true });
+
+  } catch (error) {
+    console.error('Unexpected error in updateMoodOrder:', error);
+    return NextResponse.json({
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true });
 }
 
 export const dynamic = 'force-dynamic';

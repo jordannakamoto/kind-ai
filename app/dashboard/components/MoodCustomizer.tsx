@@ -163,9 +163,20 @@ export default function MoodCustomizer({ currentMoods, onMoodsUpdate, onClose }:
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
-      if (!target.closest('.mood-customizer-morphed') && !target.closest('.mood-morphing-container')) {
-        onClose?.();
+
+      // Don't close if clicking on delete buttons, mood items, or during drag operations
+      if (
+        target.closest('.mood-delete-button') ||
+        target.closest('.mood-customizer-morphed') ||
+        target.closest('.mood-morphing-container') ||
+        target.closest('[data-mood-index]') ||
+        target.getAttribute('draggable') === 'true' ||
+        target.closest('[draggable="true"]')
+      ) {
+        return;
       }
+
+      onClose?.();
     };
 
     document.addEventListener('mousedown', handleClickOutside);

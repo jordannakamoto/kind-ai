@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS user_mood_preferences (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   default_moods_enabled BOOLEAN NOT NULL DEFAULT true,
   mood_order JSONB DEFAULT '[]', -- Array of mood IDs in preferred order
+  hidden_default_moods JSONB DEFAULT '[]', -- Array of hidden default mood IDs
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id)
@@ -94,7 +95,17 @@ DECLARE
   result JSONB := '[]'::JSONB;
   default_moods JSONB;
   custom_moods JSONB;
+  user_prefs RECORD;
+  hidden_moods JSONB;
+  filtered_defaults JSONB := '[]'::JSONB;
 BEGIN
+  -- Get user preferences including hidden moods
+  SELECT * INTO user_prefs
+  FROM user_mood_preferences
+  WHERE user_id = p_user_id;
+
+  hidden_moods := COALESCE(user_prefs.hidden_default_moods, '[]'::JSONB);
+
   -- Default moods (hardcoded for consistency)
   default_moods := '[
     {
@@ -154,6 +165,12 @@ BEGIN
     }
   ]'::JSONB;
 
+  -- Filter out hidden default moods
+  SELECT jsonb_agg(mood)
+  INTO filtered_defaults
+  FROM jsonb_array_elements(default_moods) AS mood
+  WHERE NOT (hidden_moods @> to_jsonb(mood->>'id'));
+
   -- Get custom moods
   SELECT COALESCE(
     jsonb_agg(
@@ -174,8 +191,23 @@ BEGIN
   FROM custom_moods
   WHERE user_id = p_user_id AND is_active = true;
 
-  -- Combine default and custom moods
-  result := default_moods || custom_moods;
+  -- Combine filtered default moods and custom moods
+  result := COALESCE(filtered_defaults, '[]'::JSONB) || custom_moods;
+
+  -- If user has a specific mood order, apply it
+  IF user_prefs.mood_order IS NOT NULL AND jsonb_array_length(user_prefs.mood_order) > 0 THEN
+    -- Reorder moods based on mood_order
+    SELECT jsonb_agg(
+      mood ORDER BY
+        CASE
+          WHEN position((mood->>'id')::text IN user_prefs.mood_order::text) > 0
+          THEN position((mood->>'id')::text IN user_prefs.mood_order::text)
+          ELSE 999999
+        END
+    )
+    INTO result
+    FROM jsonb_array_elements(result) AS mood;
+  END IF;
 
   RETURN result;
 END;
