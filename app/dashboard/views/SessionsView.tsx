@@ -234,13 +234,39 @@ export default function UserSessionHistory({
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
   const [expandedSessions, setExpandedSessions] = useState<{ [key: string]: boolean }>({});
   const [sessionContentMode, setSessionContentMode] = useState<{ [key: string]: 'transcript' | 'summary' }>({});
-  const [viewType, setViewType] = useState<'list-with-timestamps' | 'list-without-timestamps'>('list-with-timestamps');
+  const [viewType, setViewType] = useState<'list-with-timestamps' | 'list-without-timestamps'>(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('sessionsViewMode');
+        if (saved && (saved === 'list-with-timestamps' || saved === 'list-without-timestamps')) {
+          return saved as 'list-with-timestamps' | 'list-without-timestamps';
+        }
+      } catch (error) {
+        console.warn('Failed to load sessions view mode from localStorage:', error);
+      }
+    }
+    return 'list-with-timestamps'; // Default to date view
+  });
 
   // Derive showTimestamps from viewType
   const showTimestamps = viewType === 'list-with-timestamps';
 
+  // Save viewType to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('sessionsViewMode', viewType);
+    } catch (error) {
+      console.warn('Failed to save sessions view mode to localStorage:', error);
+    }
+  }, [viewType]);
+
   const { conversationEnded, pollingStatus, setPollingStatus } = useConversationStatus();
   const router = useRouter();
+
+  const toggleViewType = () => {
+    setViewType(prev => prev === 'list-with-timestamps' ? 'list-without-timestamps' : 'list-with-timestamps');
+  };
 
   const handleSelectSession = (id: string) => {
     if (isSelectMode) {
@@ -639,7 +665,6 @@ export default function UserSessionHistory({
   const showSpecialMostRecentView = !searchQuery && mostRecentSessionActual && !loading;
   const isMostRecentActualPlaceholder = mostRecentSessionActual?.title === 'Recent Session' && mostRecentSessionActual?.summary === 'Summarizing...';
   const showEmptyMessage = !loading && allUserSessionsData.length === 0;
-  const showInitialLoading = loading && allUserSessionsData.length === 0;
 
   const toggleSelectMode = () => {
     setIsSelectMode(!isSelectMode);
@@ -707,49 +732,45 @@ export default function UserSessionHistory({
         </div>
       </div>
 
-      {showInitialLoading ? ( /* Loading Spinner */
-        <div className="text-center py-4 md:py-6">
-          <LoadingDots text="Loading your sessions" className="text-sm font-medium text-slate-600" />
-        </div>
-      ) : showEmptyMessage ? ( /* Empty State */
+      {showEmptyMessage ? ( /* Empty State */
         <div className={`text-center py-4 md:py-6 px-4 max-w-md ${sidebarCollapsed ? 'mx-auto' : 'ml-32 lg:ml-40'}`}>
           <svg className="mx-auto h-12 w-12 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 10.5v3.75m-9.303 3.376C1.82 19.513 3.252 21 5.006 21h13.988c1.754 0 3.186-1.487 2.31-3.374L13.949 4.878c-.875-1.887-3.021-1.887-3.896 0L2.697 17.626ZM12 17.25h.007v.008H12v-.008Z" /></svg>
           <h3 className="mt-3 md:mt-4 text-base md:text-lg font-semibold text-slate-700">{searchQuery ? 'No Sessions Found' : 'Your Session History is Empty'}</h3>
           <p className="mt-1 md:mt-1.5 text-xs md:text-sm text-slate-500">{searchQuery ? 'Try different keywords or clear your search.' : 'Once you complete a session, it will appear here.'}</p>
         </div>
-      ) : (
+      ) : !loading && (
         <div className={`max-w-3xl ${sidebarCollapsed ? 'mx-auto' : 'ml-20 lg:ml-24'} px-4 md:px-6 lg:px-8 mt-6`}>
           {showSpecialMostRecentView && mostRecentSessionActual && ( /* Most Recent Session View */
             <section className="mb-4" aria-labelledby="most-recent-session-title">
               <div className="flex items-center justify-between mb-1 px-1">
                 <h2 id="most-recent-session-title" className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-wider">Latest Session</h2>
-                {!showInitialLoading && !showEmptyMessage && (
+                {!loading && !showEmptyMessage && (
                   <div className="flex items-center gap-2">
                     {/* View Type Toggle */}
-                    <div className="flex items-center bg-slate-50/60 rounded-lg p-1">
-                      <button
-                        onClick={() => setViewType('list-with-timestamps')}
+                    <button
+                      onClick={toggleViewType}
+                      className="flex items-center bg-slate-50/60 rounded-lg p-1 hover:bg-slate-100/60 transition-all duration-200"
+                      title={showTimestamps ? "Switch to simple view" : "Switch to date view"}
+                    >
+                      <div
                         className={`px-2 py-1.5 rounded text-xs transition-all duration-200 flex items-center gap-1.5 ${
                           viewType === 'list-with-timestamps'
                             ? 'bg-white shadow-sm text-slate-700 border border-slate-200'
-                            : 'text-slate-500 hover:text-slate-600 hover:bg-white/40'
+                            : 'text-slate-500'
                         }`}
-                        title="Show timestamps"
                       >
                         <Clock className="w-3.5 h-3.5" strokeWidth={1.5} />
-                      </button>
-                      <button
-                        onClick={() => setViewType('list-without-timestamps')}
+                      </div>
+                      <div
                         className={`px-2 py-1.5 rounded text-xs transition-all duration-200 flex items-center gap-1.5 ${
                           viewType === 'list-without-timestamps'
                             ? 'bg-white shadow-sm text-slate-700 border border-slate-200'
-                            : 'text-slate-500 hover:text-slate-600 hover:bg-white/40'
+                            : 'text-slate-500'
                         }`}
-                        title="Hide timestamps"
                       >
                         <List className="w-3.5 h-3.5" strokeWidth={1.5} />
-                      </button>
-                    </div>
+                      </div>
+                    </button>
                     {isSelectMode && selectedSessions.size > 0 && (
                       <button
                         onClick={() => setConfirmDeleteSessionId('bulk')}

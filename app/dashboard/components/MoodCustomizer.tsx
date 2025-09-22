@@ -10,10 +10,7 @@ export interface MoodOption {
   emoji: string;
   label: string;
   value: string;
-  color: string;
-  borderColor: string;
-  dotColor: string;
-  shadowColor: string;
+  color: string; // Just store the hex color
   isCustom?: boolean;
 }
 
@@ -24,48 +21,12 @@ interface MoodCustomizerProps {
 }
 
 const defaultColors = [
-  {
-    name: 'Green',
-    color: 'bg-gradient-to-br from-emerald-50 to-green-100',
-    borderColor: 'border-emerald-300',
-    dotColor: 'bg-gradient-to-r from-emerald-400 to-green-500',
-    shadowColor: 'shadow-emerald-200/60'
-  },
-  {
-    name: 'Blue',
-    color: 'bg-gradient-to-br from-sky-50 to-blue-100',
-    borderColor: 'border-sky-300',
-    dotColor: 'bg-gradient-to-r from-sky-400 to-blue-500',
-    shadowColor: 'shadow-sky-200/60'
-  },
-  {
-    name: 'Purple',
-    color: 'bg-gradient-to-br from-violet-50 to-purple-100',
-    borderColor: 'border-violet-300',
-    dotColor: 'bg-gradient-to-r from-violet-400 to-purple-500',
-    shadowColor: 'shadow-violet-200/60'
-  },
-  {
-    name: 'Pink',
-    color: 'bg-gradient-to-br from-pink-50 to-rose-100',
-    borderColor: 'border-pink-300',
-    dotColor: 'bg-gradient-to-r from-pink-400 to-rose-500',
-    shadowColor: 'shadow-pink-200/60'
-  },
-  {
-    name: 'Orange',
-    color: 'bg-gradient-to-br from-orange-50 to-amber-100',
-    borderColor: 'border-orange-300',
-    dotColor: 'bg-gradient-to-r from-orange-400 to-amber-500',
-    shadowColor: 'shadow-orange-200/60'
-  },
-  {
-    name: 'Red',
-    color: 'bg-gradient-to-br from-rose-50 to-red-100',
-    borderColor: 'border-rose-300',
-    dotColor: 'bg-gradient-to-r from-rose-400 to-red-500',
-    shadowColor: 'shadow-rose-200/60'
-  }
+  { name: 'Green', color: '#34d399' },
+  { name: 'Blue', color: '#38bdf8' },
+  { name: 'Purple', color: '#a78bfa' },
+  { name: 'Pink', color: '#f472b6' },
+  { name: 'Orange', color: '#fb923c' },
+  { name: 'Red', color: '#f87171' }
 ];
 
 // Comprehensive emoji categories
@@ -136,8 +97,7 @@ export default function MoodCustomizer({ currentMoods, onMoodsUpdate, onClose }:
   const [newMood, setNewMood] = useState({
     emoji: '😊',
     label: '',
-    value: '',
-    colorTheme: defaultColors[0]
+    value: ''
   });
 
   // Close pickers when clicking outside
@@ -242,17 +202,14 @@ export default function MoodCustomizer({ currentMoods, onMoodsUpdate, onClose }:
       emoji: newMood.emoji,
       label: newMood.label.trim(),
       value: newMood.value.trim().toLowerCase(),
-      color: `bg-gray-50`,
-      borderColor: `border-gray-300`,
-      dotColor: `bg-gradient-to-r from-[${customColor}] to-[${customColor}]`,
-      shadowColor: `shadow-gray-200/60`,
+      color: customColor,
       isCustom: true
     };
 
     const updatedMoods = [...moods, newMoodOption];
     setMoods(updatedMoods);
     onMoodsUpdate(updatedMoods);
-    setNewMood({ emoji: '😊', label: '', value: '', colorTheme: defaultColors[0] });
+    setNewMood({ emoji: '😊', label: '', value: '' });
     setSelectedHue(0);
     setSelectedSaturation(50);
     setSelectedLightness(50);

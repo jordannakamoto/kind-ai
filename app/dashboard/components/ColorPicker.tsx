@@ -5,10 +5,7 @@ import { X } from 'lucide-react';
 
 interface ColorTheme {
   name: string;
-  color: string;
-  borderColor: string;
-  dotColor: string;
-  shadowColor: string;
+  color: string; // Just store the hex color
 }
 
 interface ColorPickerProps {
@@ -32,11 +29,21 @@ const hslToHex = (h: number, s: number, l: number) => {
 const generateThemeFromColor = (hex: string): ColorTheme => {
   return {
     name: 'Custom',
-    color: `bg-gradient-to-br`,
-    borderColor: `border-gray-300`,
-    dotColor: `bg-gradient-to-r`,
-    shadowColor: `shadow-lg`
+    color: hex // Just store the hex color
   };
+};
+
+// Helper function to adjust color lightness
+const adjustColorLightness = (hex: string, percent: number): string => {
+  // Convert hex to RGB
+  const num = parseInt(hex.replace("#", ""), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = (num >> 16) + amt;
+  const G = (num >> 8 & 0x00FF) + amt;
+  const B = (num & 0x0000FF) + amt;
+  return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+    (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+    (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
 };
 
 export default function ColorPicker({ selectedTheme, onColorSelect, onClose }: ColorPickerProps) {

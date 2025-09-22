@@ -23,6 +23,7 @@ import type { ReactElement } from "react";
 import SessionDetailView from "./views/SessionDetailView";
 import SessionsView from "./views/SessionsView";
 import { supabase } from "@/supabase/client";
+import LoadingDots from "@/components/LoadingDots";
 
 function DashboardInner() {
   const { isSessionActive } = useActiveSession();
@@ -34,6 +35,7 @@ function DashboardInner() {
   >("home");
   const [visibleView, setVisibleView] = useState(activeView);
   const [viewVisible, setViewVisible] = useState(false);
+  const [viewHistory, setViewHistory] = useState([activeView]); // Keep current + previous view
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [hideToggleButton, setHideToggleButton] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -111,6 +113,7 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
 
   useEffect(() => {
     setViewVisible(false);
+
     const frame = requestAnimationFrame(() => {
       setVisibleView(activeView);
       setViewVisible(true);
@@ -179,6 +182,7 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
       return () => clearTimeout(timer);
     }
   }, []);
+
 
   const viewIcons: Record<string, ReactElement> = {
     home: <Home className="w-4 h-4" />,
@@ -398,6 +402,7 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
         {/* View Transitions */}
         {["home", "discover", "bio", "sessions", "progress", "account"].map((view) => {
           const isVisible = view === visibleView && !sessionId;
+
           return (
             <div
               key={view}
@@ -407,13 +412,13 @@ const [shouldAnimate, setShouldAnimate] = useState(false);
                   : "opacity-0 pointer-events-none z-0"
               } ${view === "home" ? (activeView !== "home" || !viewVisible ? "hide-orb" : "show-orb-delayed") : ""}`}
             >
-               <div className="w-full h-full overflow-y-auto">
-              {view === "home" && <HomeView sidebarCollapsed={isSmallScreen || !sidebarOpen} isViewActive={activeView === "home"} />}
-              {view === "discover" && <DiscoverView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
-              {view === "bio" && <ProfileView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
-              {view === "sessions" && !sessionId && <SessionsView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
-              {view === "progress" && <ProgressView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
-              {view === "account" && <AccountView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
+              <div className="w-full h-full overflow-y-auto">
+                {view === "home" && <HomeView sidebarCollapsed={isSmallScreen || !sidebarOpen} isViewActive={activeView === "home"} />}
+                {view === "discover" && <DiscoverView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
+                {view === "bio" && <ProfileView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
+                {view === "sessions" && !sessionId && <SessionsView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
+                {view === "progress" && <ProgressView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
+                {view === "account" && <AccountView sidebarCollapsed={isSmallScreen || !sidebarOpen} />}
               </div>
             </div>
           );

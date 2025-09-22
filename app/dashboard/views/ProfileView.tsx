@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertTriangle, ChevronRight, Plus, Circle, CheckCircle2, List, LayoutGrid, Minus, Settings, Archive, Target, Hash } from 'lucide-react';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { supabase } from '@/supabase/client';
 import { useConversationStatus } from '@/app/contexts/ConversationContext';
 import { useGoalCompletion } from '@/app/contexts/GoalCompletionContext';
@@ -352,6 +352,26 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
   const updateGoalProgress = async (goalId: string, increment: number) => {
     if (!userId) return;
 
+    // Find the current goal to update optimistically
+    const currentGoal = goals.find(g => g.id === goalId);
+    if (!currentGoal) return;
+
+    // Store original state for potential rollback
+    const originalGoals = goals;
+
+    // Optimistically update the UI immediately
+    const newCurrentValue = Math.max(0, currentGoal.current_value + increment);
+    const optimisticGoal = { ...currentGoal, current_value: newCurrentValue };
+    const optimisticGoals = goals.map(g => g.id === goalId ? optimisticGoal : g);
+
+    setGoals(optimisticGoals);
+
+    // Cache the optimistic update
+    if (userId) {
+      const goalsCacheKey = getProfileCacheKey('goals', userId);
+      setCachedData(goalsCacheKey, optimisticGoals);
+    }
+
     try {
       const response = await fetch('/api/goals/manage', {
         method: 'POST',
@@ -366,14 +386,29 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
 
       if (response.ok) {
         const { goal } = await response.json();
-        const updatedGoals = goals.map(g => g.id === goalId ? goal : g);
-        setGoals(updatedGoals);
+        // Update with server response to ensure consistency
+        setGoals(prevGoals => prevGoals.map(g => g.id === goalId ? goal : g));
         if (userId) {
           const goalsCacheKey = getProfileCacheKey('goals', userId);
-          setCachedData(goalsCacheKey, updatedGoals);
+          const finalGoals = optimisticGoals.map(g => g.id === goalId ? goal : g);
+          setCachedData(goalsCacheKey, finalGoals);
         }
+      } else {
+        // Revert optimistic update on server error
+        setGoals(originalGoals);
+        if (userId) {
+          const goalsCacheKey = getProfileCacheKey('goals', userId);
+          setCachedData(goalsCacheKey, originalGoals);
+        }
+        console.error('Server error updating goal progress');
       }
     } catch (error) {
+      // Revert optimistic update on network error
+      setGoals(originalGoals);
+      if (userId) {
+        const goalsCacheKey = getProfileCacheKey('goals', userId);
+        setCachedData(goalsCacheKey, originalGoals);
+      }
       console.error('Error updating goal progress:', error);
     }
   };
@@ -516,14 +551,14 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
     }
   };
 
-  const getProgressPercentage = (goal: Goal): number => {
+  const getProgressPercentage = useCallback((goal: Goal): number => {
     if (goal.goal_type === 'progress' && goal.target_value && goal.target_value > 0) {
       return Math.min(100, Math.round((goal.current_value / goal.target_value) * 100));
     }
     return 0;
-  };
+  }, []);
 
-  const isGoalCompleted = (goal: Goal): boolean => {
+  const isGoalCompleted = useCallback((goal: Goal): boolean => {
     if (goal.goal_type === 'basic') {
       return !!goal.completed_at;
     }
@@ -531,7 +566,14 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
       return goal.current_value >= goal.target_value;
     }
     return false;
-  };
+  }, []);
+
+  // Memoize goal lists to prevent unnecessary re-renders
+  const memoizedGoals = useMemo(() => goals, [goals]);
+  const activeGoals = useMemo(() =>
+    memoizedGoals.filter(goal => goal.is_active && !goal.archived_at),
+    [memoizedGoals]
+  );
 
   const updateGoalType = async (goalId: string, updates: {
     goalType: 'basic' | 'counter' | 'progress' | 'list';
@@ -769,7 +811,7 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
             {goals.length > 0 ? (
               goalsViewMode === 'list' ? (
                 <div className="space-y-2">
-                  {goals.map((goal) => (
+                  {activeGoals.map((goal) => (
                     <GoalItem
                       key={goal.id}
                       goal={goal}
@@ -801,7 +843,7 @@ export default function ProfileView({ sidebarCollapsed = false }: { sidebarColla
                 <div>
                   {/* Grid/Tile View */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {goals.map((goal) => (
+                    {activeGoals.map((goal) => (
                       <GoalItem
                         key={goal.id}
                         goal={goal}

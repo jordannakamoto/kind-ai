@@ -204,13 +204,16 @@ export default function EmojiPicker({ selectedEmoji, onEmojiSelect, onClose }: E
                 <button
                   key={category}
                   onClick={() => setActiveCategory(category)}
-                  className={`px-2 py-1.5 font-medium whitespace-nowrap transition-colors ${
+                  className={`px-2 py-1.5 font-medium whitespace-nowrap transition-colors relative ${
                     activeCategory === category
-                      ? 'text-blue-600 border-b-2 border-blue-600 bg-white'
+                      ? 'text-blue-600 bg-white'
                       : 'text-gray-600 hover:text-gray-800'
                   }`}
                 >
                   {shortName}
+                  {activeCategory === category && (
+                    <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-4 h-0.5 bg-blue-600 rounded-full"></div>
+                  )}
                 </button>
               );
             })}

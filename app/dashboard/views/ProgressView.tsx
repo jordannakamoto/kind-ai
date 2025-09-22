@@ -2,7 +2,7 @@
 
 import { addDays, eachDayOfInterval, endOfMonth, format, startOfMonth, startOfWeek, endOfWeek, isToday, isSameMonth, isSameDay } from "date-fns";
 import { useEffect, useState, useRef } from "react";
-import { ChevronLeft, ChevronRight, FileText, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Star, Feather } from "lucide-react";
 import { supabase } from "@/supabase/client";
 import { useRouter } from "next/navigation";
 import MoodSelector from "@/app/dashboard/components/MoodSelector";
@@ -17,50 +17,35 @@ const defaultMoodOptions: MoodOption[] = [
     emoji: "😊",
     label: "Happy",
     value: "happy",
-    color: "bg-gradient-to-br from-emerald-50 to-green-100",
-    borderColor: "border-emerald-300",
-    dotColor: "bg-gradient-to-r from-emerald-400 to-green-500",
-    shadowColor: "shadow-emerald-200/60"
+    color: "#34d399"
   },
   {
     id: "default_neutral",
     emoji: "😐",
     label: "Neutral",
     value: "neutral",
-    color: "bg-gradient-to-br from-amber-50 to-yellow-100",
-    borderColor: "border-amber-300",
-    dotColor: "bg-gradient-to-r from-amber-400 to-orange-400",
-    shadowColor: "shadow-amber-200/60"
+    color: "#fb923c"
   },
   {
     id: "default_sad",
     emoji: "😢",
     label: "Sad",
     value: "sad",
-    color: "bg-gradient-to-br from-sky-50 to-blue-100",
-    borderColor: "border-sky-300",
-    dotColor: "bg-gradient-to-r from-sky-400 to-blue-500",
-    shadowColor: "shadow-sky-200/60"
+    color: "#38bdf8"
   },
   {
     id: "default_angry",
     emoji: "😡",
     label: "Angry",
     value: "angry",
-    color: "bg-gradient-to-br from-rose-50 to-red-100",
-    borderColor: "border-rose-300",
-    dotColor: "bg-gradient-to-r from-rose-400 to-red-500",
-    shadowColor: "shadow-rose-200/60"
+    color: "#f87171"
   },
   {
     id: "default_tired",
     emoji: "😴",
     label: "Tired",
     value: "tired",
-    color: "bg-gradient-to-br from-violet-50 to-purple-100",
-    borderColor: "border-violet-300",
-    dotColor: "bg-gradient-to-r from-violet-400 to-purple-500",
-    shadowColor: "shadow-violet-200/60"
+    color: "#a78bfa"
   },
 ];
 
@@ -91,7 +76,7 @@ interface Goal {
 
 export default function ProgressView({ sidebarCollapsed = false }: { sidebarCollapsed?: boolean }) {
   const router = useRouter();
-  const [moods, setMoods] = useState<Record<string, string>>({});
+  const [moods, setMoods] = useState<Record<string, string[]>>({});
   const [journalEntries, setJournalEntries] = useState<Record<string, string>>({});
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
@@ -118,9 +103,19 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
   const promptIndex = selectedDate.getDate() % journalPrompts.length;
   const prompt = journalPrompts[promptIndex];
 
-  const handleMoodSelect = (date: Date, mood: string) => {
+  const handleMoodToggle = (date: Date, mood: string) => {
     const formattedDate = format(date, "yyyy-MM-dd");
-    const updatedMoods = { ...moods, [formattedDate]: mood };
+    const currentMoods = moods[formattedDate] || [];
+    const updatedMoods = { ...moods };
+
+    if (currentMoods.includes(mood)) {
+      // Remove mood if already selected
+      updatedMoods[formattedDate] = currentMoods.filter(m => m !== mood);
+    } else {
+      // Add mood if not selected
+      updatedMoods[formattedDate] = [...currentMoods, mood];
+    }
+
     setMoods(updatedMoods);
 
     // Persist to localStorage
@@ -166,10 +161,7 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
           emoji: mood.emoji,
           label: mood.label,
           value: mood.value,
-          color: mood.color || 'bg-gradient-to-br from-gray-50 to-gray-100',
-          borderColor: mood.borderColor || 'border-gray-300',
-          dotColor: mood.dotColor || 'bg-gradient-to-r from-gray-400 to-gray-500',
-          shadowColor: mood.shadowColor || 'shadow-gray-200/60',
+          color: mood.color || '#9ca3af',
           isCustom: mood.isCustom || false
         }));
 
@@ -189,7 +181,10 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
   // Handle mood options update from customizer (includes reordering, deletions, and additions)
   const handleMoodOptionsUpdate = async (updatedMoods: MoodOption[]) => {
     const previousMoods = moodOptions;
+    // Optimistically update UI
     setMoodOptions(updatedMoods);
+
+    let shouldRevert = false;
 
     // Check if this is a deletion (mood count decreased)
     if (updatedMoods.length < previousMoods.length) {
@@ -214,9 +209,11 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
 
             if (!response.ok) {
               console.error('Failed to delete custom mood');
+              shouldRevert = true;
             }
           } catch (error) {
             console.error('Error deleting custom mood:', error);
+            shouldRevert = true;
           }
         } else {
           // For default moods, just save the new order (effectively hiding them)
@@ -235,9 +232,11 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
 
             if (!response.ok) {
               console.error('Failed to update mood order');
+              shouldRevert = true;
             }
           } catch (error) {
             console.error('Error updating mood order:', error);
+            shouldRevert = true;
           }
         }
       }
@@ -265,11 +264,13 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
           const errorText = await response.text();
           console.error('Failed to update mood order:', errorText);
           console.error('Response status:', response.status);
+          shouldRevert = true;
         } else {
           console.log('Mood order updated successfully');
         }
       } catch (error) {
         console.error('Error updating mood order:', error);
+        shouldRevert = true;
       }
       return;
     }
@@ -291,10 +292,7 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
             label: newCustomMood.label,
             value: newCustomMood.value,
             colorTheme: {
-              color: newCustomMood.color,
-              borderColor: newCustomMood.borderColor,
-              dotColor: newCustomMood.dotColor,
-              shadowColor: newCustomMood.shadowColor
+              color: newCustomMood.color
             }
           })
         });
@@ -309,6 +307,7 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
           }
           console.error('Failed to save custom mood:', error);
           console.error('Response status:', response.status);
+          shouldRevert = true;
         } else {
           console.log('Custom mood saved successfully');
           // Refresh mood options to get the new mood with proper ID from database
@@ -316,7 +315,14 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
         }
       } catch (error) {
         console.error('Error saving custom mood:', error);
+        shouldRevert = true;
       }
+    }
+
+    // Revert local state on API failure
+    if (shouldRevert) {
+      console.log('Reverting mood options due to API failure');
+      setMoodOptions(previousMoods);
     }
   };
 
@@ -349,7 +355,24 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
     try {
       const savedMoods = localStorage.getItem('userMoods');
       if (savedMoods) {
-        setMoods(JSON.parse(savedMoods));
+        const parsed = JSON.parse(savedMoods);
+
+        // Migrate old single-mood format to new multi-mood format
+        const migratedMoods: Record<string, string[]> = {};
+        Object.entries(parsed).forEach(([date, mood]) => {
+          if (typeof mood === 'string') {
+            // Old format: convert single mood to array
+            migratedMoods[date] = [mood];
+          } else if (Array.isArray(mood)) {
+            // New format: keep as is
+            migratedMoods[date] = mood;
+          }
+        });
+
+        setMoods(migratedMoods);
+
+        // Save migrated format back to localStorage
+        localStorage.setItem('userMoods', JSON.stringify(migratedMoods));
       }
     } catch (error) {
       console.warn('Failed to load moods from localStorage:', error);
@@ -535,12 +558,12 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
           <div className="grid grid-cols-7 border-l border-t border-gray-200">
           {calendarDays.map((date, index) => {
             const formattedDate = format(date, "yyyy-MM-dd");
-            const mood = moods[formattedDate];
+            const dayMoods = moods[formattedDate] || [];
             const hasJournal = journalEntries[formattedDate];
             const isSelected = isSameDay(selectedDate, date);
             const isCurrentMonth = isSameMonth(date, currentMonth);
             const isTodayDate = isToday(date);
-            const moodOption = mood ? moodOptions.find(m => m.value === mood) : null;
+            const moodOptions_display = dayMoods.map(mood => moodOptions.find(m => m.value === mood)).filter(Boolean);
             const daySessions = sessions[formattedDate] || [];
             const serverGoals = goalCompletions[formattedDate] || [];
             const contextGoals = getGoalsCompletedOnDate(formattedDate);
@@ -598,17 +621,65 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
                   `}>
                     {format(date, "d")}
                   </span>
-                  {mood && (
-                    <span className="text-base">
-                      {moodOption?.emoji}
-                    </span>
+                  {moodOptions_display.length > 0 && (
+                    <div className="relative inline-block">
+                      {moodOptions_display.map((displayMood, i) => {
+                        const totalMoods = moodOptions_display.length;
+                        const maxDisplay = Math.min(5, totalMoods); // Limit to 5 for readability
+
+                        if (i >= maxDisplay) return null;
+
+                        // Calculate fan positioning - use FULL calendar cell width
+                        let transform = '';
+                        if (totalMoods === 1) {
+                          transform = 'translate(-20px, 0)'; // Far left
+                        } else if (totalMoods === 2) {
+                          transform = i === 0 ? 'translate(-35px, 0)' : 'translate(-5px, 0)';
+                        } else if (totalMoods === 3) {
+                          const positions = ['translate(-40px, -2px)', 'translate(-20px, 3px)', 'translate(0px, -2px)'];
+                          transform = positions[i];
+                        } else if (totalMoods === 4) {
+                          const positions = ['translate(-45px, -3px)', 'translate(-25px, 2px)', 'translate(-5px, 2px)', 'translate(15px, -3px)'];
+                          transform = positions[i];
+                        } else {
+                          // For 5+ moods, use FULL width - nearly touching left edge
+                          const angle = (i - (maxDisplay - 1) / 2) * 40; // 40 degree spacing for maximum spread
+                          const radius = 25; // Very large radius
+                          const x = Math.sin(angle * Math.PI / 180) * radius - 25; // Shift to far left edge
+                          const y = -Math.cos(angle * Math.PI / 180) * radius / 3;
+                          transform = `translate(${x}px, ${y}px)`;
+                        }
+
+                        return (
+                          <span
+                            key={i}
+                            className="absolute text-sm inline-block"
+                            style={{
+                              transform,
+                              zIndex: totalMoods - i,
+                              filter: displayMood?.color
+                                ? `drop-shadow(1px 0 0 ${displayMood.color}) drop-shadow(-1px 0 0 ${displayMood.color})`
+                                : undefined
+                            }}
+                          >
+                            {displayMood?.emoji}
+                          </span>
+                        );
+                      })}
+                      {/* Invisible spacer to maintain layout - wider for fan */}
+                      <span className="text-sm opacity-0" style={{
+                        minWidth: moodOptions_display.length > 2 ? '24px' : '16px',
+                        minHeight: '16px',
+                        display: 'inline-block'
+                      }}>😊</span>
+                    </div>
                   )}
                 </div>
 
                 {/* Indicators */}
                 <div className="absolute bottom-2 left-2 right-2 flex items-center gap-1.5">
                   {hasJournal && (
-                    <div className="w-2 h-2 rounded-full bg-purple-400 opacity-70" />
+                    <Feather className="w-3 h-3 text-purple-500 opacity-70" />
                   )}
                   {daySessions.length > 0 && (
                     <div className="flex items-center gap-0.5">
@@ -648,9 +719,9 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
         ) : (
           <MoodSelector
             moods={moodOptions}
-            selectedMood={moods[format(selectedDate, "yyyy-MM-dd")]}
+            selectedMoods={moods[format(selectedDate, "yyyy-MM-dd")] || []}
             selectedDate={selectedDate}
-            onMoodSelect={handleMoodSelect}
+            onMoodToggle={handleMoodToggle}
             onCustomizeClick={() => setShowMoodCustomizer(!showMoodCustomizer)}
             showMoodCustomizer={showMoodCustomizer}
             onMoodsUpdate={(moods) => {
@@ -712,9 +783,11 @@ export default function ProgressView({ sidebarCollapsed = false }: { sidebarColl
                 <button
                   key={session.id}
                   onClick={() => router.push(`/dashboard?tab=sessions&sid=${session.id}`)}
-                  className="block text-left text-gray-600 hover:text-blue-600 hover:underline transition-colors"
+                  className="block text-left text-gray-600 hover:text-blue-600 transition-colors group"
                 >
-                  {session.title || `Session ${index + 1}`}
+                  <span className="group-hover:underline decoration-1 underline-offset-2">
+                    {session.title || `Session ${index + 1}`}
+                  </span>
                 </button>
               ))}
             </div>
