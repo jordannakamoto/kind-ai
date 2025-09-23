@@ -97,6 +97,8 @@ export default function TherapyLibraryFeed({ sidebarCollapsed = false }: { sideb
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAllTags, setShowAllTags] = useState(false);
   const [panelWidth, setPanelWidth] = useState(512); // 32rem in pixels
   const [isDragging, setIsDragging] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(64); // Default to mobile width
@@ -107,8 +109,8 @@ export default function TherapyLibraryFeed({ sidebarCollapsed = false }: { sideb
       cardSize: 'full',
       contentWidth: 'auto',
       cardsPerRow: 3,
-      leftPadding: 12,
-      rightPadding: 12
+      leftPadding: 6,
+      rightPadding: 6
     };
 
     // Calculate total available width including full window
@@ -223,25 +225,50 @@ export default function TherapyLibraryFeed({ sidebarCollapsed = false }: { sideb
     return () => window.removeEventListener('resize', updateSidebarWidth);
   }, [sidebarCollapsed]);
 
-  // Handle escape key to close modal
+  // Handle escape key to close modal and tag dropdown
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && showModal) {
-        setShowModal(false);
+      if (e.key === 'Escape') {
+        if (showAllTags) {
+          setShowAllTags(false);
+        } else if (showModal) {
+          setShowModal(false);
+        }
       }
     };
 
-    if (showModal) {
-      document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
-    }
-  }, [showModal]);
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showAllTags) {
+        const target = e.target as Element;
+        if (!target.closest('[data-tag-dropdown]')) {
+          setShowAllTags(false);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    document.addEventListener('click', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showModal, showAllTags]);
 
   const allTags = ['All', ...new Set(courses.flatMap((course) => course.tags || []))];
 
-  const filteredCourses = selectedTag && selectedTag !== 'All'
-    ? courses.filter((course) => course.tags?.includes(selectedTag))
-    : courses;
+  const filteredCourses = courses.filter((course) => {
+    // Filter by tag
+    const matchesTag = !selectedTag || selectedTag === 'All' || course.tags?.includes(selectedTag);
+
+    // Filter by search query
+    const matchesSearch = !searchQuery ||
+      course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      course.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      course.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return matchesTag && matchesSearch;
+  });
 
   // Function to open modal with course preview
   const handleCourseClick = (course: Course) => {
@@ -364,7 +391,12 @@ export default function TherapyLibraryFeed({ sidebarCollapsed = false }: { sideb
 
   if (loading) {
     return (
-      <div className={`w-full max-w-4xl ${sidebarCollapsed ? 'mx-auto' : 'ml-8 lg:ml-16'} px-4 py-6 md:py-10 md:pl-10`}>
+      <div
+        className={`w-full max-w-4xl px-6 py-6 md:py-10 ${sidebarCollapsed ? 'mx-auto' : ''}`}
+        style={sidebarCollapsed ? {} : {
+          marginLeft: typeof window !== 'undefined' && window.innerWidth >= 1024 ? '80px' : '24px'
+        }}
+      >
         <div className="flex items-center justify-center min-h-[400px]">
           <LoadingDots className="text-lg" />
         </div>
@@ -374,7 +406,12 @@ export default function TherapyLibraryFeed({ sidebarCollapsed = false }: { sideb
 
   if (error) {
     return (
-      <div className={`w-full max-w-4xl ${sidebarCollapsed ? 'mx-auto' : 'ml-8 lg:ml-16'} px-4 py-6 md:py-10 md:pl-10`}>
+      <div
+        className={`w-full max-w-4xl px-6 py-6 md:py-10 ${sidebarCollapsed ? 'mx-auto' : ''}`}
+        style={sidebarCollapsed ? {} : {
+          marginLeft: typeof window !== 'undefined' && window.innerWidth >= 1024 ? '80px' : '24px'
+        }}
+      >
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <p className="text-red-600 mb-2">{error}</p>
@@ -395,7 +432,9 @@ export default function TherapyLibraryFeed({ sidebarCollapsed = false }: { sideb
       className={`transition-all duration-300 ${
         showModal
           ? 'h-screen overflow-auto'
-          : 'w-full max-w-3xl px-4 py-6 md:py-10 md:pl-10'
+          : sidebarCollapsed
+            ? 'w-full max-w-4xl mx-auto px-6 py-6 md:py-10'
+            : 'w-full max-w-4xl px-6 py-6 md:py-10'
       }`}
       style={showModal ? {
         position: 'fixed',
@@ -407,31 +446,118 @@ export default function TherapyLibraryFeed({ sidebarCollapsed = false }: { sideb
         paddingBottom: `${layoutMetrics.leftPadding}px`,
         top: 0,
         zIndex: 30
-      } : {
-        marginLeft: `${sidebarCollapsed ? 'auto' : (typeof window !== 'undefined' && window.innerWidth >= 1024 ? '256px' : '64px')}`,
-        marginRight: sidebarCollapsed ? 'auto' : '0'
+      } : sidebarCollapsed ? {} : {
+        marginLeft: typeof window !== 'undefined' && window.innerWidth >= 1024 ? '80px' : '24px'
       }}
     >
       {/* LEFT SIDE - BROWSER VIEW */}
       {/* BROWSER - Header Section */}
-      <div className="mb-8">
-        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3 md:mb-4">Therapy Library</h2>
+      <div className="mb-6">
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">Therapy Library</h2>
 
-        <div className="flex items-center space-x-2 overflow-x-auto pb-2">
-          {allTags.map((tag) => (
+        {/* Search Bar */}
+        <div className="mb-3 relative">
+          <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search courses..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
+          />
+          {searchQuery && (
             <button
-              key={tag}
-              onClick={() => setSelectedTag(tag === 'All' ? null : tag)}
-              className={`
-                px-3 py-1 text-sm rounded-full transition duration-300 
-                ${selectedTag === tag || (tag === 'All' && !selectedTag)
-                  ? 'bg-black text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}
-              `}
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
             >
-              {tag}
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
-          ))}
+          )}
+        </div>
+
+        {/* Enhanced Tag Filter with Dropdown */}
+        <div className="relative" data-tag-dropdown>
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 overflow-hidden">
+              {allTags.slice(0, 4).map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTag(tag === 'All' ? null : tag)}
+                  className={`
+                    px-3 py-1 text-sm rounded-full whitespace-nowrap transition duration-300
+                    ${selectedTag === tag || (tag === 'All' && !selectedTag)
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}
+                  `}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+
+            {allTags.length > 4 && (
+              <button
+                onClick={() => setShowAllTags(!showAllTags)}
+                className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded-full transition-colors whitespace-nowrap"
+              >
+                {showAllTags ? 'Less' : `+${allTags.length - 4}`}
+              </button>
+            )}
+          </div>
+
+          {/* Expanded Tag Dropdown */}
+          {showAllTags && allTags.length > 4 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 p-2 animate-fadeIn max-h-64 overflow-y-auto">
+              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1">
+                {allTags.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => {
+                      setSelectedTag(tag === 'All' ? null : tag);
+                      setShowAllTags(false);
+                    }}
+                    className={`
+                      px-2 py-1 text-xs rounded text-left transition-colors
+                      ${selectedTag === tag || (tag === 'All' && !selectedTag)
+                        ? 'bg-black text-white'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}
+                    `}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="truncate">{tag}</span>
+                      {tag !== 'All' && (
+                        <span className="text-[10px] opacity-60 ml-1 flex-shrink-0">
+                          {courses.filter(course => course.tags?.includes(tag)).length}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="pt-2 border-t border-gray-100 flex justify-between items-center mt-2">
+                <button
+                  onClick={() => {
+                    setSelectedTag(null);
+                    setShowAllTags(false);
+                  }}
+                  className="text-[10px] text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={() => setShowAllTags(false)}
+                  className="text-[10px] text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -451,7 +577,7 @@ export default function TherapyLibraryFeed({ sidebarCollapsed = false }: { sideb
           } : {}}
         >
           {/* BROWSER - Course Grid */}
-          {filteredCourses.map((course, index) => {
+          {filteredCourses.map((course) => {
             const progress = course.user_progress;
             const completedCount = progress?.completed_modules?.length || 0;
             const totalModules = course.modules?.length || 0;
@@ -695,8 +821,11 @@ export default function TherapyLibraryFeed({ sidebarCollapsed = false }: { sideb
 
                 {/* Close button */}
                 <button
-                  onClick={() => setShowModal(false)}
-                  className="absolute top-4 right-4 w-8 h-8 bg-white/10 hover:bg-white/20 rounded flex items-center justify-center text-white/70 hover:text-white transition-all duration-200"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowModal(false);
+                  }}
+                  className="absolute top-4 right-4 w-8 h-8 bg-white/10 hover:bg-white/20 rounded flex items-center justify-center text-white/70 hover:text-white transition-all duration-200 z-50 pointer-events-auto"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -821,12 +950,22 @@ export default function TherapyLibraryFeed({ sidebarCollapsed = false }: { sideb
                                             // Navigate to home with the specific module
                                             router.push(`/dashboard?tab=home&startModule=${module.id}&courseId=${selectedCourse.id}`);
                                           }}
-                                          className="px-2 py-1 bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-600 text-xs font-normal rounded transition-colors duration-200 flex items-center gap-1"
+                                          className="px-2 py-1 bg-gray-50 hover:bg-blue-50 text-gray-500 hover:text-blue-600 text-xs font-normal rounded transition-colors duration-200 flex items-center gap-1"
                                         >
-                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                                        </svg>
-                                          {isCompleted ? 'Replay' : isCurrent ? 'Continue Lesson' : 'Start Lesson'}
+                                        {isCompleted ? (
+                                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                                          </svg>
+                                        ) : isCurrent ? (
+                                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                                          </svg>
+                                        ) : (
+                                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z"/>
+                                          </svg>
+                                        )}
+                                          {isCompleted ? 'Replay' : isCurrent ? 'Continue' : 'Start'}
                                         </button>
                                       </div>
                                     )}
@@ -873,15 +1012,15 @@ export default function TherapyLibraryFeed({ sidebarCollapsed = false }: { sideb
                       </>
                     ) : selectedCourse.user_progress ? (
                       <>
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                         </svg>
                         <span>Continue Course</span>
                       </>
                     ) : (
                       <>
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                         </svg>
                         <span>Start Course</span>
                       </>

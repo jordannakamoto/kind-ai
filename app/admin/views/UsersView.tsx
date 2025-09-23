@@ -10,7 +10,7 @@ interface User {
   full_name?: string;
   app_stage?: string;
   created_at: string;
-  last_sign_in_at?: string;
+  last_sign_in_at?: string | null;
   session_count?: number;
   latest_session?: string;
   course_progress?: number;
@@ -76,8 +76,9 @@ export default function UsersView({ onSelectUser }: UsersViewProps) {
           let totalModules = 0;
           let completedModules = 0;
           courseProgress.forEach(progress => {
-            if (progress.courses?.therapy_modules) {
-              totalModules += progress.courses.therapy_modules.length;
+            const courses = progress.courses as any;
+            if (courses?.therapy_modules) {
+              totalModules += courses.therapy_modules.length;
               completedModules += (progress.completed_modules || []).length;
             }
           });

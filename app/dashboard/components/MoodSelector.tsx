@@ -56,7 +56,7 @@ export default function MoodSelector({
   const [reorderSuccess, setReorderSuccess] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const plusButtonRef = useRef<HTMLButtonElement>(null);
-  const successTimeoutRef = useRef<NodeJS.Timeout>();
+  const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Update position when customizer opens
   useEffect(() => {

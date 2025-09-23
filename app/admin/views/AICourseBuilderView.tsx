@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import LoadingDots from '@/components/LoadingDots';
+import ImageSelector from '../components/ImageSelector';
+import ReactMarkdown from 'react-markdown';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -37,33 +39,24 @@ export default function AICourseBuilderView() {
   const [success, setSuccess] = useState<string | null>(null);
   const [streamingContent, setStreamingContent] = useState('');
   const [pendingCourseContent, setPendingCourseContent] = useState<string | null>(null);
+  const [showImageSelector, setShowImageSelector] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Cache the initial welcome message to avoid API calls
-  const INITIAL_WELCOME_MESSAGE = `Hello! I'm here to help you create detailed, professional therapy courses using advanced AI.
+  const INITIAL_WELCOME_MESSAGE = `Hi! I'm your AI course builder, ready to help create therapeutic content.
 
-I specialize in creating:
-• Evidence-based therapeutic modules with specific interventions
-• Comprehensive session plans with detailed instructions
-• Progressive skill-building curricula (CBT, DBT, ACT, mindfulness)
-• Rich content that therapists can immediately implement
-• Trauma-informed and culturally sensitive approaches
+I can help you build:
+• Complete therapy courses with multiple modules
+• Individual session plans and interventions
+• Evidence-based content (CBT, DBT, ACT, mindfulness)
+• Age-appropriate materials for different populations
 
-Each module I create includes:
-✓ Detailed therapeutic instructions and techniques
-✓ Specific interventions for different client presentations
-✓ Comprehensive session agendas with activities
-✓ Warm, personalized greetings and transitions
+What would you like to create? Just describe your idea - for example:
+"A 6-session anxiety course for teens" or "DBT skills training for adults"
 
-To get started, tell me:
-• What therapy topic or mental health issue would you like to address?
-• Who is your target population? (age, presenting concerns, etc.)
-• What therapeutic approach do you prefer? (CBT, DBT, mindfulness, etc.)
-• How many sessions are you envisioning?
-
-What kind of course would you like to create today?`;
+You can also use the image tool (📷) to add visual elements to your courses.`;
 
   // Auto-scroll to bottom when new messages arrive or streaming content updates
   const scrollToBottom = () => {
@@ -326,6 +319,12 @@ Would you like to create another course or make any modifications to this one?`,
     setPendingCourseContent(null);
   };
 
+  const handleImageSelect = (imageUrl: string) => {
+    const imageText = `[Selected Image: ${imageUrl}]\n\n`;
+    setCurrentMessage(prev => imageText + prev);
+    setShowImageSelector(false);
+  };
+
   return (
     <div className="h-[calc(100vh-4rem)] flex bg-white">
       {/* Error Display */}
@@ -389,8 +388,8 @@ Would you like to create another course or make any modifications to this one?`,
                     </div>
 
                     {/* Message content */}
-                    <div className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap">
-                      {message.content}
+                    <div className="text-sm text-gray-900 leading-relaxed prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-code:text-blue-600 prose-code:bg-blue-50 prose-code:px-1 prose-code:rounded prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200">
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
                     </div>
 
                     {/* Save button for AI messages with course content */}
@@ -435,10 +434,10 @@ Would you like to create another course or make any modifications to this one?`,
                         {new Date().toLocaleTimeString()}
                       </span>
                     </div>
-                    <div className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap">
+                    <div className="text-sm text-gray-900 leading-relaxed prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-code:text-blue-600 prose-code:bg-blue-50 prose-code:px-1 prose-code:rounded prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200">
                       {streamingContent ? (
                         <>
-                          {streamingContent}
+                          <ReactMarkdown>{streamingContent}</ReactMarkdown>
                           <span className="inline-block w-0.5 h-4 bg-purple-500 ml-1 animate-pulse" />
                         </>
                       ) : (
@@ -472,6 +471,16 @@ Would you like to create another course or make any modifications to this one?`,
                   style={{ minHeight: '44px', maxHeight: '120px' }}
                 />
               </div>
+              <button
+                onClick={() => setShowImageSelector(true)}
+                disabled={isLoading}
+                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                title="Select Image"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </button>
               <button
                 onClick={sendMessage}
                 disabled={!currentMessage.trim() || isLoading}
@@ -584,6 +593,13 @@ Would you like to create another course or make any modifications to this one?`,
           </div>
         )}
       </div>
+
+      {/* Image Selector Modal */}
+      <ImageSelector
+        isOpen={showImageSelector}
+        onClose={() => setShowImageSelector(false)}
+        onSelect={handleImageSelect}
+      />
     </div>
   );
 }

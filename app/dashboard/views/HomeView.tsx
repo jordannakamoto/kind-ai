@@ -835,7 +835,7 @@ export default function UserCheckInConversation({ sidebarCollapsed = false, isVi
 
         // If a specific module is requested, start that module directly
         if (moduleId) {
-          const targetModule = progressData.courses?.therapy_modules?.find(m => m.id === moduleId);
+          const targetModule = progressData.courses?.therapy_modules?.find((m: any) => m.id === moduleId);
           if (targetModule) {
             // Load the specific module
             if (progressData.courses) {
@@ -914,7 +914,8 @@ export default function UserCheckInConversation({ sidebarCollapsed = false, isVi
           <p className="text-xs md:text-sm">{formatTime(duration)}</p>
           <p className="text-xs md:text-sm text-gray-400 transition-opacity duration-500 h-5 flex items-center justify-center">
             <span className={loadingVars && !started ? "opacity-0" : "opacity-100"}>
-              {!started && sessionStatus === "welcome_ready" ? "Welcome session ready." :
+              {loadingCourseFromUrl ? "Loading course..." :
+               !started && sessionStatus === "welcome_ready" ? "Welcome session ready." :
                !started && sessionStatus === "pending_regular" && module?.name !== "Welcome" ? "Preparing your check-in..." :
                !started && sessionStatus === "ready" && module?.name !== "Welcome" ? "Check-in ready." :
              conversation.isSpeaking

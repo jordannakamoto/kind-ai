@@ -97,7 +97,14 @@ export default function MoodCustomizer({ currentMoods, onMoodsUpdate, onClose }:
   const [newMood, setNewMood] = useState({
     emoji: '😊',
     label: '',
-    value: ''
+    value: '',
+    colorTheme: {
+      name: 'Default',
+      color: 'bg-gray-50',
+      borderColor: 'border-gray-300',
+      dotColor: 'bg-blue-500',
+      shadowColor: 'shadow-gray-200/60'
+    }
   });
 
   // Close pickers when clicking outside
@@ -209,7 +216,18 @@ export default function MoodCustomizer({ currentMoods, onMoodsUpdate, onClose }:
     const updatedMoods = [...moods, newMoodOption];
     setMoods(updatedMoods);
     onMoodsUpdate(updatedMoods);
-    setNewMood({ emoji: '😊', label: '', value: '' });
+    setNewMood({
+      emoji: '😊',
+      label: '',
+      value: '',
+      colorTheme: {
+        name: 'Default',
+        color: 'bg-gray-50',
+        borderColor: 'border-gray-300',
+        dotColor: 'bg-blue-500',
+        shadowColor: 'shadow-gray-200/60'
+      }
+    });
     setSelectedHue(0);
     setSelectedSaturation(50);
     setSelectedLightness(50);

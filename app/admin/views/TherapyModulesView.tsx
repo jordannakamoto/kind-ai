@@ -4,6 +4,7 @@ import { ChangeEvent, useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/supabase/client'; // Ensure this path is correct
 import LoadingDots from '@/components/LoadingDots';
+import ImageSelector from '../components/ImageSelector';
 
 interface Course {
   id: string;
@@ -45,6 +46,7 @@ export default function ComprehensiveTherapyEditor() {
   const [courseError, setCourseError] = useState<string | null>(null);
   const [courseSuccess, setCourseSuccess] = useState<string | null>(null);
   const [hasCourseChanges, setHasCourseChanges] = useState(false);
+  const [showImageSelector, setShowImageSelector] = useState(false);
   // const [searchCourseQuery, setSearchCourseQuery] = useState(''); // Can be added later
 
   // --- Module State ---
@@ -596,8 +598,44 @@ export default function ComprehensiveTherapyEditor() {
                   <textarea value={editableCourse.description || ''} onChange={e => handleCourseInputChange('description', e.target.value)} className="w-full p-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" rows={3} placeholder="Course Description" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Image Path (URL)</label>
-                  <input type="text" value={editableCourse.image_path || ''} onChange={e => handleCourseInputChange('image_path', e.target.value)} className="w-full p-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="e.g., /images/course.jpg or https://example.com/image.png" />
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Course Image</label>
+                  <div className="space-y-2">
+                    {editableCourse.image_path && (
+                      <div className="relative">
+                        <img
+                          src={editableCourse.image_path}
+                          alt="Course preview"
+                          className="w-full h-32 object-cover rounded-md border border-gray-300"
+                        />
+                        <button
+                          onClick={() => handleCourseInputChange('image_path', '')}
+                          className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={editableCourse.image_path || ''}
+                        onChange={e => handleCourseInputChange('image_path', e.target.value)}
+                        className="flex-1 p-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="Enter image URL or use the browser below"
+                      />
+                      <button
+                        onClick={() => setShowImageSelector(true)}
+                        className="px-3 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-1"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Browse
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
@@ -722,6 +760,14 @@ export default function ComprehensiveTherapyEditor() {
           )}
         </div>
       </div>
+
+      {/* Image Selector Modal */}
+      <ImageSelector
+        isOpen={showImageSelector}
+        onClose={() => setShowImageSelector(false)}
+        onSelect={(imageUrl: string) => handleCourseInputChange('image_path', imageUrl)}
+        currentImage={editableCourse.image_path}
+      />
     </div>
   );
 }
