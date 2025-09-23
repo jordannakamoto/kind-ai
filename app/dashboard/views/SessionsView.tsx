@@ -398,7 +398,7 @@ export default function UserSessionHistory({
     }, [session]);
 
     return (
-      <>
+      <div className="pt-5 px-5 pb-2 md:pt-6 md:px-7 md:pb-3">
         {/* Therapist Analysis */}
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-5">
@@ -438,7 +438,7 @@ export default function UserSessionHistory({
                   </p>
                   <button
                     onClick={toggleTherapistNotesMode}
-                    className="p-1 ml-3 hover:bg-slate-50 rounded-md transition-all duration-200 group flex-shrink-0"
+                    className="p-1 ml-3 mt-2 hover:bg-slate-50 rounded-md transition-all duration-200 group flex-shrink-0"
                   >
                     <ListChecks className={`w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-all duration-300 ${
                       therapistNotesMode === 'next_steps' ? 'text-slate-600' : ''
@@ -513,13 +513,13 @@ export default function UserSessionHistory({
                 ? 'opacity-100 pointer-events-auto z-10 scale-100'
                 : 'opacity-0 pointer-events-none z-0 scale-95'
             }`}>
-              <div className="text-sm text-slate-700 leading-relaxed">
+              <div className="text-sm text-slate-700 leading-relaxed p-4">
                 {session.summary || 'Summary not available for this session.'}
               </div>
             </div>
 
             {/* Transcript View */}
-            <div className={`absolute inset-4 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] overflow-y-auto ${
+            <div className={`absolute inset-6 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] overflow-y-auto ${
               currentMode === 'transcript'
                 ? 'opacity-100 pointer-events-auto z-10 scale-100'
                 : 'opacity-0 pointer-events-none z-0 scale-95'
@@ -554,7 +554,10 @@ export default function UserSessionHistory({
             Close
           </button>
         </div>
-      </>
+
+        {/* Visual separator at base */}
+        <div className="mt-6 h-4 bg-slate-50/80 -mx-5 md:-mx-7"></div>
+      </div>
     );
   });
 

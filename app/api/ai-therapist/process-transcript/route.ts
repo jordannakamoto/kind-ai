@@ -69,7 +69,7 @@ async function getTherapyInsights(transcript: string): Promise<ParsedTherapyInsi
 You are a therapy assistant helping summarize therapy sessions. Analyze the transcript below and return the following five outputs.
 
 1. A relevant session title (no quotes or emojis, in Title Case).
-2. A brief summary in second-person ("you") voice, speaking directly TO the client. Use "you" throughout - for example: "You discussed your anxiety about...", "You explored strategies for...", "You reflected on...". Never use third-person pronouns like "the individual", "they", "the client", etc.
+2. A brief summary in second-person ("you") voice, speaking directly TO the client. Keep it concise - around 2 sentences maximum. Use "you" throughout - for example: "You discussed your anxiety about...", "You explored strategies for...", "You reflected on...". Never use third-person pronouns like "the individual", "they", "the client", etc.
 3. A "Goals:" section - Extract any actionable goals, intentions, or things the client wants to work on. Look for statements about what they want to achieve, improve, or change. If no explicit goals, infer from their concerns.
 4. A "Themes:" section - Key topics or patterns discussed in the session.
 5. A "Bio:" section (only if new information emerges) - This should be in THIRD-PERSON as therapist notes about the client (e.g., "The client is experiencing...", "They mentioned...").
@@ -140,7 +140,7 @@ The **Therapy Summary** should be written in second-person ("you") voice, speaki
 WRONG EXAMPLE: "Sessions have continued to explore... The individual has acknowledged..."
 CORRECT EXAMPLE: "You have continued to explore... You've acknowledged..."
 
-The final compiled therapy Summary should be very readable and at maximum 4 sentences, always in second-person voice.
+The final compiled therapy Summary should be very readable and around 2 sentences maximum, always in second-person voice.
 
 CRITICAL FOR GOALS: You MUST preserve ALL existing old goals. Never remove or replace them. Only add 1-2 genuinely new goals to the TOP of the list if they are distinct from existing ones. If no new goals emerge from this session, return the existing goals unchanged. The maximum number of new goals to add per session is 2.
 

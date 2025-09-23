@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useRef, useEffect, Fragment } from 'react';
-import { createPortal } from 'react-dom';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { Plus, X } from 'lucide-react';
-import { MoodOption } from './MoodCustomizer';
+
 import MoodCustomizer from './MoodCustomizer';
+import { MoodOption } from './MoodCustomizer';
+import { createPortal } from 'react-dom';
 
 interface MoodSelectorProps {
   moods: MoodOption[];
-  selectedMoods: string[]; // Changed from single to array
+selectedMoods: string[]; // Changed from single to array
   selectedDate: Date;
   onMoodToggle: (date: Date, mood: string) => void; // Changed from select to toggle
   onCustomizeClick: () => void;

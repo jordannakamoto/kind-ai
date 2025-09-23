@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import AIChatView from './views/AIChatView'; // Import AIChatView
+import AICourseBuilderView from './views/AICourseBuilderView'; // Import AI Course Builder
 import LogsView from './views/LogsView';
 import SessionView from './views/SessionView';
 import SystemPromptsView from './views/SystemPromptsView'; // Import SystemPromptsView
@@ -15,7 +16,7 @@ import { useRouter } from 'next/navigation';
 export default function AdminDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [activeView, setActiveView] = useState<'users' | 'logs' | 'ai-chat' | 'therapy-modules' | 'sessions' | 'system-prompts'>('users'); // Add 'system-prompts'
+  const [activeView, setActiveView] = useState<'users' | 'logs' | 'ai-chat' | 'ai-course-builder' | 'therapy-modules' | 'sessions' | 'system-prompts'>('users'); // Add AI Course Builder
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -45,6 +46,8 @@ export default function AdminDashboard() {
         return <SessionView />;
       case 'ai-chat': // Add AIChatView to the switch case
         return <AIChatView />;
+      case 'ai-course-builder': // Add AI Course Builder to the switch case
+        return <AICourseBuilderView />;
       case 'therapy-modules': // Add this case
         return <TherapyModulesView />;
       case 'system-prompts': // Add SystemPromptsView to the switch case
@@ -111,12 +114,29 @@ export default function AdminDashboard() {
           
           <button
             onClick={() => {
+              setActiveView('ai-course-builder');
+              setSelectedUserId(null);
+            }}
+            className={`w-full text-left py-2 px-3 rounded-lg flex items-center space-x-2 transition-all duration-200 ${
+              activeView === 'ai-course-builder'
+                ? 'bg-indigo-50 text-indigo-700 font-medium'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+            <span>AI Course Builder</span>
+          </button>
+
+          <button
+            onClick={() => {
               setActiveView('therapy-modules');
               setSelectedUserId(null);
             }}
             className={`w-full text-left py-2 px-3 rounded-lg flex items-center space-x-2 transition-all duration-200 ${
-              activeView === 'therapy-modules' 
-                ? 'bg-indigo-50 text-indigo-700 font-medium' 
+              activeView === 'therapy-modules'
+                ? 'bg-indigo-50 text-indigo-700 font-medium'
                 : 'text-gray-700 hover:bg-gray-50'
             }`}
           >

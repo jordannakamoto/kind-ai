@@ -801,8 +801,10 @@ export default function UserCheckInConversation({ sidebarCollapsed = false, isVi
   useEffect(() => {
     const startCourseId = searchParams.get('startCourse');
     const continueCourseId = searchParams.get('continueCourse');
+    const startModuleId = searchParams.get('startModule');
+    const courseId = searchParams.get('courseId');
 
-    const handleCourseFromUrl = async (courseId: string, isNew: boolean) => {
+    const handleCourseFromUrl = async (courseId: string, isNew: boolean, moduleId?: string) => {
       if (!user || started) return;
 
       setLoadingCourseFromUrl(true);
@@ -830,10 +832,25 @@ export default function UserCheckInConversation({ sidebarCollapsed = false, isVi
         }
 
         console.log(isNew ? 'Auto-starting newly enrolled course:' : 'Auto-continuing course:', progressData.courses?.title);
-        
-        // Handle the course continuation
-        await handleContinueCourse(progressData);
-        
+
+        // If a specific module is requested, start that module directly
+        if (moduleId) {
+          const targetModule = progressData.courses?.therapy_modules?.find(m => m.id === moduleId);
+          if (targetModule) {
+            // Load the specific module
+            if (progressData.courses) {
+              setActiveCourse(progressData.courses);
+            }
+            await initializeSessionWithModule(targetModule);
+          } else {
+            // Module not found, fall back to regular continue
+            await handleContinueCourse(progressData);
+          }
+        } else {
+          // Handle the course continuation normally
+          await handleContinueCourse(progressData);
+        }
+
         // Clear the URL parameter
         router.replace('/dashboard?tab=home');
       } catch (error: any) {
@@ -845,11 +862,14 @@ export default function UserCheckInConversation({ sidebarCollapsed = false, isVi
     };
 
     // Check immediately when user is available, don't wait for loadingVars
-    if (startCourseId && user && !started) {
+    if (startModuleId && courseId && user && !started) {
+      // Handle specific module start from DiscoverView
+      handleCourseFromUrl(courseId, false, startModuleId);
+    } else if (startCourseId && user && !started) {
       handleCourseFromUrl(startCourseId, true);
     } else if (continueCourseId && user && !started) {
       handleCourseFromUrl(continueCourseId, false);
-    } else if (!startCourseId && !continueCourseId && loadingCourseFromUrl) {
+    } else if (!startCourseId && !continueCourseId && !startModuleId && loadingCourseFromUrl) {
       // No course parameters but loading state is true, reset it
       setLoadingCourseFromUrl(false);
     }
