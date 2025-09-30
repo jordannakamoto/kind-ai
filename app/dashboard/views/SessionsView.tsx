@@ -321,9 +321,9 @@ export default function UserSessionHistory({
     }, [session]);
 
     const [feedback, setFeedback] = useState<{
-      next_steps: string;
-      insight: string;
-      challenge: string;
+      next_steps?: string;
+      insight?: string;
+      challenge?: string;
     } | null>(initialFeedback);
 
     // Initialize feedbackLoading to true if we have a transcript that will trigger a fetch, unless cached data exists
@@ -416,26 +416,29 @@ export default function UserSessionHistory({
           {feedback ? (
             <div className="space-y-7">
               {/* Key Insight */}
-              <div className="space-y-3 animate-fade-in-up" style={{animationDelay: '0.1s', animationFillMode: 'both'}}>
-                <div className="flex items-center gap-2">
-                  <Lightbulb className="w-4 h-4 text-slate-600" />
-                  <h5 className="text-sm font-semibold text-slate-800">Key Insight</h5>
+              {feedback.insight && (
+                <div className="space-y-3 animate-fade-in-up" style={{animationDelay: '0.1s', animationFillMode: 'both'}}>
+                  <div className="flex items-center gap-2">
+                    <Lightbulb className="w-4 h-4 text-slate-600" />
+                    <h5 className="text-sm font-semibold text-slate-800">Key Insight</h5>
+                  </div>
+                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line pl-6">
+                    {feedback.insight.replace(/^[-•*]\s*/, '')}
+                  </p>
                 </div>
-                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line pl-6">
-                  {feedback.insight.replace(/^[-•*]\s*/, '')}
-                </p>
-              </div>
+              )}
 
               {/* Challenge Identified */}
-              <div className="space-y-3 animate-fade-in-up" style={{animationDelay: '0.2s', animationFillMode: 'both'}}>
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-slate-600" />
-                  <h5 className="text-sm font-semibold text-slate-800">Challenge Identified</h5>
-                </div>
-                <div className="flex items-start justify-between">
-                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line pl-6 flex-1">
-                    {feedback.challenge.replace(/^[-•*]\s*/, '')}
-                  </p>
+              {feedback.challenge && (
+                <div className="space-y-3 animate-fade-in-up" style={{animationDelay: '0.2s', animationFillMode: 'both'}}>
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-slate-600" />
+                    <h5 className="text-sm font-semibold text-slate-800">Challenge Identified</h5>
+                  </div>
+                  <div className="flex items-start justify-between">
+                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line pl-6 flex-1">
+                      {feedback.challenge.replace(/^[-•*]\s*/, '')}
+                    </p>
                   <button
                     onClick={toggleTherapistNotesMode}
                     className="p-1 ml-3 mt-2 hover:bg-slate-50 rounded-md transition-all duration-200 group flex-shrink-0"
@@ -445,17 +448,19 @@ export default function UserSessionHistory({
                     }`} />
                   </button>
                 </div>
-              </div>
+                </div>
+              )}
 
               {/* Next Steps - Collapsible */}
-              <div className="space-y-3">
-                <div className={`overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-                  therapistNotesMode === 'next_steps'
-                    ? 'max-h-96 opacity-100'
-                    : 'max-h-0 opacity-0'
-                }`}>
-                  <div className="pl-6 space-y-2 pt-1">
-                    {feedback.next_steps.split('\n').map((step, index) => {
+              {feedback.next_steps && (
+                <div className="space-y-3">
+                  <div className={`overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                    therapistNotesMode === 'next_steps'
+                      ? 'max-h-96 opacity-100'
+                      : 'max-h-0 opacity-0'
+                  }`}>
+                    <div className="pl-6 space-y-2 pt-1">
+                      {feedback.next_steps.split('\n').map((step, index) => {
                       const trimmedStep = step.trim();
                       if (!trimmedStep) return null;
 
@@ -477,10 +482,11 @@ export default function UserSessionHistory({
                           <span className="text-sm text-slate-700 leading-relaxed">{cleanedStep}</span>
                         </div>
                       );
-                    })}
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : !feedbackLoading && (
             <div className="text-center py-8 text-slate-500">
